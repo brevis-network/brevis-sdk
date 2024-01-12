@@ -14,18 +14,16 @@ import (
 )
 
 func TestCircuit(t *testing.T) {
-	q, err := sdk.NewQuerier("") // TODO use your eth rpc
+	q, err := sdk.NewQuerier("https://eth-mainnet.nodereal.io/v1/0af795b55d124a61b86836461ece1dee") // TODO use your eth rpc
 	check(err)
 
-	blockNum := 18812391
 	q.AddTransaction(sdk.TransactionQuery{
-		TxHash: common.HexToHash("0ace75f32c286138f0ccf31c27089f521a60507d77c3ef4762bf9379fb008f55"),
+		TxHash: common.HexToHash("8b805e46758497c6b32d0bf3cad3b3b435afeb0adb649857f24e424f75b79e46"),
 	})
 
-	addr := common.HexToAddress("0x3796Ca5ed43eb37C5C410765A5BfEfB49204cFB4")
-	nonce := 10
-	guest := &GuestCircuit{UserAddr: sdk.ParseAddress(addr), Nonce: nonce}
-	guestAssignment := &GuestCircuit{UserAddr: sdk.ParseAddress(addr), Nonce: nonce}
+	addr := common.HexToAddress("0x773fb4DB8218C8BB532c26ADBb6A8FD526c50f61")
+	guest := &GuestCircuit{UserAddr: sdk.ParseAddress(addr)}
+	guestAssignment := &GuestCircuit{UserAddr: sdk.ParseAddress(addr)}
 
 	w, _, err := q.BuildWitness(context.Background(), guest)
 	check(err)
@@ -33,8 +31,8 @@ func TestCircuit(t *testing.T) {
 	// checking commitment hash
 	var packed []byte
 	packed = append(packed, addr[:]...)
-	packed = append(packed, common.LeftPadBytes(big.NewInt(int64(blockNum)).Bytes(), 8)...)
-	packed = append(packed, common.LeftPadBytes(big.NewInt(int64(nonce)).Bytes(), 8)...)
+	packed = append(packed, common.LeftPadBytes(big.NewInt(int64(17077844)).Bytes(), 8)...)
+	packed = append(packed, common.LeftPadBytes(big.NewInt(int64(0)).Bytes(), 8)...)
 	outputHash := crypto.Keccak256(packed)
 	require.Equal(t, common.BytesToHash(outputHash), w.OutputCommitment.Hash())
 

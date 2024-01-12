@@ -1,4 +1,4 @@
-package weth
+package tradingvolume
 
 import (
 	"context"
@@ -36,6 +36,9 @@ func TestCircuit(t *testing.T) {
 			{LogIndex: 2, IsTopic: true, FieldIndex: 1},  // field: USDC.Transfer.from
 		},
 	})
+	// More receipts can be added, but in this example we only add one to keep it simple
+	// q.AddReceipt(...)
+	// q.AddReceipt(...)
 
 	// Initialize our GuestCircuit and prepare the circuit assignment
 	guest := &GuestCircuit{

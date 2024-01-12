@@ -31,6 +31,11 @@ func TestCircuit(t *testing.T) {
 		Address:  account,
 		Slot:     common.BytesToHash(slot),
 	})
+	// More slots can be added to be batch proven, but in this example we use only
+	// one to keep it simple
+	// q.AddStorageSlot(...)
+	// q.AddStorageSlot(...)
+	// q.AddStorageSlot(...)
 
 	guest := &GuestCircuit{}
 	guestAssignment := &GuestCircuit{}

@@ -6,7 +6,6 @@ import (
 
 type GuestCircuit struct {
 	UserAddr sdk.Variable
-	Nonce    sdk.Variable
 }
 
 var _ sdk.GuestCircuit = &GuestCircuit{}
@@ -17,8 +16,6 @@ func (c *GuestCircuit) Allocate() (maxReceipts, maxSlots, maxTransactions int) {
 
 func (c *GuestCircuit) Define(api *sdk.CircuitAPI, witness sdk.Witness) error {
 	txs := sdk.NewDataStream(api, witness.Transactions)
-
-	txs.AssertEach(func(tx sdk.Transaction) sdk.Variable { return api.Equal(tx.From, c.UserAddr) })
 
 	minNonceBlock := txs.Reduce2([2]sdk.Variable{sdk.MaxInt, 0},
 		func(acc [2]sdk.Variable, tx sdk.Transaction) (newAcc [2]sdk.Variable) {
@@ -33,11 +30,10 @@ func (c *GuestCircuit) Define(api *sdk.CircuitAPI, witness sdk.Witness) error {
 
 	minNonce := minNonceBlock[0]
 	block := minNonceBlock[1]
-	api.AssertIsEqual(minNonce, c.Nonce)
 
 	api.OutputAddress(c.UserAddr)
 	api.OutputUint(64, block)
-	api.OutputUint(64, c.Nonce)
+	api.OutputUint(64, minNonce)
 
 	return nil
 }

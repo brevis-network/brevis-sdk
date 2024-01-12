@@ -1,4 +1,4 @@
-package weth
+package tradingvolume
 
 import (
 	"github.com/celer-network/brevis-sdk/circuits/sdk/sdk"

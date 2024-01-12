@@ -2,7 +2,9 @@
 
 ## Table of Content
 
-- [Account age](age/circuit.go)
-- [proving a storage slot](slot/circuit.go)
-  - [example app contract](../../../contracts/contracts/SlotValueExample.sol)
-- [WETH-USDC volume](weth/circuit.go)
+- [Proving account age](age/circuit.go)
+  - [Example contract](../../../contracts/contracts/examples/age/AccountAgeExample.sol)
+- [Proving a storage slot](slot/circuit.go)
+  - [Example contract](../../../contracts/contracts/examples/slot/SlotValueExample.sol)
+- [Proving uniswap WETH-USDC trading volume](tradingvolume/circuit.go)
+  - [Example contract](../../../contracts/contracts/examples/tradingvolume/TradingVolumeExample.sol)
