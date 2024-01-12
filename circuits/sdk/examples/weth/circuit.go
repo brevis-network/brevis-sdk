@@ -72,7 +72,7 @@ func (c *GuestCircuit) Define(api *sdk.CircuitAPI, witness sdk.Witness) error {
 			// 1. Check that the user address related to the swaps is consistent across all
 			// receipts
 			api.Equal(userAddr, c.UserAddr),
-			// 2. Check that the contract address of each even field is the expected contract
+			// 2. Check that the contract address of each log field is the expected contract
 			api.Equal(l.Fields[0].Contract, UsdcPoolAddress),
 			api.Equal(l.Fields[1].Contract, UsdcPoolAddress),
 			api.Equal(l.Fields[2].Contract, UsdcAddress),
