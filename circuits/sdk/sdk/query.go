@@ -148,11 +148,11 @@ func (q *Querier) BuildWitness(
 	}
 
 	// transaction
-	txs, blockNums, err := q.executeTransactionQueries(ctx)
+	to, ts, err := q.executeTransactionQueries(ctx)
 	if err != nil {
 		return buildWitnessErr("failed to execute transaction queries", err)
 	}
-	err = q.assignTransactions(w, txs, blockNums)
+	err = q.assignTransactions(w, to, ts)
 	if err != nil {
 		return buildWitnessErr("failed to assign witness from transaction queries", err)
 	}
