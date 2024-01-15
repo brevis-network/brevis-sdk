@@ -70,11 +70,16 @@ type DataPoints[T any] struct {
 	Toggles []Variable
 }
 
-func NewDataPoints[T any](maxCount int) DataPoints[T] {
-	return DataPoints[T]{
+func NewDataPoints[T any](maxCount int, newEmpty func() T) DataPoints[T] {
+	dp := DataPoints[T]{
 		Raw:     make([]T, maxCount),
 		Toggles: make([]Variable, maxCount),
 	}
+	for i := range dp.Raw {
+		dp.Raw[i] = newEmpty()
+		dp.Toggles[i] = 0
+	}
+	return dp
 }
 
 func (dp DataPoints[T]) Clone() DataPoints[T] {
