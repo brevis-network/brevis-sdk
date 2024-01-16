@@ -13,21 +13,21 @@ import (
 )
 
 type GuestCircuit interface {
-	Define(api *CircuitAPI, witness Witness) error
+	Define(api *CircuitAPI, in CircuitInput) error
 	Allocate() (maxReceipts, maxSlots, maxTransactions int)
 }
 
 type HostCircuit struct {
 	api frontend.API
 
-	Witness Witness
-	guest   GuestCircuit `gnark:"-"`
+	Input CircuitInput
+	guest GuestCircuit `gnark:"-"`
 }
 
-func NewHostCircuit(w Witness, guest GuestCircuit) *HostCircuit {
+func NewHostCircuit(in CircuitInput, guest GuestCircuit) *HostCircuit {
 	return &HostCircuit{
-		Witness: w,
-		guest:   guest,
+		Input: in,
+		guest: guest,
 	}
 }
 
@@ -38,14 +38,14 @@ func (c *HostCircuit) Define(gapi frontend.API) error {
 	if err != nil {
 		return err
 	}
-	err = c.guest.Define(api, c.Witness)
+	err = c.guest.Define(api, c.Input)
 	if err != nil {
 		return fmt.Errorf("error building user-defined circuit %s", err.Error())
 	}
 	outputCommit := c.commitOutput(api.output)
 	dryRunOutputCommit = outputCommit
-	api.AssertIsEqual(outputCommit[0], c.Witness.OutputCommitment[0])
-	api.AssertIsEqual(outputCommit[1], c.Witness.OutputCommitment[1])
+	api.AssertIsEqual(outputCommit[0], c.Input.OutputCommitment[0])
+	api.AssertIsEqual(outputCommit[1], c.Input.OutputCommitment[1])
 	return nil
 }
 
@@ -67,25 +67,25 @@ func (c *HostCircuit) commitInput() error {
 	}
 
 	var inputCommits []Variable
-	for i, receipt := range c.Witness.Receipts.Raw {
+	for i, receipt := range c.Input.Receipts.Raw {
 		packed := receipt.pack(c.api)
-		inputCommits = append(inputCommits, hashOrZero(c.Witness.Receipts.Toggles[i], packed))
+		inputCommits = append(inputCommits, hashOrZero(c.Input.Receipts.Toggles[i], packed))
 	}
-	for i, slot := range c.Witness.StorageSlots.Raw {
+	for i, slot := range c.Input.StorageSlots.Raw {
 		packed := slot.pack(c.api)
-		inputCommits = append(inputCommits, hashOrZero(c.Witness.StorageSlots.Toggles[i], packed))
+		inputCommits = append(inputCommits, hashOrZero(c.Input.StorageSlots.Toggles[i], packed))
 	}
-	for i, tx := range c.Witness.Transactions.Raw {
+	for i, tx := range c.Input.Transactions.Raw {
 		packed := tx.pack(c.api)
-		inputCommits = append(inputCommits, hashOrZero(c.Witness.Transactions.Toggles[i], packed))
+		inputCommits = append(inputCommits, hashOrZero(c.Input.Transactions.Toggles[i], packed))
 	}
 
 	// adding constraint for input commitments (both effective commitments and dummies)
 	for i := 0; i < c.dataLen(); i++ {
-		c.api.AssertIsEqual(c.Witness.InputCommitments[i], inputCommits[i])
+		c.api.AssertIsEqual(c.Input.InputCommitments[i], inputCommits[i])
 	}
 
-	toggles := c.Witness.Toggles()
+	toggles := c.Input.Toggles()
 	// sanity check, this shouldn't happen
 	if len(toggles) != NumMaxDataPoints {
 		panic(fmt.Errorf("toggles len %d != NumMaxDataPoints %d", len(toggles), NumMaxDataPoints))
@@ -94,9 +94,9 @@ func (c *HostCircuit) commitInput() error {
 	packed := packBitsToFr(c.api, toggles)
 	hasher.Write(packed...)
 	togglesCommit := hasher.Sum()
-	c.api.AssertIsEqual(togglesCommit, c.Witness.TogglesCommitment)
+	c.api.AssertIsEqual(togglesCommit, c.Input.TogglesCommitment)
 
-	assertInputUniqueness(c.api, c.Witness.InputCommitments)
+	assertInputUniqueness(c.api, c.Input.InputCommitments)
 
 	return nil
 }
@@ -134,11 +134,11 @@ func assertInputUniqueness(api frontend.API, in []frontend.Variable) {
 }
 
 func (c *HostCircuit) dataLen() int {
-	return len(c.Witness.Receipts.Raw) + len(c.Witness.StorageSlots.Raw) + len(c.Witness.Transactions.Raw)
+	return len(c.Input.Receipts.Raw) + len(c.Input.StorageSlots.Raw) + len(c.Input.Transactions.Raw)
 }
 
 func (c *HostCircuit) validateInput() error {
-	w := c.Witness
+	w := c.Input
 	inputLen := len(w.Receipts.Raw) + len(w.StorageSlots.Raw) + len(w.Transactions.Raw)
 	if inputLen > NumMaxDataPoints {
 		return fmt.Errorf("input len must be less than %d", NumMaxDataPoints)
@@ -215,10 +215,10 @@ func bits2Bytes(data []Variable) []byte {
 var dryRunOutput []byte
 var dryRunOutputCommit OutputCommitment
 
-func dryRun(witness Witness, guest GuestCircuit) (OutputCommitment, []byte, error) {
+func dryRun(in CircuitInput, guest GuestCircuit) (OutputCommitment, []byte, error) {
 	dryRunOutputCommit = OutputCommitment{nil, nil}
-	circuit := &HostCircuit{Witness: witness, guest: guest}
-	assignment := &HostCircuit{Witness: witness, guest: guest}
+	circuit := &HostCircuit{Input: in, guest: guest}
+	assignment := &HostCircuit{Input: in, guest: guest}
 
 	err := test.IsSolved(circuit, assignment, ecc.BLS12_377.ScalarField())
 	if err != nil {

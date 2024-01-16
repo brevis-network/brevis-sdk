@@ -14,8 +14,8 @@ func (c *GuestCircuit) Allocate() (maxReceipts, maxSlots, maxTransactions int) {
 	return 1, 1, 1
 }
 
-func (c *GuestCircuit) Define(api *sdk.CircuitAPI, witness sdk.Witness) error {
-	txs := sdk.NewDataStream(api, witness.Transactions)
+func (c *GuestCircuit) Define(api *sdk.CircuitAPI, in sdk.CircuitInput) error {
+	txs := sdk.NewDataStream(api, in.Transactions)
 
 	minNonceBlock := txs.Reduce2([2]sdk.Variable{sdk.MaxInt, 0},
 		func(acc [2]sdk.Variable, tx sdk.Transaction) (newAcc [2]sdk.Variable) {

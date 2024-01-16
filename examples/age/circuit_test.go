@@ -23,7 +23,7 @@ func TestCircuit(t *testing.T) {
 	guest := &GuestCircuit{UserAddr: sdk.ParseAddress(addr)}
 	guestAssignment := &GuestCircuit{UserAddr: sdk.ParseAddress(addr)}
 
-	w, _, err := q.BuildWitness(context.Background(), guest)
+	w, _, err := q.BuildCircuitInput(context.Background(), guest)
 	check(err)
 
 	// checking commitment hash

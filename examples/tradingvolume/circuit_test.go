@@ -49,14 +49,14 @@ func TestCircuit(t *testing.T) {
 	}
 
 	// Execute the added queries and package the query results into circuit inputs (witness)
-	w, output, err := q.BuildWitness(context.Background(), guest)
+	w, output, err := q.BuildCircuitInput(context.Background(), guest)
 	check(err)
 
 	// `output` is the abi encoded data that we added through api.OutputXXX() in the guest circuit.
 	// We want to use this later to call Brevis gateway so that when brevis submits the proof on-chain,
 	// we can directly get our output data in the contract callback.
 	// The following two lines aren't necessary, but let's check and see how it's related to
-	// `Witness.OutputCommitment`
+	// `CircuitInput.OutputCommitment`
 	fmt.Printf("output added through api.OutputXXX: %x\n", output)
 	hashed := common.BytesToHash(crypto.Keccak256(output))
 	fmt.Printf("output commitment: %x\n", output)
@@ -108,9 +108,9 @@ func TestCircuit(t *testing.T) {
 	// Once you have the verifying key you should also save its hash in your contract
 	// so that when a proof via Brevis is submitted on-chain you can verify that
 	// Brevis indeed used your verifying key to verify your circuit computations
-	vkHash, err := sdk.VkHash(vk)
-	check(err)
-	fmt.Printf("verifying key hash: %x\n", vkHash)
+	//vkHash, err := sdk.VkHash(vk)
+	//check(err)
+	//fmt.Printf("verifying key hash: %x\n", vkHash)
 
 	fmt.Println("prove")
 	// pk can also be read from disk using pk.ReadFrom

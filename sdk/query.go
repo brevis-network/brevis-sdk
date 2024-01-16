@@ -80,37 +80,38 @@ func NewQuerier(rpcUrl string) (*Querier, error) {
 }
 
 // AddReceipt adds the ReceiptQuery to be queried. If an index is specified, the
-// query result will be assigned to the specified index of Witness.Receipts.
+// query result will be assigned to the specified index of CircuitInput.Receipts.
 func (q *Querier) AddReceipt(query ReceiptQuery, index ...int) {
 	q.receiptQueries.add(query, index...)
 }
 
 // AddStorageSlot adds the StorageSlotQuery to be queried. If an index is
 // specified, the query result will be assigned to the specified index of
-// Witness.StorageSlots.
+// CircuitInput.StorageSlots.
 func (q *Querier) AddStorageSlot(query StorageSlotQuery, index ...int) {
 	q.storageQueries.add(query, index...)
 }
 
 // AddTransaction adds the TransactionQuery to be queried. If an index is
 // specified, the query result will be assigned to the specified index of
-// Witness.Transactions.
+// CircuitInput.Transactions.
 func (q *Querier) AddTransaction(query TransactionQuery, index ...int) {
 	q.txQueries.add(query, index...)
 }
 
-// BuildWitness executes all added queries and package the query results into circuit assignment (the Witness struct)
-// The provided ctx is used when performing network calls to the provided blockchain RPC.
-func (q *Querier) BuildWitness(
+// BuildCircuitInput executes all added queries and package the query results
+// into circuit assignment (the CircuitInput struct) The provided ctx is used
+// when performing network calls to the provided blockchain RPC.
+func (q *Querier) BuildCircuitInput(
 	ctx context.Context,
 	guestCircuit GuestCircuit,
-) (witness Witness, abiEncodedOutput []byte, err error) {
+) (in CircuitInput, abiEncodedOutput []byte, err error) {
 
-	// 1. call rpc to fetch data for each query type, then assign the corresponding witness fields
+	// 1. call rpc to fetch data for each query type, then assign the corresponding input fields
 	// 2. mimc hash data at each position to generate and assign input commitments and toggles commitment
 	// 3. dry-run user circuit to generate output and output commitment
 
-	w := &Witness{}
+	v := &CircuitInput{}
 	maxReceipts, maxSlots, maxTxs := guestCircuit.Allocate()
 	err = q.checkAllocations(guestCircuit)
 	if err != nil {
@@ -118,13 +119,13 @@ func (q *Querier) BuildWitness(
 	}
 
 	// initialize
-	w.Receipts = NewDataPoints[Receipt](maxReceipts, NewReceipt)
-	w.StorageSlots = NewDataPoints[StorageSlot](maxSlots, NewStorageSlot)
-	w.Transactions = NewDataPoints[Transaction](maxTxs, NewTransaction)
-	w.OutputCommitment = OutputCommitment{0, 0}
-	w.InputCommitments = make([]Variable, NumMaxDataPoints)
-	for i := range w.InputCommitments {
-		w.InputCommitments[i] = 0
+	v.Receipts = NewDataPoints[Receipt](maxReceipts, NewReceipt)
+	v.StorageSlots = NewDataPoints[StorageSlot](maxSlots, NewStorageSlot)
+	v.Transactions = NewDataPoints[Transaction](maxTxs, NewTransaction)
+	v.OutputCommitment = OutputCommitment{0, 0}
+	v.InputCommitments = make([]Variable, NumMaxDataPoints)
+	for i := range v.InputCommitments {
+		v.InputCommitments[i] = 0
 	}
 
 	// receipt
@@ -132,9 +133,9 @@ func (q *Querier) BuildWitness(
 	if err != nil {
 		return buildWitnessErr("failed to execute receipt queries", err)
 	}
-	err = q.assignReceipts(w, ro, rs)
+	err = q.assignReceipts(v, ro, rs)
 	if err != nil {
-		return buildWitnessErr("failed to assign witness from receipt queries", err)
+		return buildWitnessErr("failed to assign in from receipt queries", err)
 	}
 
 	// storage
@@ -142,9 +143,9 @@ func (q *Querier) BuildWitness(
 	if err != nil {
 		return buildWitnessErr("failed to execute storage queries", err)
 	}
-	err = q.assignStorageSlots(w, vo, vs)
+	err = q.assignStorageSlots(v, vo, vs)
 	if err != nil {
-		return buildWitnessErr("failed to assign witness from storage queries", err)
+		return buildWitnessErr("failed to assign in from storage queries", err)
 	}
 
 	// transaction
@@ -152,25 +153,25 @@ func (q *Querier) BuildWitness(
 	if err != nil {
 		return buildWitnessErr("failed to execute transaction queries", err)
 	}
-	err = q.assignTransactions(w, to, ts)
+	err = q.assignTransactions(v, to, ts)
 	if err != nil {
-		return buildWitnessErr("failed to assign witness from transaction queries", err)
+		return buildWitnessErr("failed to assign in from transaction queries", err)
 	}
 
 	// commitment
-	q.assignInputCommitment(w)
-	q.assignToggleCommitment(w)
+	q.assignInputCommitment(v)
+	q.assignToggleCommitment(v)
 
-	fmt.Printf("input commits: %d\n", w.InputCommitments)
+	fmt.Printf("input commits: %d\n", v.InputCommitments)
 
 	// dry run without assigning the output commitment first to compute the output commitment using the user circuit
-	outputCommit, output, err := dryRun(*w, guestCircuit)
+	outputCommit, output, err := dryRun(*v, guestCircuit)
 	if err != nil {
 		return buildWitnessErr("failed to generate output commitment", err)
 	}
-	w.OutputCommitment = outputCommit
+	v.OutputCommitment = outputCommit
 
-	return *w, output, nil
+	return *v, output, nil
 }
 
 func (q *Querier) checkAllocations(cb GuestCircuit) error {
@@ -192,7 +193,7 @@ func (q *Querier) checkAllocations(cb GuestCircuit) error {
 	return nil
 }
 
-func (q *Querier) assignInputCommitment(w *Witness) {
+func (q *Querier) assignInputCommitment(w *CircuitInput) {
 	hasher := mimc.NewMiMC()
 	// assign 0 to input commit for dummy slots and actual data hash for non-dummies
 	j := 0
@@ -225,11 +226,11 @@ func doHash(hasher hash.Hash, packed []*big.Int) *big.Int {
 	return ret
 }
 
-func (q *Querier) assignToggleCommitment(w *Witness) {
+func (q *Querier) assignToggleCommitment(in *CircuitInput) {
 	var toggles []Variable
-	toggles = append(toggles, w.Receipts.Toggles...)
-	toggles = append(toggles, w.StorageSlots.Toggles...)
-	toggles = append(toggles, w.Transactions.Toggles...)
+	toggles = append(toggles, in.Receipts.Toggles...)
+	toggles = append(toggles, in.StorageSlots.Toggles...)
+	toggles = append(toggles, in.Transactions.Toggles...)
 
 	var toggleBits []uint
 	for _, t := range toggles {
@@ -240,7 +241,7 @@ func (q *Querier) assignToggleCommitment(w *Witness) {
 	for _, v := range packed {
 		hasher.Write(common.LeftPadBytes(v.Bytes(), 32))
 	}
-	w.TogglesCommitment = new(big.Int).SetBytes(hasher.Sum(nil))
+	in.TogglesCommitment = new(big.Int).SetBytes(hasher.Sum(nil))
 }
 
 func (q *Querier) executeReceiptQueries(ctx context.Context) ([]*types.Receipt, map[int]*types.Receipt, error) {
@@ -330,27 +331,27 @@ func (q *Querier) getTx(ctx context.Context, txHash common.Hash) (*txResult, err
 	}, nil
 }
 
-func (q *Querier) assignReceipts(w *Witness, ordered []*types.Receipt, special map[int]*types.Receipt) error {
+func (q *Querier) assignReceipts(in *CircuitInput, ordered []*types.Receipt, special map[int]*types.Receipt) error {
 	// assigning user appointed receipts at specific indices
 	for i, receipt := range special {
-		w.Receipts.Raw[i] = Receipt{
+		in.Receipts.Raw[i] = Receipt{
 			BlockNum: receipt.BlockNumber,
 			Fields:   buildLogFields(receipt, q.receiptQueries.special[i]),
 		}
-		w.Receipts.Toggles[i] = 1
+		in.Receipts.Toggles[i] = 1
 	}
 
 	// distribute other receipts in order to the rest of the unassigned spaces
 	j := 0
 	for i, receipt := range ordered {
-		for w.Receipts.Toggles[j] == 1 {
+		for in.Receipts.Toggles[j] == 1 {
 			j++
 		}
-		w.Receipts.Raw[j] = Receipt{
+		in.Receipts.Raw[j] = Receipt{
 			BlockNum: receipt.BlockNumber,
 			Fields:   buildLogFields(receipt, q.receiptQueries.ordered[i]),
 		}
-		w.Receipts.Toggles[j] = 1
+		in.Receipts.Toggles[j] = 1
 		j++
 	}
 	return nil
@@ -380,29 +381,29 @@ func buildLogFields(receipt *types.Receipt, query ReceiptQuery) (fields [NumMaxL
 	return
 }
 
-func (q *Querier) assignStorageSlots(w *Witness, ordered [][]byte, special map[int][]byte) (err error) {
+func (q *Querier) assignStorageSlots(in *CircuitInput, ordered [][]byte, special map[int][]byte) (err error) {
 	// assigning user appointed data at specific indices
 	for i, val := range special {
 		query := q.storageQueries.special[i]
-		w.StorageSlots.Raw[i], err = buildStorageSlot(val, query)
+		in.StorageSlots.Raw[i], err = buildStorageSlot(val, query)
 		if err != nil {
 			return
 		}
-		w.StorageSlots.Toggles[i] = 1
+		in.StorageSlots.Toggles[i] = 1
 	}
 
 	// distribute other data in order to the rest of the unassigned spaces
 	j := 0
 	for i, val := range ordered {
-		for w.StorageSlots.Toggles[j] != 0 {
+		for in.StorageSlots.Toggles[j] != 0 {
 			j++
 		}
 		query := q.storageQueries.ordered[i]
-		w.StorageSlots.Raw[i], err = buildStorageSlot(val, query)
+		in.StorageSlots.Raw[i], err = buildStorageSlot(val, query)
 		if err != nil {
 			return
 		}
-		w.StorageSlots.Toggles[i] = 1
+		in.StorageSlots.Toggles[i] = 1
 		j++
 	}
 	return nil
@@ -422,26 +423,26 @@ func buildStorageSlot(val []byte, query StorageSlotQuery) (StorageSlot, error) {
 	}, nil
 }
 
-func (q *Querier) assignTransactions(w *Witness, ordered []*txResult, special map[int]*txResult) (err error) {
+func (q *Querier) assignTransactions(in *CircuitInput, ordered []*txResult, special map[int]*txResult) (err error) {
 	// assigning user appointed data at specific indices
 	for i, t := range special {
-		w.Transactions.Raw[i], err = buildTx(t)
+		in.Transactions.Raw[i], err = buildTx(t)
 		if err != nil {
 			return
 		}
-		w.Transactions.Toggles[i] = 1
+		in.Transactions.Toggles[i] = 1
 	}
 
 	j := 0
 	for i, t := range ordered {
-		for w.Transactions.Toggles[j] == 1 {
+		for in.Transactions.Toggles[j] == 1 {
 			j++
 		}
-		w.Transactions.Raw[i], err = buildTx(t)
+		in.Transactions.Raw[i], err = buildTx(t)
 		if err != nil {
 			return
 		}
-		w.Transactions.Toggles[i] = 1
+		in.Transactions.Toggles[i] = 1
 		j++
 	}
 	return nil
@@ -465,8 +466,8 @@ func buildTx(t *txResult) (Transaction, error) {
 	}, nil
 }
 
-func buildWitnessErr(m string, err error) (Witness, []byte, error) {
-	return Witness{}, nil, fmt.Errorf("%s: %s", m, err.Error())
+func buildWitnessErr(m string, err error) (CircuitInput, []byte, error) {
+	return CircuitInput{}, nil, fmt.Errorf("%s: %s", m, err.Error())
 }
 
 func allocationLenErr(name string, queryCount, maxCount int) error {

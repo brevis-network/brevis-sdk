@@ -17,7 +17,7 @@ func TestCircuit(t *testing.T) {
 	account := common.HexToAddress("0x5427FEFA711Eff984124bFBB1AB6fbf5E3DA1820")
 	blockNum := 18233760
 	// By specifying the optional parameter index = 1, the querier will give the
-	// result of this storage slot query a fixed spot in the Witness. This allows us
+	// result of this storage slot query a fixed spot in the CircuitInput. This allows us
 	// to later directly access this "special" data in circuit.
 	q.AddStorageSlot(sdk.StorageSlotQuery{
 		BlockNum: blockNum,
@@ -33,7 +33,7 @@ func TestCircuit(t *testing.T) {
 	guest := &GuestCircuit{}
 	guestAssignment := &GuestCircuit{}
 
-	w, _, err := q.BuildWitness(context.Background(), guest)
+	w, _, err := q.BuildCircuitInput(context.Background(), guest)
 	check(err)
 
 	///////////////////////////////////////////////////////////////////////////////

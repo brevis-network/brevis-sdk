@@ -20,9 +20,9 @@ import (
 	"time"
 )
 
-func Compile(guest GuestCircuit, w Witness) (constraint.ConstraintSystem, error) {
+func Compile(guest GuestCircuit, in CircuitInput) (constraint.ConstraintSystem, error) {
 	fmt.Println(">> compile")
-	host := NewHostCircuit(w.Clone(), guest)
+	host := NewHostCircuit(in.Clone(), guest)
 
 	before := time.Now()
 	ccs, err := frontend.Compile(ecc.BLS12_377.ScalarField(), scs.NewBuilder, host)
@@ -34,15 +34,15 @@ func Compile(guest GuestCircuit, w Witness) (constraint.ConstraintSystem, error)
 	return ccs, nil
 }
 
-func NewFullWitness(assign GuestCircuit, w Witness) (wit, wpub witness.Witness, err error) {
+func NewFullWitness(assign GuestCircuit, in CircuitInput) (w, wpub witness.Witness, err error) {
 	fmt.Println(">> compile")
-	host := NewHostCircuit(w.Clone(), assign)
+	host := NewHostCircuit(in.Clone(), assign)
 
-	wit, err = frontend.NewWitness(host, ecc.BLS12_377.ScalarField())
+	w, err = frontend.NewWitness(host, ecc.BLS12_377.ScalarField())
 	if err != nil {
 		return
 	}
-	wpub, err = wit.Public()
+	wpub, err = w.Public()
 	if err != nil {
 		return
 	}

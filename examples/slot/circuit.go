@@ -25,8 +25,8 @@ func (c *GuestCircuit) Allocate() (maxReceipts, maxSlots, maxTransactions int) {
 var slot = common.LeftPadBytes([]byte{0}, 32)
 var expectedKey = sdk.ParseBytes32(crypto.Keccak256(slot))
 
-func (c *GuestCircuit) Define(api *sdk.CircuitAPI, witness sdk.Witness) error {
-	slots := sdk.NewDataStream(api, witness.StorageSlots)
+func (c *GuestCircuit) Define(api *sdk.CircuitAPI, in sdk.CircuitInput) error {
+	slots := sdk.NewDataStream(api, in.StorageSlots)
 
 	// For educational purposes, when we added the queries to the querier, we
 	// specifically requested index "1" for storage slots to be our "special" data.
