@@ -3,25 +3,15 @@ package slot
 import (
 	"context"
 	"fmt"
-	"github.com/consensys/gnark/backend"
-	"github.com/consensys/gnark/test"
-	"os"
+	"github.com/celer-network/brevis-sdk/test"
 	"testing"
 
-	"github.com/celer-network/brevis-sdk/common/utils"
 	"github.com/celer-network/brevis-sdk/sdk"
-	"github.com/celer-network/brevis-sdk/sdk/srs"
-	"github.com/consensys/gnark-crypto/ecc"
-	"github.com/consensys/gnark/backend/plonk"
-	cs "github.com/consensys/gnark/constraint/bls12-377"
-	"github.com/consensys/gnark/frontend"
-	"github.com/consensys/gnark/frontend/cs/scs"
-	replonk "github.com/consensys/gnark/std/recursion/plonk"
 	"github.com/ethereum/go-ethereum/common"
 )
 
 func TestCircuit(t *testing.T) {
-	q, err := sdk.NewQuerier("") // TODO use your eth rpc
+	q, err := sdk.NewQuerier("https://eth-mainnet.nodereal.io/v1/0af795b55d124a61b86836461ece1dee") // TODO use your eth rpc
 	check(err)
 
 	account := common.HexToAddress("0x5427FEFA711Eff984124bFBB1AB6fbf5E3DA1820")
@@ -46,71 +36,56 @@ func TestCircuit(t *testing.T) {
 	w, _, err := q.BuildWitness(context.Background(), guest)
 	check(err)
 
-	host := sdk.NewHostCircuit(w, guest)
-	assignment := sdk.NewHostCircuit(w.Clone(), guestAssignment)
-
 	///////////////////////////////////////////////////////////////////////////////
 	// Testing
 	///////////////////////////////////////////////////////////////////////////////
 
-	// Use gnark's test package to check if the circuit can be solved using the
-	// given assignment
-	assert := test.NewAssert(t)
-	assert.ProverSucceeded(host, assignment, test.WithBackends(backend.PLONK), test.WithCurves(ecc.BLS12_377))
+	// Use the test package to check if the circuit can be solved using the given
+	// assignment
+	test.ProverSucceeded(t, guest, guestAssignment, w.Clone())
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Compiling and Setup
 	///////////////////////////////////////////////////////////////////////////////
 
 	// The compilation output is the description of the circuit's constraint system.
-	// You should use ccs.WriteTo to serialize and save your circuit so that it can
+	// You should use sdk.WriteTo to serialize and save your circuit so that it can
 	// be used in the proving step later.
-	ccs, err := frontend.Compile(ecc.BLS12_377.ScalarField(), scs.NewBuilder, host)
+	ccs, err := sdk.Compile(guest, w)
+	check(err)
+	err = sdk.WriteTo(ccs, "$HOME/circuitOut/ccs")
 	check(err)
 
-	fmt.Println(">> new srs")
-	r1cs := ccs.(*cs.SparseR1CS)
-	srsDir := os.ExpandEnv("$HOME/kzgsrs")
-	// SRS (structured reference string) is used in the KZG commitment scheme. You
-	// must download the Brevis provided SRS in your setup. The SRS files can get
-	// pretty big (gigabytes), the srs package allows you to specify a dir for
-	// caching the downloaded files.
-	canonical, lagrange, err := srs.NewSRS(r1cs, "https://kzg-srs.s3.us-west-2.amazonaws.com", srsDir)
+	// Setup is a one-time effort per circuit. A cache dir can be provided to output
+	// external dependencies. Once you have the verifying key you should also save
+	// its hash in your contract so that when a proof via Brevis is submitted
+	// on-chain you can verify that Brevis indeed used your verifying key to verify
+	// your circuit computations
+	pk, vk, err := sdk.Setup(ccs, "$HOME/circuitOut")
 	check(err)
-	fmt.Println("constraints", r1cs.GetNbConstraints())
-
-	fmt.Println(">> generate witness")
-	witnessFull, err := frontend.NewWitness(assignment, ecc.BLS12_377.ScalarField())
+	err = sdk.WriteTo(pk, "$HOME/circuitOut/pk")
+	check(err)
+	err = sdk.WriteTo(vk, "$HOME/circuitOut/vk")
 	check(err)
 
-	witnessPublic, err := witnessFull.Public()
+	// Once you saved your ccs, pk, and vk files, you can read them back into memory
+	// for use with the provided utils
+	//cs, err = sdk.Rea
+	pk, err = sdk.ReadPkFrom("$HOME/circuitOut/pk")
 	check(err)
-	utils.WriteWitness("slot_witness_pub", witnessPublic)
-
-	fmt.Println(">> setup")
-	// Setup is a one-time effort per circuit. You should use pk/vk.WriteTo to
-	// serialize and save the proving/verifying keys to disk for later use.
-	pk, vk, err := plonk.Setup(ccs, canonical, lagrange)
+	vk, err = sdk.ReadVkFrom("$HOME/circuitOut/vk")
 	check(err)
-	utils.WritePlonkVerifyingKey(vk, "slot_vk")
-
-	// Once you have the verifying key you should also save its hash in your contract
-	// so that when a proof via Brevis is submitted on-chain you can verify that
-	// Brevis indeed used your verifying key to verify your circuit computations
-	vkHash, err := sdk.VkHash(vk)
-	check(err)
-	fmt.Printf("verifying key hash: %x\n", vkHash)
-	// myContract.SetVKHash(vkHash)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Proving
 	///////////////////////////////////////////////////////////////////////////////
+	guestAssignment = &GuestCircuit{}
 
 	fmt.Println(">> prove")
-	// pk can also be read from disk using pk.ReadFrom
-	proof, err := plonk.Prove(ccs, pk, witnessFull, replonk.GetNativeProverOptions(ecc.BW6_761.ScalarField(), ecc.BLS12_377.ScalarField()))
+	witness, publicWitness, err := sdk.NewFullWitness(guestAssignment, w)
 	check(err)
-	err = utils.WritePlonkProofIntoLocalFile(proof, "slot_proof")
+
+	proof, err := sdk.Prove(ccs, pk, witness)
 	check(err)
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -120,8 +95,7 @@ func TestCircuit(t *testing.T) {
 	// The verification of the proof generated by you is done on Brevis' side. But
 	// you can also verify your own proof to make sure everything works fine and
 	// pk/vk are serialized/deserialized properly
-	fmt.Println(">> verify")
-	err = plonk.Verify(proof, vk, witnessPublic, replonk.GetNativeVerifierOptions(ecc.BW6_761.ScalarField(), ecc.BLS12_377.ScalarField()))
+	err = sdk.Verify(vk, publicWitness, proof)
 	check(err)
 }
 
