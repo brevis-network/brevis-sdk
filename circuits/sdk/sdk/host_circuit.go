@@ -96,43 +96,41 @@ func (c *HostCircuit) commitInput() error {
 	togglesCommit := hasher.Sum()
 	c.api.AssertIsEqual(togglesCommit, c.Witness.TogglesCommitment)
 
-	//c.assertInputUniqueness()
+	assertInputUniqueness(c.api, c.Witness.InputCommitments)
 
 	return nil
 }
 
-// Asserts that in the sorted list of input commitments, each element is
-// different from its next element. Zero commitments (for dummy slots) are not
-// checked.
-func (c *HostCircuit) assertInputUniqueness() {
-	inputCommits := c.Witness.InputCommitments
-	if len(inputCommits) < 2 {
+// Asserts that in the sorted list of inputs, each element is different from its
+// next element. Zeros are not checked.
+func assertInputUniqueness(api frontend.API, in []frontend.Variable) {
+	if len(in) < 2 {
 		return // no need to check uniqueness
 	}
-	multicommit.WithCommitment(c.api, func(api frontend.API, gamma Variable) error {
-		sorted, err := c.api.Compiler().NewHint(SortHint, len(inputCommits), inputCommits...)
+	multicommit.WithCommitment(api, func(api frontend.API, gamma Variable) error {
+		sorted, err := api.Compiler().NewHint(SortHint, len(in), in...)
 		if err != nil {
 			panic(err)
 		}
 		// Grand product check. Asserts the following equation holds:
-		// Σ_{a \in inputCommits} a+ɣ = Σ_{b \in sorted} b+ɣ
+		// Σ_{a \in in} a+ɣ = Σ_{b \in sorted} b+ɣ
 		var lhs, rhs Variable = 0, 0
 		for i := 0; i < len(sorted); i++ {
-			lhs = c.api.Mul(lhs, c.api.Add(inputCommits[i], gamma))
-			rhs = c.api.Mul(rhs, c.api.Add(sorted[i], gamma))
+			lhs = api.Mul(lhs, api.Add(in[i], gamma))
+			rhs = api.Mul(rhs, api.Add(sorted[i], gamma))
 		}
-		c.api.AssertIsEqual(lhs, rhs)
+		api.AssertIsEqual(lhs, rhs)
 
 		for i := 0; i < len(sorted)-1; i++ {
 			a, b := sorted[i], sorted[i+1]
 			// are both a and b zero? if yes, then it's valid; if not, then they must be different
-			bothZero := c.api.Select(c.api.IsZero(a), c.api.IsZero(b), 0)
-			isDifferent := c.api.Sub(1, c.api.IsZero(c.api.Sub(a, b)))
-			isValid := c.api.Select(bothZero, 1, isDifferent)
-			c.api.AssertIsEqual(isValid, 1)
+			bothZero := api.Select(api.IsZero(a), api.IsZero(b), 0)
+			isDifferent := api.Sub(1, api.IsZero(api.Sub(a, b)))
+			isValid := api.Select(bothZero, 1, isDifferent)
+			api.AssertIsEqual(isValid, 1)
 		}
 		return nil
-	}, inputCommits)
+	}, in...)
 }
 
 func (c *HostCircuit) dataLen() int {
