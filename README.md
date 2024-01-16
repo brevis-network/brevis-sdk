@@ -40,4 +40,4 @@ Since a normal circuit variable can only represent numbers <= 252 bits, we canno
 
 ## Example Guest Circuits
 
-[Examples](./circuits/sdk/examples)
+[Examples](examples)
