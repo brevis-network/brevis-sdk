@@ -81,13 +81,8 @@ func (c *HostCircuit) commitInput() error {
 	}
 
 	// adding constraint for input commitments (both effective commitments and dummies)
-	dataLen := c.dataLen()
-	for i := 0; i < NumMaxDataPoints; i++ {
-		if i < dataLen {
-			c.api.AssertIsEqual(c.Witness.InputCommitments[i], inputCommits[i])
-		} else {
-			c.api.AssertIsEqual(c.Witness.InputCommitments[i], zero)
-		}
+	for i := 0; i < c.dataLen(); i++ {
+		c.api.AssertIsEqual(c.Witness.InputCommitments[i], inputCommits[i])
 	}
 
 	toggles := c.Witness.Toggles()
@@ -101,12 +96,14 @@ func (c *HostCircuit) commitInput() error {
 	togglesCommit := hasher.Sum()
 	c.api.AssertIsEqual(togglesCommit, c.Witness.TogglesCommitment)
 
-	// TODO uncomment to turn on uniqueness check
 	//c.assertInputUniqueness()
 
 	return nil
 }
 
+// Asserts that in the sorted list of input commitments, each element is
+// different from its next element. Zero commitments (for dummy slots) are not
+// checked.
 func (c *HostCircuit) assertInputUniqueness() {
 	inputCommits := c.Witness.InputCommitments
 	if len(inputCommits) < 2 {
@@ -127,7 +124,12 @@ func (c *HostCircuit) assertInputUniqueness() {
 		c.api.AssertIsEqual(lhs, rhs)
 
 		for i := 0; i < len(sorted)-1; i++ {
-			c.api.AssertIsDifferent(sorted[i], sorted[i+1])
+			a, b := sorted[i], sorted[i+1]
+			// are both a and b zero? if yes, then it's valid; if not, then they must be different
+			bothZero := c.api.Select(c.api.IsZero(a), c.api.IsZero(b), 0)
+			isDifferent := c.api.Sub(1, c.api.IsZero(c.api.Sub(a, b)))
+			isValid := c.api.Select(bothZero, 1, isDifferent)
+			c.api.AssertIsEqual(isValid, 1)
 		}
 		return nil
 	}, inputCommits)

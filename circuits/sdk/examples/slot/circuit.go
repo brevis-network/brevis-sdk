@@ -1,7 +1,6 @@
 package slot
 
 import (
-	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 
@@ -13,7 +12,10 @@ type GuestCircuit struct{}
 var _ sdk.GuestCircuit = &GuestCircuit{}
 
 func (c *GuestCircuit) Allocate() (maxReceipts, maxSlots, maxTransactions int) {
-	return 0, 1, 0
+	// Here we have allocated 2 circuit slots for proving storage slots, but in this
+	// example we will show that we can only use one of those slots. We will also
+	// show that you can "fixate" a piece of data at a specific index.
+	return 0, 2, 0
 }
 
 // The storage at slot 0 is the `owner` field of the contract
@@ -26,12 +28,12 @@ var expectedKey = sdk.ParseBytes32(crypto.Keccak256(slot))
 func (c *GuestCircuit) Define(api *sdk.CircuitAPI, witness sdk.Witness) error {
 	slots := sdk.NewDataStream(api, witness.StorageSlots)
 
-	// Since we only have 1 input which is the owner slot of the contract, we simply
-	// get the 0th element and do computation on it
-	s := slots.Get(0)
+	// For educational purposes, when we added the queries to the querier, we
+	// specifically requested index "1" for storage slots to be our "special" data.
+	// We can access this special index directly and use it in circuit.
+	s := slots.Get(1)
 	api.AssertIsEqualBytes32(s.Key, expectedKey)
 
-	fmt.Println("s.Value", s.Value)
 	owner := api.ToVariable(s.Value)
 	// Output will be reflected in our contract in the form of
 	// abi.encodePacked(address,address,uint64)
