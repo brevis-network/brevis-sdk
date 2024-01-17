@@ -30,7 +30,7 @@ func Compile(guest GuestCircuit, in CircuitInput) (constraint.ConstraintSystem, 
 		return nil, fmt.Errorf("failed to compile: %s", err.Error())
 	}
 
-	fmt.Printf("circuit compiled in %s, number constraints %d", time.Since(before), ccs.GetNbConstraints())
+	fmt.Printf("circuit compiled in %s, number constraints %d\n", time.Since(before), ccs.GetNbConstraints())
 	return ccs, nil
 }
 

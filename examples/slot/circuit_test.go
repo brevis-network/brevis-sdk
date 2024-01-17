@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/celer-network/brevis-sdk/test"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/celer-network/brevis-sdk/sdk"
@@ -33,8 +35,18 @@ func TestCircuit(t *testing.T) {
 	guest := &GuestCircuit{}
 	guestAssignment := &GuestCircuit{}
 
-	w, _, err := q.BuildCircuitInput(context.Background(), guest)
+	in, out, err := q.BuildCircuitInput(context.Background(), guest)
 	check(err)
+
+	// `output` is the abi encoded data that we added through api.OutputXXX() in the guest circuit.
+	// We want to use this later to call Brevis gateway so that when brevis submits the proof on-chain,
+	// we can directly get our output data in the contract callback.
+	// The following two lines aren't necessary, but let's check and see how it's related to
+	// `CircuitInput.OutputCommitment`
+	fmt.Printf("output added through api.OutputXXX: %x\n", out)
+	hashed := common.BytesToHash(crypto.Keccak256(out))
+	fmt.Printf("output commitment: %x\n", out)
+	require.Equal(t, in.OutputCommitment.Hash(), hashed)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Testing
@@ -42,7 +54,7 @@ func TestCircuit(t *testing.T) {
 
 	// Use the test package to check if the circuit can be solved using the given
 	// assignment
-	test.ProverSucceeded(t, guest, guestAssignment, w.Clone())
+	test.ProverSucceeded(t, guest, guestAssignment, in.Clone())
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Compiling and Setup
@@ -51,9 +63,9 @@ func TestCircuit(t *testing.T) {
 	// The compilation output is the description of the circuit's constraint system.
 	// You should use sdk.WriteTo to serialize and save your circuit so that it can
 	// be used in the proving step later.
-	ccs, err := sdk.Compile(guest, w)
+	ccs, err := sdk.Compile(guest, in)
 	check(err)
-	err = sdk.WriteTo(ccs, "$HOME/circuitOut/ccs")
+	err = sdk.WriteTo(ccs, "$HOME/circuitOut/storage/ccs")
 	check(err)
 
 	// Setup is a one-time effort per circuit. A cache dir can be provided to output
@@ -61,28 +73,27 @@ func TestCircuit(t *testing.T) {
 	// its hash in your contract so that when a proof via Brevis is submitted
 	// on-chain you can verify that Brevis indeed used your verifying key to verify
 	// your circuit computations
-	pk, vk, err := sdk.Setup(ccs, "$HOME/circuitOut")
+	pk, vk, err := sdk.Setup(ccs, "$HOME/circuitOut/storage")
 	check(err)
-	err = sdk.WriteTo(pk, "$HOME/circuitOut/pk")
+	err = sdk.WriteTo(pk, "$HOME/circuitOut/storage/pk")
 	check(err)
-	err = sdk.WriteTo(vk, "$HOME/circuitOut/vk")
+	err = sdk.WriteTo(vk, "$HOME/circuitOut/storage/vk")
 	check(err)
 
 	// Once you saved your ccs, pk, and vk files, you can read them back into memory
 	// for use with the provided utils
 	//cs, err = sdk.Rea
-	pk, err = sdk.ReadPkFrom("$HOME/circuitOut/pk")
+	pk, err = sdk.ReadPkFrom("$HOME/circuitOut/storage/pk")
 	check(err)
-	vk, err = sdk.ReadVkFrom("$HOME/circuitOut/vk")
+	vk, err = sdk.ReadVkFrom("$HOME/circuitOut/storage/vk")
 	check(err)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Proving
 	///////////////////////////////////////////////////////////////////////////////
-	guestAssignment = &GuestCircuit{}
 
 	fmt.Println(">> prove")
-	witness, publicWitness, err := sdk.NewFullWitness(guestAssignment, w)
+	witness, publicWitness, err := sdk.NewFullWitness(guestAssignment, in)
 	check(err)
 
 	proof, err := sdk.Prove(ccs, pk, witness)

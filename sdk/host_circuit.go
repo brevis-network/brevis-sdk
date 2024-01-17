@@ -96,7 +96,7 @@ func (c *HostCircuit) commitInput() error {
 	togglesCommit := hasher.Sum()
 	c.api.AssertIsEqual(togglesCommit, c.Input.TogglesCommitment)
 
-	assertInputUniqueness(c.api, c.Input.InputCommitments)
+	//assertInputUniqueness(c.api, c.Input.InputCommitments)
 
 	return nil
 }

@@ -9,7 +9,7 @@ import (
 )
 
 func ProverSucceeded(t *testing.T, guest, assign sdk.GuestCircuit, in sdk.CircuitInput) {
-	host := sdk.NewHostCircuit(in, guest)
+	host := sdk.NewHostCircuit(in.Clone(), guest)
 	assignment := sdk.NewHostCircuit(in.Clone(), assign)
 
 	assert := test.NewAssert(t)
@@ -17,7 +17,7 @@ func ProverSucceeded(t *testing.T, guest, assign sdk.GuestCircuit, in sdk.Circui
 }
 
 func ProverFailed(t *testing.T, guest, assign sdk.GuestCircuit, in sdk.CircuitInput) {
-	host := sdk.NewHostCircuit(in, guest)
+	host := sdk.NewHostCircuit(in.Clone(), guest)
 	assignment := sdk.NewHostCircuit(in.Clone(), assign)
 
 	assert := test.NewAssert(t)
@@ -25,7 +25,7 @@ func ProverFailed(t *testing.T, guest, assign sdk.GuestCircuit, in sdk.CircuitIn
 }
 
 func IsSolved(t *testing.T, guest, assign sdk.GuestCircuit, in sdk.CircuitInput) {
-	host := sdk.NewHostCircuit(in, guest)
+	host := sdk.NewHostCircuit(in.Clone(), guest)
 	assignment := sdk.NewHostCircuit(in.Clone(), assign)
 
 	err := test.IsSolved(host, assignment, ecc.BLS12_377.ScalarField())
