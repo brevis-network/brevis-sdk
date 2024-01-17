@@ -54,7 +54,7 @@ func TestCircuit(t *testing.T) {
 
 	// Use the test package to check if the circuit can be solved using the given
 	// assignment
-	test.ProverSucceeded(t, guest, guestAssignment, in.Clone())
+	test.ProverSucceeded(t, guest, guestAssignment, in)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Compiling and Setup

@@ -9,6 +9,7 @@ import (
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/consensys/gnark/constraint"
 	cs "github.com/consensys/gnark/constraint/bls12-377"
+	cs_12377 "github.com/consensys/gnark/constraint/bls12-377"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/scs"
 	"github.com/consensys/gnark/std/algebra/native/sw_bls12377"
@@ -35,7 +36,7 @@ func Compile(guest GuestCircuit, in CircuitInput) (constraint.ConstraintSystem, 
 }
 
 func NewFullWitness(assign GuestCircuit, in CircuitInput) (w, wpub witness.Witness, err error) {
-	fmt.Println(">> compile")
+	fmt.Println(">> generate full witness")
 	host := NewHostCircuit(in.Clone(), assign)
 
 	w, err = frontend.NewWitness(host, ecc.BLS12_377.ScalarField())
@@ -67,7 +68,10 @@ func Setup(ccs constraint.ConstraintSystem, cacheDir ...string) (pk plonk.Provin
 	if err != nil {
 		return
 	}
-
+	before := time.Now()
+	defer func(b time.Time) {
+		fmt.Printf("setup done in %s\n", time.Since(b))
+	}(before)
 	return plonk.Setup(ccs, canonical, lagrange)
 }
 
@@ -113,16 +117,16 @@ func WriteTo(w io.WriterTo, path string) error {
 	return err
 }
 
-//
-//func ReadCircuitFrom(path string) (constraint.ConstraintSystem, error) {
-//	f, err := os.Open(path)
-//	if err != nil {
-//		return nil, err
-//	}
-//	defer f.Close()
-//	_, err = vk.UnsafeReadFrom(f)
-//	return vk, err
-//}
+func ReadCircuitFrom(path string) (constraint.ConstraintSystem, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	ccs := new(cs_12377.R1CS)
+	_, err = ccs.ReadFrom(f)
+	return ccs, err
+}
 
 func ReadPkFrom(path string) (plonk.ProvingKey, error) {
 	f, err := os.Open(os.ExpandEnv(path))
@@ -131,7 +135,7 @@ func ReadPkFrom(path string) (plonk.ProvingKey, error) {
 	}
 	defer f.Close()
 	vk := plonk.NewProvingKey(ecc.BLS12_377)
-	_, err = vk.UnsafeReadFrom(f)
+	_, err = vk.ReadFrom(f)
 	return vk, err
 }
 
@@ -142,6 +146,6 @@ func ReadVkFrom(path string) (plonk.VerifyingKey, error) {
 	}
 	defer f.Close()
 	vk := plonk.NewVerifyingKey(ecc.BLS12_377)
-	_, err = vk.UnsafeReadFrom(f)
+	_, err = vk.ReadFrom(f)
 	return vk, err
 }
