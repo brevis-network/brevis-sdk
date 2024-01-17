@@ -68,14 +68,25 @@ func Setup(ccs constraint.ConstraintSystem, cacheDir ...string) (pk plonk.Provin
 	if err != nil {
 		return
 	}
+
 	before := time.Now()
-	defer func(b time.Time) {
-		fmt.Printf("setup done in %s\n", time.Since(b))
-	}(before)
-	return plonk.Setup(ccs, canonical, lagrange)
+	pk, vk, err = plonk.Setup(ccs, canonical, lagrange)
+	if err != nil {
+		return
+	}
+	fmt.Printf("setup done in %s\n", time.Since(before))
+
+	vkHash, err := ComputeVkHash(vk)
+	fmt.Println()
+	fmt.Println("///////////////////////////////////////////////////////////////////////////////")
+	fmt.Printf("// vk hash: %s\n", vkHash)
+	fmt.Println("///////////////////////////////////////////////////////////////////////////////")
+	fmt.Println()
+
+	return
 }
 
-func computeVkHash(vk plonk.VerifyingKey) (common.Hash, error) {
+func ComputeVkHash(vk plonk.VerifyingKey) (common.Hash, error) {
 	plonkCircuitVk, err := replonk.ValueOfVerifyingKey[sw_bls12377.ScalarField, sw_bls12377.G1Affine, sw_bls12377.G2Affine](vk)
 	if err != nil {
 		return common.Hash{}, err
@@ -113,19 +124,27 @@ func WriteTo(w io.WriterTo, path string) error {
 		return err
 	}
 	defer f.Close()
-	_, err = w.WriteTo(f)
-	return err
+	d, err := w.WriteTo(f)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("%d bytes written to %s\n", d, path)
+	return nil
 }
 
 func ReadCircuitFrom(path string) (constraint.ConstraintSystem, error) {
-	f, err := os.Open(path)
+	f, err := os.Open(os.ExpandEnv(path))
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 	ccs := new(cs_12377.R1CS)
-	_, err = ccs.ReadFrom(f)
-	return ccs, err
+	d, err := ccs.ReadFrom(f)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("%d bytes read from %s\n", d, path)
+	return ccs, nil
 }
 
 func ReadPkFrom(path string) (plonk.ProvingKey, error) {
@@ -134,9 +153,13 @@ func ReadPkFrom(path string) (plonk.ProvingKey, error) {
 		return nil, err
 	}
 	defer f.Close()
-	vk := plonk.NewProvingKey(ecc.BLS12_377)
-	_, err = vk.ReadFrom(f)
-	return vk, err
+	pk := plonk.NewProvingKey(ecc.BLS12_377)
+	d, err := pk.ReadFrom(f)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("%d bytes read from %s\n", d, path)
+	return pk, err
 }
 
 func ReadVkFrom(path string) (plonk.VerifyingKey, error) {
@@ -146,6 +169,10 @@ func ReadVkFrom(path string) (plonk.VerifyingKey, error) {
 	}
 	defer f.Close()
 	vk := plonk.NewVerifyingKey(ecc.BLS12_377)
-	_, err = vk.ReadFrom(f)
+	d, err := vk.ReadFrom(f)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("%d bytes read from %s\n", d, path)
 	return vk, err
 }

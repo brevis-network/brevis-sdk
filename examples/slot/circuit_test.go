@@ -6,6 +6,7 @@ import (
 	"github.com/celer-network/brevis-sdk/test"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
+	"path/filepath"
 	"testing"
 
 	"github.com/celer-network/brevis-sdk/sdk"
@@ -60,12 +61,14 @@ func TestCircuit(t *testing.T) {
 	// Compiling and Setup
 	///////////////////////////////////////////////////////////////////////////////
 
+	outDir := "$HOME/circuitOut/storage"
+
 	// The compilation output is the description of the circuit's constraint system.
 	// You should use sdk.WriteTo to serialize and save your circuit so that it can
 	// be used in the proving step later.
 	ccs, err := sdk.Compile(guest, in)
 	check(err)
-	err = sdk.WriteTo(ccs, "$HOME/circuitOut/storage/ccs")
+	err = sdk.WriteTo(ccs, filepath.Join(outDir, "ccs"))
 	check(err)
 
 	// Setup is a one-time effort per circuit. A cache dir can be provided to output
@@ -73,19 +76,20 @@ func TestCircuit(t *testing.T) {
 	// its hash in your contract so that when a proof via Brevis is submitted
 	// on-chain you can verify that Brevis indeed used your verifying key to verify
 	// your circuit computations
-	pk, vk, err := sdk.Setup(ccs, "$HOME/circuitOut/storage")
+	pk, vk, err := sdk.Setup(ccs, "$HOME/kzgsrs")
 	check(err)
-	err = sdk.WriteTo(pk, "$HOME/circuitOut/storage/pk")
+	err = sdk.WriteTo(pk, filepath.Join(outDir, "pk"))
 	check(err)
-	err = sdk.WriteTo(vk, "$HOME/circuitOut/storage/vk")
+	err = sdk.WriteTo(vk, filepath.Join(outDir, "vk"))
 	check(err)
 
 	// Once you saved your ccs, pk, and vk files, you can read them back into memory
 	// for use with the provided utils
-	//cs, err = sdk.Rea
-	pk, err = sdk.ReadPkFrom("$HOME/circuitOut/storage/pk")
+	ccs, err = sdk.ReadCircuitFrom(filepath.Join(outDir, "ccs"))
 	check(err)
-	vk, err = sdk.ReadVkFrom("$HOME/circuitOut/storage/vk")
+	pk, err = sdk.ReadPkFrom(filepath.Join(outDir, "pk"))
+	check(err)
+	vk, err = sdk.ReadVkFrom(filepath.Join(outDir, "vk"))
 	check(err)
 
 	///////////////////////////////////////////////////////////////////////////////
