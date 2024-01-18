@@ -8,7 +8,7 @@ import (
 	"github.com/consensys/gnark/frontend"
 )
 
-type Witness struct {
+type CircuitInput struct {
 	// InputCommitments is a list of hash commitment to each value of Raw. These
 	// commitments must match sub-prover circuit's commitment to its rlp decoded
 	// values
@@ -24,25 +24,25 @@ type Witness struct {
 	Transactions DataPoints[Transaction]
 }
 
-func (w Witness) Clone() Witness {
-	inputCommits := make([]Variable, len(w.InputCommitments))
-	copy(inputCommits, w.InputCommitments)
+func (in CircuitInput) Clone() CircuitInput {
+	inputCommits := make([]Variable, len(in.InputCommitments))
+	copy(inputCommits, in.InputCommitments)
 
-	return Witness{
+	return CircuitInput{
 		InputCommitments:  inputCommits,
-		TogglesCommitment: w.TogglesCommitment,
-		OutputCommitment:  w.OutputCommitment,
-		Receipts:          w.Receipts.Clone(),
-		StorageSlots:      w.StorageSlots.Clone(),
-		Transactions:      w.Transactions.Clone(),
+		TogglesCommitment: in.TogglesCommitment,
+		OutputCommitment:  in.OutputCommitment,
+		Receipts:          in.Receipts.Clone(),
+		StorageSlots:      in.StorageSlots.Clone(),
+		Transactions:      in.Transactions.Clone(),
 	}
 }
 
-func (w Witness) Toggles() []Variable {
+func (in CircuitInput) Toggles() []Variable {
 	var toggles []Variable
-	toggles = append(toggles, w.Receipts.Toggles...)
-	toggles = append(toggles, w.StorageSlots.Toggles...)
-	toggles = append(toggles, w.Transactions.Toggles...)
+	toggles = append(toggles, in.Receipts.Toggles...)
+	toggles = append(toggles, in.StorageSlots.Toggles...)
+	toggles = append(toggles, in.Transactions.Toggles...)
 	// pad the reset (the dummy part) with off toggles
 	for i := len(toggles); i < NumMaxDataPoints; i++ {
 		toggles = append(toggles, 0)

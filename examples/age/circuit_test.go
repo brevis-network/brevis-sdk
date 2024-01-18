@@ -3,9 +3,7 @@ package age
 import (
 	"context"
 	"github.com/celer-network/brevis-sdk/sdk"
-	"github.com/consensys/gnark-crypto/ecc"
-	"github.com/consensys/gnark/backend"
-	"github.com/consensys/gnark/test"
+	"github.com/celer-network/brevis-sdk/test"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
@@ -25,7 +23,7 @@ func TestCircuit(t *testing.T) {
 	guest := &GuestCircuit{UserAddr: sdk.ParseAddress(addr)}
 	guestAssignment := &GuestCircuit{UserAddr: sdk.ParseAddress(addr)}
 
-	w, _, err := q.BuildWitness(context.Background(), guest)
+	w, _, err := q.BuildCircuitInput(context.Background(), guest)
 	check(err)
 
 	// checking commitment hash
@@ -36,14 +34,8 @@ func TestCircuit(t *testing.T) {
 	outputHash := crypto.Keccak256(packed)
 	require.Equal(t, common.BytesToHash(outputHash), w.OutputCommitment.Hash())
 
-	host := sdk.NewHostCircuit(w, guest)
-	assignment := sdk.NewHostCircuit(w.Clone(), guestAssignment)
-
-	assert := test.NewAssert(t)
-	assert.ProverSucceeded(host, assignment, test.WithBackends(backend.PLONK), test.WithCurves(ecc.BLS12_377))
-
-	assignment.Witness.OutputCommitment[0] = big.NewInt(0) // invalid witness
-	assert.ProverFailed(host, assignment, test.WithBackends(backend.PLONK), test.WithCurves(ecc.BLS12_377))
+	test.ProverSucceeded(t, guest, guestAssignment, w)
+	test.ProverFailed(t, guest, guestAssignment, w)
 }
 
 func check(err error) {

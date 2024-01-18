@@ -50,11 +50,11 @@ func (c *GuestCircuit) Allocate() (maxReceipts, maxSlots, maxTransactions int) {
 	return 5, 0, 0
 }
 
-func (c *GuestCircuit) Define(api *sdk.CircuitAPI, witness sdk.Witness) error {
+func (c *GuestCircuit) Define(api *sdk.CircuitAPI, in sdk.CircuitInput) error {
 	// In order to use the nice methods such as .Map() and .Reduce(), raw data needs
 	// to be wrapped in a DataStream. You could also use the raw data directly if you
 	// are familiar with writing gnark circuits.
-	receipts := sdk.NewDataStream(api, witness.Receipts)
+	receipts := sdk.NewDataStream(api, in.Receipts)
 
 	// Main application logic: Run the assert function on each receipt. The function
 	// should return 1 if assertion successes and 0 otherwise

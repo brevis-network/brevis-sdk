@@ -4,18 +4,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/celer-network/brevis-sdk/sdk"
-	"github.com/celer-network/brevis-sdk/sdk/srs"
-	"github.com/consensys/gnark-crypto/ecc"
-	"github.com/consensys/gnark/backend"
-	"github.com/consensys/gnark/backend/plonk"
-	cs "github.com/consensys/gnark/constraint/bls12-377"
-	"github.com/consensys/gnark/frontend"
-	"github.com/consensys/gnark/frontend/cs/scs"
-	"github.com/consensys/gnark/test"
+	"github.com/celer-network/brevis-sdk/test"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
-	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -23,7 +16,7 @@ import (
 // UniversalRouter contract. Let's declare the fields we want to use:
 
 func TestCircuit(t *testing.T) {
-	q, err := sdk.NewQuerier("") // TODO use your eth rpc
+	q, err := sdk.NewQuerier("https://eth-mainnet.nodereal.io/v1/0af795b55d124a61b86836461ece1dee") // TODO use your eth rpc
 	check(err)
 
 	// Adding a receipt query into the querier
@@ -48,73 +41,75 @@ func TestCircuit(t *testing.T) {
 		UserAddr: sdk.ParseAddress(common.HexToAddress("0xaefB31e9EEee2822f4C1cBC13B70948b0B5C0b3c")),
 	}
 
-	// Execute the added queries and package the query results into circuit inputs (witness)
-	w, output, err := q.BuildWitness(context.Background(), guest)
+	// Execute the added queries and package the query results into circuit inputs
+	// (witness)
+	in, output, err := q.BuildCircuitInput(context.Background(), guest)
 	check(err)
 
-	// `output` is the abi encoded data that we added through api.OutputXXX() in the guest circuit.
-	// We want to use this later to call Brevis gateway so that when brevis submits the proof on-chain,
-	// we can directly get our output data in the contract callback.
-	// The following two lines aren't necessary, but let's check and see how it's related to
-	// `Witness.OutputCommitment`
+	// `output` is the abi encoded data that we added through api.OutputXXX() in the
+	// guest circuit. We want to use this later to call Brevis gateway so that when
+	// brevis submits the proof on-chain, we can directly get our output data in the
+	// contract callback. The following two lines aren't necessary, but let's check
+	// and see how it's related to `CircuitInput.OutputCommitment`
 	fmt.Printf("output added through api.OutputXXX: %x\n", output)
 	hashed := common.BytesToHash(crypto.Keccak256(output))
 	fmt.Printf("output commitment: %x\n", output)
-	require.Equal(t, w.OutputCommitment.Hash(), hashed)
-
-	// Construct the host circuit from our guest circuit and the packaged query results
-	host := sdk.NewHostCircuit(w, guest)
-	assignment := sdk.NewHostCircuit(w.Clone(), guestAssignment)
+	require.Equal(t, in.OutputCommitment.Hash(), hashed)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Testing
 	///////////////////////////////////////////////////////////////////////////////
 
-	// Use gnark's test package to check if the circuit can be solved using the
-	// given assignment
-	assert := test.NewAssert(t)
-	assert.ProverSucceeded(host, assignment, test.WithBackends(backend.PLONK), test.WithCurves(ecc.BLS12_377))
+	// Use the test package to check if the circuit can be solved using the given
+	// assignment
+	fmt.Printf("guest %+v\n", guest)
+	fmt.Printf("guestAssignment %+v\n", guestAssignment)
+	test.ProverSucceeded(t, guest, guestAssignment, in)
 
 	///////////////////////////////////////////////////////////////////////////////
-	// Compiling and Proving
+	// Compiling and Setup
 	///////////////////////////////////////////////////////////////////////////////
-	ccs, err := frontend.Compile(ecc.BLS12_377.ScalarField(), scs.NewBuilder, host)
+
+	outDir := "$HOME/circuitOut/tradingvolume"
+
+	// The compilation output is the description of the circuit's constraint system.
+	// You should use sdk.WriteTo to serialize and save your circuit so that it can
+	// be used in the proving step later.
+	ccs, err := sdk.Compile(guest, in)
+	check(err)
+	err = sdk.WriteTo(ccs, filepath.Join(outDir, "ccs"))
 	check(err)
 
-	fmt.Println("new srs")
-	r1cs := ccs.(*cs.SparseR1CS)
-	srsDir := os.ExpandEnv("$HOME/kzgsrs")
-	// SRS (structured reference string) is used in the KZG commitment scheme. You
-	// must download the Brevis provided SRS in your setup. The SRS files can get
-	// pretty big (gigabytes), the srs package allows you to specify a dir for
-	// caching the downloaded files.
-	canonical, lagrange, err := srs.NewSRS(r1cs, "https://kzg-srs.s3.us-west-2.amazonaws.com", srsDir)
+	// Setup is a one-time effort per circuit. A cache dir can be provided to output
+	// external dependencies. Once you have the verifying key you should also save
+	// its hash in your contract so that when a proof via Brevis is submitted
+	// on-chain you can verify that Brevis indeed used your verifying key to verify
+	// your circuit computations
+	pk, vk, err := sdk.Setup(ccs, outDir)
 	check(err)
-	fmt.Println("constraints", r1cs.GetNbConstraints())
-
-	fmt.Println("generate witness")
-	witnessFull, err := frontend.NewWitness(assignment, ecc.BLS12_377.ScalarField())
+	err = sdk.WriteTo(pk, filepath.Join(outDir, "pk"))
+	check(err)
+	err = sdk.WriteTo(vk, filepath.Join(outDir, "vk"))
 	check(err)
 
-	witnessPublic, err := witnessFull.Public()
+	// Once you saved your ccs, pk, and vk files, you can read them back into memory
+	// for use with the provided utils
+	ccs, err = sdk.ReadCircuitFrom(filepath.Join(outDir, "ccs"))
+	check(err)
+	pk, err = sdk.ReadPkFrom(filepath.Join(outDir, "pk"))
+	check(err)
+	vk, err = sdk.ReadVkFrom(filepath.Join(outDir, "pk"))
 	check(err)
 
-	fmt.Println("setup")
-	// Setup is a one-time effort per circuit. You should use pk/vk.WriteTo to
-	// serialize and save the proving/verifying keys to disk for later use.
-	pk, vk, err := plonk.Setup(ccs, canonical, lagrange)
+	///////////////////////////////////////////////////////////////////////////////
+	// Proving
+	///////////////////////////////////////////////////////////////////////////////
+
+	fmt.Println(">> prove")
+	witness, publicWitness, err := sdk.NewFullWitness(guestAssignment, in)
 	check(err)
 
-	// Once you have the verifying key you should also save its hash in your contract
-	// so that when a proof via Brevis is submitted on-chain you can verify that
-	// Brevis indeed used your verifying key to verify your circuit computations
-	vkHash, err := sdk.VkHash(vk)
-	check(err)
-	fmt.Printf("verifying key hash: %x\n", vkHash)
-
-	fmt.Println("prove")
-	// pk can also be read from disk using pk.ReadFrom
-	proof, err := plonk.Prove(ccs, pk, witnessFull)
+	proof, err := sdk.Prove(ccs, pk, witness)
 	check(err)
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -124,8 +119,7 @@ func TestCircuit(t *testing.T) {
 	// The verification of the proof generated by you is done on Brevis' side. But
 	// you can also verify your own proof to make sure everything works fine and
 	// pk/vk are serialized/deserialized properly
-	fmt.Println("verify")
-	err = plonk.Verify(proof, vk, witnessPublic)
+	err = sdk.Verify(vk, publicWitness, proof)
 	check(err)
 }
 
