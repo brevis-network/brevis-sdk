@@ -216,7 +216,10 @@ var dryRunOutput []byte
 var dryRunOutputCommit OutputCommitment
 
 func dryRun(in CircuitInput, guest GuestCircuit) (OutputCommitment, []byte, error) {
+	// resetting state
 	dryRunOutputCommit = OutputCommitment{nil, nil}
+	dryRunOutput = nil
+
 	circuit := &HostCircuit{Input: in, guest: guest}
 	assignment := &HostCircuit{Input: in, guest: guest}
 
