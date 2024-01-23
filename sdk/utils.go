@@ -1,7 +1,9 @@
 package sdk
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"math/big"
 
 	"github.com/consensys/gnark-crypto/ecc"
@@ -108,4 +110,13 @@ func var2BigInt(input Variable) *big.Int {
 		r.SetBytes(v)
 	}
 	return &r
+}
+
+func mustWriteToBytes(w io.WriterTo) []byte {
+	bytes := bytes.NewBuffer([]byte{})
+	_, err := w.WriteTo(bytes)
+	if err != nil {
+		panic(fmt.Errorf("failed to write vk to bytes stream %s", err.Error()))
+	}
+	return bytes.Bytes()
 }

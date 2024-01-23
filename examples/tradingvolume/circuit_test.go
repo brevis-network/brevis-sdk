@@ -6,8 +6,6 @@ import (
 	"github.com/celer-network/brevis-sdk/sdk"
 	"github.com/celer-network/brevis-sdk/test"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/stretchr/testify/require"
 	"path/filepath"
 	"testing"
 )
@@ -43,18 +41,8 @@ func TestCircuit(t *testing.T) {
 
 	// Execute the added queries and package the query results into circuit inputs
 	// (witness)
-	in, output, err := q.BuildCircuitInput(context.Background(), guest)
+	in, err := q.BuildCircuitInput(context.Background(), guest)
 	check(err)
-
-	// `output` is the abi encoded data that we added through api.OutputXXX() in the
-	// guest circuit. We want to use this later to call Brevis gateway so that when
-	// brevis submits the proof on-chain, we can directly get our output data in the
-	// contract callback. The following two lines aren't necessary, but let's check
-	// and see how it's related to `CircuitInput.OutputCommitment`
-	fmt.Printf("output added through api.OutputXXX: %x\n", output)
-	hashed := common.BytesToHash(crypto.Keccak256(output))
-	fmt.Printf("output commitment: %x\n", output)
-	require.Equal(t, in.OutputCommitment.Hash(), hashed)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Testing

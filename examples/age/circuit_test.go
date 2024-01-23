@@ -23,7 +23,7 @@ func TestCircuit(t *testing.T) {
 	guest := &GuestCircuit{UserAddr: sdk.ParseAddress(addr)}
 	guestAssignment := &GuestCircuit{UserAddr: sdk.ParseAddress(addr)}
 
-	w, _, err := q.BuildCircuitInput(context.Background(), guest)
+	in, err := q.BuildCircuitInput(context.Background(), guest)
 	check(err)
 
 	// checking commitment hash
@@ -32,10 +32,10 @@ func TestCircuit(t *testing.T) {
 	packed = append(packed, common.LeftPadBytes(big.NewInt(int64(17077844)).Bytes(), 8)...)
 	packed = append(packed, common.LeftPadBytes(big.NewInt(int64(0)).Bytes(), 8)...)
 	outputHash := crypto.Keccak256(packed)
-	require.Equal(t, common.BytesToHash(outputHash), w.OutputCommitment.Hash())
+	require.Equal(t, common.BytesToHash(outputHash), in.OutputCommitment.Hash())
 
-	test.ProverSucceeded(t, guest, guestAssignment, w)
-	test.ProverFailed(t, guest, guestAssignment, w)
+	test.ProverSucceeded(t, guest, guestAssignment, in)
+	test.ProverFailed(t, guest, guestAssignment, in)
 }
 
 func check(err error) {

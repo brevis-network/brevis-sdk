@@ -3,7 +3,11 @@ package sdk
 import (
 	"context"
 	"fmt"
+	"github.com/celer-network/brevis-sdk/sdk/gatewayclient"
+	"github.com/celer-network/brevis-sdk/sdk/proto"
 	bls12377_fr "github.com/consensys/gnark-crypto/ecc/bls12-377/fr"
+	"github.com/consensys/gnark/backend/plonk"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"hash"
 	"math/big"
@@ -41,10 +45,13 @@ type TransactionQuery struct {
 
 type Querier struct {
 	ec *ethclient.Client
+	gc *gatewayclient.GatewayClient
 
 	receiptQueries queries[ReceiptQuery]
 	storageQueries queries[StorageSlotQuery]
 	txQueries      queries[TransactionQuery]
+
+	circuitInput CircuitInput
 }
 
 type queries[T any] struct {
@@ -66,13 +73,38 @@ func (q *queries[T]) add(query T, index ...int) {
 	}
 }
 
-func NewQuerier(rpcUrl string) (*Querier, error) {
+func (q *queries[T]) list() []T {
+	indexed := map[int]T{}
+	// copy the map
+	for i, v := range q.special {
+		indexed[i] = v
+	}
+
+	j := 0
+	for _, v := range q.ordered {
+		for indexed[j] != nil {
+			j++
+		}
+		indexed[j] = v
+	}
+
+	l := make([]T, len(indexed))
+	for i, v := range indexed {
+		l[i] = v
+	}
+
+	return l
+}
+
+func NewQuerier(rpcUrl string, gatewayUrlOverride ...string) (*Querier, error) {
 	ec, err := ethclient.Dial(rpcUrl)
 	if err != nil {
 		return nil, err
 	}
+	gc, err := gatewayclient.New(gatewayUrlOverride...)
 	return &Querier{
 		ec:             ec,
+		gc:             gc,
 		receiptQueries: queries[ReceiptQuery]{},
 		storageQueries: queries[StorageSlotQuery]{},
 		txQueries:      queries[TransactionQuery]{},
@@ -105,7 +137,7 @@ func (q *Querier) AddTransaction(query TransactionQuery, index ...int) {
 func (q *Querier) BuildCircuitInput(
 	ctx context.Context,
 	guestCircuit GuestCircuit,
-) (in CircuitInput, abiEncodedOutput []byte, err error) {
+) (in CircuitInput, err error) {
 
 	// 1. call rpc to fetch data for each query type, then assign the corresponding input fields
 	// 2. mimc hash data at each position to generate and assign input commitments and toggles commitment
@@ -170,21 +202,75 @@ func (q *Querier) BuildCircuitInput(
 		return buildWitnessErr("failed to generate output commitment", err)
 	}
 	v.OutputCommitment = outputCommit
+	// cache dry-run output to be used in building gateway request later
+	v.dryRunOutput = output
 
-	return *v, output, nil
+	q.circuitInput = *v // cache the generated circuit input for later use in building gateway request
+
+	return *v, nil
+}
+
+type SendRequestCalldata struct {
+	RequestId common.Hash
+	Refundee  common.Address
+	Callback  common.Address
+	FeeValue  *big.Int
+}
+
+func (q *Querier) SendRequest(
+	vk plonk.VerifyingKey,
+	srcChainId, dstChainId uint64,
+	refundee, appContract common.Address,
+) (*SendRequestCalldata, error) {
+
+	req := &proto.PrepareQueryRequest{
+		ChainId:           srcChainId,
+		TargetChainId:     dstChainId,
+		ReceiptInfos:      buildReceiptInfos(q.receiptQueries),
+		StorageQueryInfos: buildStorageQueryInfos(q.storageQueries),
+		TransactionInfos:  buildTxInfos(q.txQueries),
+		AppCircuitInfo:    buildAppCircuitInfo(q.circuitInput, vk),
+		UseAppCircuitInfo: true,
+	}
+
+	res, err := q.gc.PrepareQuery(req)
+	if err != nil {
+		return nil, err
+	}
+
+	reqId, err := hexutil.Decode(res.QueryHash)
+	if err != nil {
+		return nil, err
+	}
+
+	feeValue, ok := new(big.Int).SetString(res.GetFee(), 10)
+	if !ok {
+		return nil, fmt.Errorf("cannot parse fee value of %s", res.GetFee())
+	}
+	calldata := &SendRequestCalldata{
+		RequestId: common.BytesToHash(reqId),
+		Refundee:  refundee,
+		Callback:  appContract,
+		FeeValue:  feeValue,
+	}
+
+	return calldata, nil
 }
 
 func (q *Querier) checkAllocations(cb GuestCircuit) error {
 	maxReceipts, maxSlots, maxTxs := cb.Allocate()
 
-	if len(q.receiptQueries.special) > maxReceipts {
-		return allocationLenErr("receipt", len(q.receiptQueries.special), maxReceipts)
+	numReceipts := len(q.receiptQueries.special) + len(q.receiptQueries.ordered)
+	if numReceipts > maxReceipts {
+		return allocationLenErr("receipt", numReceipts, maxReceipts)
 	}
-	if len(q.storageQueries.special) > maxSlots {
-		return allocationLenErr("storage", len(q.storageQueries.special), maxSlots)
+	numStorages := len(q.storageQueries.special) + len(q.storageQueries.ordered)
+	if numStorages > maxSlots {
+		return allocationLenErr("storage", numStorages, maxSlots)
 	}
-	if len(q.txQueries.special) > maxTxs {
-		return allocationLenErr("transaction", len(q.txQueries.special), maxTxs)
+	numTxs := len(q.txQueries.special) + len(q.txQueries.ordered)
+	if numTxs > maxTxs {
+		return allocationLenErr("transaction", numTxs, maxTxs)
 	}
 	total := maxReceipts + maxSlots + maxTxs
 	if total > NumMaxDataPoints {
@@ -466,8 +552,8 @@ func buildTx(t *txResult) (Transaction, error) {
 	}, nil
 }
 
-func buildWitnessErr(m string, err error) (CircuitInput, []byte, error) {
-	return CircuitInput{}, nil, fmt.Errorf("%s: %s", m, err.Error())
+func buildWitnessErr(m string, err error) (CircuitInput, error) {
+	return CircuitInput{}, fmt.Errorf("%s: %s", m, err.Error())
 }
 
 func allocationLenErr(name string, queryCount, maxCount int) error {
