@@ -228,5 +228,12 @@ func dryRun(in CircuitInput, guest GuestCircuit) (OutputCommitment, []byte, erro
 		}
 	}
 
-	return dryRunOutputCommit, dryRunOutput, nil
+	// making copies of these global variables to avoid sharing memory
+	out := make([]byte, len(dryRunOutput))
+	copy(out, dryRunOutput)
+
+	commit := OutputCommitment{}
+	copy(commit[:], dryRunOutputCommit[:])
+
+	return commit, out, nil
 }
