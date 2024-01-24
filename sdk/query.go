@@ -3,19 +3,19 @@ package sdk
 import (
 	"context"
 	"fmt"
-	"github.com/celer-network/brevis-sdk/sdk/gatewayclient"
 	"github.com/celer-network/brevis-sdk/sdk/proto"
+	"github.com/celer-network/zk-utils/common/eth"
 	bls12377_fr "github.com/consensys/gnark-crypto/ecc/bls12-377/fr"
+	"github.com/consensys/gnark-crypto/ecc/bls12-377/fr/mimc"
 	"github.com/consensys/gnark/backend/plonk"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"hash"
 	"math/big"
-
-	"github.com/consensys/gnark-crypto/ecc/bls12-377/fr/mimc"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 type LogFieldQuery struct {
@@ -33,7 +33,7 @@ type ReceiptQuery struct {
 	SubQueries [NumMaxLogFields]LogFieldQuery
 }
 
-type StorageSlotQuery struct {
+type StorageQuery struct {
 	BlockNum int
 	Address  common.Address
 	Slot     common.Hash
@@ -43,18 +43,7 @@ type TransactionQuery struct {
 	TxHash common.Hash
 }
 
-type Querier struct {
-	ec *ethclient.Client
-	gc *gatewayclient.GatewayClient
-
-	receiptQueries queries[ReceiptQuery]
-	storageQueries queries[StorageSlotQuery]
-	txQueries      queries[TransactionQuery]
-
-	circuitInput CircuitInput
-}
-
-type queries[T any] struct {
+type queries[T ReceiptQuery | StorageQuery | TransactionQuery] struct {
 	ordered []T
 	special map[int]T
 }
@@ -80,9 +69,10 @@ func (q *queries[T]) list() []T {
 		indexed[i] = v
 	}
 
+	var empty T
 	j := 0
 	for _, v := range q.ordered {
-		for indexed[j] != nil {
+		for indexed[j] != empty {
 			j++
 		}
 		indexed[j] = v
@@ -96,17 +86,37 @@ func (q *queries[T]) list() []T {
 	return l
 }
 
+type Querier struct {
+	ec            *ethclient.Client
+	gc            *GatewayClient
+	brevisRequest *abi.ABI
+
+	receiptQueries queries[ReceiptQuery]
+	storageQueries queries[StorageQuery]
+	txQueries      queries[TransactionQuery]
+
+	circuitInput CircuitInput
+}
+
 func NewQuerier(rpcUrl string, gatewayUrlOverride ...string) (*Querier, error) {
 	ec, err := ethclient.Dial(rpcUrl)
 	if err != nil {
 		return nil, err
 	}
-	gc, err := gatewayclient.New(gatewayUrlOverride...)
+	gc, err := NewGatewayClient(gatewayUrlOverride...)
+	if err != nil {
+		return nil, err
+	}
+	br, err := eth.BrevisRequestMetaData.GetAbi()
+	if err != nil {
+		return nil, err
+	}
 	return &Querier{
 		ec:             ec,
 		gc:             gc,
+		brevisRequest:  br,
 		receiptQueries: queries[ReceiptQuery]{},
-		storageQueries: queries[StorageSlotQuery]{},
+		storageQueries: queries[StorageQuery]{},
 		txQueries:      queries[TransactionQuery]{},
 	}, nil
 }
@@ -117,10 +127,10 @@ func (q *Querier) AddReceipt(query ReceiptQuery, index ...int) {
 	q.receiptQueries.add(query, index...)
 }
 
-// AddStorageSlot adds the StorageSlotQuery to be queried. If an index is
+// AddStorageSlot adds the StorageQuery to be queried. If an index is
 // specified, the query result will be assigned to the specified index of
 // CircuitInput.StorageSlots.
-func (q *Querier) AddStorageSlot(query StorageSlotQuery, index ...int) {
+func (q *Querier) AddStorageSlot(query StorageQuery, index ...int) {
 	q.storageQueries.add(query, index...)
 }
 
@@ -134,10 +144,7 @@ func (q *Querier) AddTransaction(query TransactionQuery, index ...int) {
 // BuildCircuitInput executes all added queries and package the query results
 // into circuit assignment (the CircuitInput struct) The provided ctx is used
 // when performing network calls to the provided blockchain RPC.
-func (q *Querier) BuildCircuitInput(
-	ctx context.Context,
-	guestCircuit GuestCircuit,
-) (in CircuitInput, err error) {
+func (q *Querier) BuildCircuitInput(ctx context.Context, guestCircuit GuestCircuit) (in CircuitInput, err error) {
 
 	// 1. call rpc to fetch data for each query type, then assign the corresponding input fields
 	// 2. mimc hash data at each position to generate and assign input commitments and toggles commitment
@@ -206,22 +213,15 @@ func (q *Querier) BuildCircuitInput(
 	v.dryRunOutput = output
 
 	q.circuitInput = *v // cache the generated circuit input for later use in building gateway request
-
+	fmt.Printf("output %x\n", output)
 	return *v, nil
 }
 
-type SendRequestCalldata struct {
-	RequestId common.Hash
-	Refundee  common.Address
-	Callback  common.Address
-	FeeValue  *big.Int
-}
-
-func (q *Querier) SendRequest(
+func (q *Querier) BuildSendRequestCalldata(
 	vk plonk.VerifyingKey,
 	srcChainId, dstChainId uint64,
 	refundee, appContract common.Address,
-) (*SendRequestCalldata, error) {
+) (calldata []byte, feeValue *big.Int, err error) {
 
 	req := &proto.PrepareQueryRequest{
 		ChainId:           srcChainId,
@@ -235,26 +235,33 @@ func (q *Querier) SendRequest(
 
 	res, err := q.gc.PrepareQuery(req)
 	if err != nil {
-		return nil, err
+		return
 	}
-
 	reqId, err := hexutil.Decode(res.QueryHash)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	feeValue, ok := new(big.Int).SetString(res.GetFee(), 10)
 	if !ok {
-		return nil, fmt.Errorf("cannot parse fee value of %s", res.GetFee())
-	}
-	calldata := &SendRequestCalldata{
-		RequestId: common.BytesToHash(reqId),
-		Refundee:  refundee,
-		Callback:  appContract,
-		FeeValue:  feeValue,
+		err = fmt.Errorf("cannot parse fee value of %s", res.GetFee())
+		return
 	}
 
-	return calldata, nil
+	calldata, err = q.buildSendRequestCalldata(common.BytesToHash(reqId), refundee, appContract)
+	return calldata, feeValue, err
+}
+
+func (q *Querier) buildSendRequestCalldata(args ...interface{}) ([]byte, error) {
+	sendRequest, ok := q.brevisRequest.Methods["BuildSendRequestCalldata"]
+	if !ok {
+		return nil, fmt.Errorf("method BuildSendRequestCalldata not fonud in abi")
+	}
+	inputs, err := sendRequest.Inputs.Pack(args...)
+	if err != nil {
+		return nil, err
+	}
+	return append(sendRequest.ID, inputs...), nil
 }
 
 func (q *Querier) checkAllocations(cb GuestCircuit) error {
@@ -495,7 +502,7 @@ func (q *Querier) assignStorageSlots(in *CircuitInput, ordered [][]byte, special
 	return nil
 }
 
-func buildStorageSlot(val []byte, query StorageSlotQuery) (StorageSlot, error) {
+func buildStorageSlot(val []byte, query StorageQuery) (StorageSlot, error) {
 	if len(val) > 32 {
 		return StorageSlot{}, fmt.Errorf("value of address %s slot key %s is %d bytes. only values less than 32 bytes are supported",
 			query.Address, query.Slot, len(val))

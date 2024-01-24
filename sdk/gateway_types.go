@@ -47,7 +47,7 @@ func buildReceiptInfos(qs queries[ReceiptQuery]) (infos []*proto.ReceiptInfo) {
 	return
 }
 
-func buildStorageQueryInfos(qs queries[StorageSlotQuery]) (infos []*proto.StorageQueryInfo) {
+func buildStorageQueryInfos(qs queries[StorageQuery]) (infos []*proto.StorageQueryInfo) {
 	for _, query := range qs.list() {
 		infos = append(infos, &proto.StorageQueryInfo{
 			Account:     query.Address.Hex(),

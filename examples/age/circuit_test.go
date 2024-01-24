@@ -2,12 +2,11 @@ package age
 
 import (
 	"context"
+	"fmt"
 	"github.com/celer-network/brevis-sdk/sdk"
 	"github.com/celer-network/brevis-sdk/test"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/stretchr/testify/require"
-	"math/big"
+	"path/filepath"
 	"testing"
 )
 
@@ -15,27 +14,72 @@ func TestCircuit(t *testing.T) {
 	q, err := sdk.NewQuerier("https://eth-mainnet.nodereal.io/v1/0af795b55d124a61b86836461ece1dee") // TODO use your eth rpc
 	check(err)
 
-	q.AddTransaction(sdk.TransactionQuery{
-		TxHash: common.HexToHash("8b805e46758497c6b32d0bf3cad3b3b435afeb0adb649857f24e424f75b79e46"),
-	})
+	txHash := common.HexToHash(
+		"8b805e46758497c6b32d0bf3cad3b3b435afeb0adb649857f24e424f75b79e46")
 
-	addr := common.HexToAddress("0x773fb4DB8218C8BB532c26ADBb6A8FD526c50f61")
-	guest := &GuestCircuit{UserAddr: sdk.ParseAddress(addr)}
-	guestAssignment := &GuestCircuit{UserAddr: sdk.ParseAddress(addr)}
+	q.AddTransaction(sdk.TransactionQuery{TxHash: txHash})
 
-	in, err := q.BuildCircuitInput(context.Background(), guest)
+	guest := &GuestCircuit{}
+	guestAssignment := &GuestCircuit{}
+
+	circuitInput, err := q.BuildCircuitInput(context.Background(), guest)
 	check(err)
 
-	// checking commitment hash
-	var packed []byte
-	packed = append(packed, addr[:]...)
-	packed = append(packed, common.LeftPadBytes(big.NewInt(int64(17077844)).Bytes(), 8)...)
-	packed = append(packed, common.LeftPadBytes(big.NewInt(int64(0)).Bytes(), 8)...)
-	outputHash := crypto.Keccak256(packed)
-	require.Equal(t, common.BytesToHash(outputHash), in.OutputCommitment.Hash())
+	///////////////////////////////////////////////////////////////////////////////
+	// Testing
+	///////////////////////////////////////////////////////////////////////////////
 
-	test.ProverSucceeded(t, guest, guestAssignment, in)
-	test.ProverFailed(t, guest, guestAssignment, in)
+	test.IsSolved(t, guest, guestAssignment, circuitInput)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Compiling and Setup
+	///////////////////////////////////////////////////////////////////////////////
+
+	outDir := "$HOME/circuitOut/age"
+	srsDir := "$HOME/kzgsrs"
+
+	// The compilation output is the description of the circuit's constraint system.
+	// You should use sdk.WriteTo to serialize and save your circuit so that it can
+	// be used in the proving step later.
+	ccs, err := sdk.Compile(guest, circuitInput)
+	check(err)
+	err = sdk.WriteTo(ccs, filepath.Join(outDir, "ccs"))
+	check(err)
+
+	// Setup is a one-time effort per circuit. A cache dir can be provided to output
+	// external dependencies. Once you have the verifying key you should also save
+	// its hash in your contract so that when a proof via Brevis is submitted
+	// on-chain you can verify that Brevis indeed used your verifying key to verify
+	// your circuit computations
+	pk, vk, err := sdk.Setup(ccs, srsDir)
+	check(err)
+	err = sdk.WriteTo(pk, filepath.Join(outDir, "pk"))
+	check(err)
+	err = sdk.WriteTo(vk, filepath.Join(outDir, "vk"))
+	check(err)
+
+	fmt.Println("compilation/setup complete")
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Proving and Verifying
+	///////////////////////////////////////////////////////////////////////////////
+
+	witness, publicWitness, err := sdk.NewFullWitness(guestAssignment, circuitInput)
+	check(err)
+	proof, err := sdk.Prove(ccs, pk, witness)
+	check(err)
+	err = sdk.WriteTo(proof, filepath.Join(outDir, "proof-"+txHash.Hex()))
+	check(err)
+
+	// Test verifying the proof we just generated
+	err = sdk.Verify(vk, publicWitness, proof)
+	check(err)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Initiating Brevis Request
+	///////////////////////////////////////////////////////////////////////////////
+
+	//q.BuildSendRequestCalldata(vk, 1, 11155111, common.HexToAddress("0x164Ef8f77e1C88Fb2C724D3755488bE4a3ba4342"))
 }
 
 func check(err error) {

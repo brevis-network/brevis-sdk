@@ -3,6 +3,7 @@ package slot
 import (
 	"context"
 	"fmt"
+	"github.com/celer-network/brevis-sdk/examples/age"
 	"github.com/celer-network/brevis-sdk/test"
 	"path/filepath"
 	"testing"
@@ -20,7 +21,7 @@ func TestCircuit(t *testing.T) {
 	// By specifying the optional parameter index = 1, the querier will give the
 	// result of this storage slot query a fixed spot in the CircuitInput. This allows us
 	// to later directly access this "special" data in circuit.
-	q.AddStorageSlot(sdk.StorageSlotQuery{
+	q.AddStorageSlot(sdk.StorageQuery{
 		BlockNum: blockNum,
 		Address:  account,
 		Slot:     common.BytesToHash(slot),
@@ -106,4 +107,30 @@ func check(err error) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func TestHostCircuit_dryRun(t *testing.T) {
+	q, err := sdk.NewQuerier("https://eth-mainnet.nodereal.io/v1/0af795b55d124a61b86836461ece1dee") // TODO use your eth rpc
+	check(err)
+
+	txHash := common.HexToHash(
+		"8b805e46758497c6b32d0bf3cad3b3b435afeb0adb649857f24e424f75b79e46")
+
+	q.AddTransaction(sdk.TransactionQuery{TxHash: txHash})
+	// More slots can be added to be batch proven, but in this example we use only
+	// one to keep it simple
+	// q.AddStorageSlot(...)
+	// q.AddStorageSlot(...)
+	// q.AddStorageSlot(...)
+
+	guest := &age.GuestCircuit{}
+	guest2 := &age.GuestCircuit{}
+
+	in, err := q.BuildCircuitInput(context.Background(), guest)
+	check(err)
+	fmt.Printf("first time: commit %v\n", in.OutputCommitment)
+
+	in2, err := q.BuildCircuitInput(context.Background(), guest2)
+	check(err)
+	fmt.Printf("second time: commit %v\n", in2.OutputCommitment)
 }

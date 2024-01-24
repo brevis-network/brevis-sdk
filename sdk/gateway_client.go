@@ -1,4 +1,4 @@
-package gatewayclient
+package sdk
 
 import (
 	"context"
@@ -11,7 +11,7 @@ type GatewayClient struct {
 	c proto.WebClient
 }
 
-func New(url ...string) (*GatewayClient, error) {
+func NewGatewayClient(url ...string) (*GatewayClient, error) {
 	if len(url) > 1 {
 		panic("must supply at most one url")
 	}
