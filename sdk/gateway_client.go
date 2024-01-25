@@ -15,7 +15,7 @@ func NewGatewayClient(url ...string) (*GatewayClient, error) {
 	if len(url) > 1 {
 		panic("must supply at most one url")
 	}
-	gatewayUrl := "https://" // TODO default
+	gatewayUrl := "appsdk.brevis.network:11082"
 	if len(url) > 0 {
 		gatewayUrl = url[0]
 	}

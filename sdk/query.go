@@ -95,7 +95,8 @@ type Querier struct {
 	storageQueries queries[StorageQuery]
 	txQueries      queries[TransactionQuery]
 
-	circuitInput CircuitInput
+	circuitInput     CircuitInput
+	buildInputCalled bool
 }
 
 func NewQuerier(rpcUrl string, gatewayUrlOverride ...string) (*Querier, error) {
@@ -213,7 +214,9 @@ func (q *Querier) BuildCircuitInput(ctx context.Context, guestCircuit GuestCircu
 	v.dryRunOutput = output
 
 	q.circuitInput = *v // cache the generated circuit input for later use in building gateway request
+	q.buildInputCalled = true
 	fmt.Printf("output %x\n", output)
+
 	return *v, nil
 }
 
@@ -222,6 +225,9 @@ func (q *Querier) BuildSendRequestCalldata(
 	srcChainId, dstChainId uint64,
 	refundee, appContract common.Address,
 ) (calldata []byte, feeValue *big.Int, err error) {
+	if !q.buildInputCalled {
+		panic("")
+	}
 
 	req := &proto.PrepareQueryRequest{
 		ChainId:           srcChainId,
@@ -233,6 +239,7 @@ func (q *Querier) BuildSendRequestCalldata(
 		UseAppCircuitInfo: true,
 	}
 
+	fmt.Println("Calling Brevis gateway PrepareQuery...")
 	res, err := q.gc.PrepareQuery(req)
 	if err != nil {
 		return
@@ -248,14 +255,16 @@ func (q *Querier) BuildSendRequestCalldata(
 		return
 	}
 
+	fmt.Printf("Brevis gateway responded with requestId %x, feeValue %d\n", reqId, feeValue)
+
 	calldata, err = q.buildSendRequestCalldata(common.BytesToHash(reqId), refundee, appContract)
 	return calldata, feeValue, err
 }
 
 func (q *Querier) buildSendRequestCalldata(args ...interface{}) ([]byte, error) {
-	sendRequest, ok := q.brevisRequest.Methods["BuildSendRequestCalldata"]
+	sendRequest, ok := q.brevisRequest.Methods["SendRequest"]
 	if !ok {
-		return nil, fmt.Errorf("method BuildSendRequestCalldata not fonud in abi")
+		return nil, fmt.Errorf("method SendRequest not fonud in abi")
 	}
 	inputs, err := sendRequest.Inputs.Pack(args...)
 	if err != nil {

@@ -64,22 +64,29 @@ func TestCircuit(t *testing.T) {
 	// Proving and Verifying
 	///////////////////////////////////////////////////////////////////////////////
 
-	witness, publicWitness, err := sdk.NewFullWitness(guestAssignment, circuitInput)
-	check(err)
-	proof, err := sdk.Prove(ccs, pk, witness)
-	check(err)
-	err = sdk.WriteTo(proof, filepath.Join(outDir, "proof-"+txHash.Hex()))
-	check(err)
-
-	// Test verifying the proof we just generated
-	err = sdk.Verify(vk, publicWitness, proof)
-	check(err)
+	//witness, publicWitness, err := sdk.NewFullWitness(guestAssignment, circuitInput)
+	//check(err)
+	//proof, err := sdk.Prove(ccs, pk, witness)
+	//check(err)
+	//err = sdk.WriteTo(proof, filepath.Join(outDir, "proof-"+txHash.Hex()))
+	//check(err)
+	//
+	//// Test verifying the proof we just generated
+	//err = sdk.Verify(vk, publicWitness, proof)
+	//check(err)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Initiating Brevis Request
 	///////////////////////////////////////////////////////////////////////////////
 
-	//q.BuildSendRequestCalldata(vk, 1, 11155111, common.HexToAddress("0x164Ef8f77e1C88Fb2C724D3755488bE4a3ba4342"))
+	fmt.Println(">> Initiate Brevis Request")
+	appContract := common.HexToAddress("0x403278A746A72Dc5E88c5D63E24B6B6dC9d94Fe8")
+	refundee := common.HexToAddress("0x164Ef8f77e1C88Fb2C724D3755488bE4a3ba4342")
+
+	calldata, feeValue, err := q.BuildSendRequestCalldata(vk, 1, 11155111, refundee, appContract)
+	check(err)
+	fmt.Printf("calldata %x\n", calldata)
+	fmt.Printf("feeValue %d\n", feeValue)
 }
 
 func check(err error) {

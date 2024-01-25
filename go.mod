@@ -3,9 +3,8 @@ module github.com/celer-network/brevis-sdk
 go 1.20
 
 require (
-	github.com/cbergoon/merkletree v0.2.0
 	github.com/celer-network/goutils v0.1.60
-	github.com/celer-network/zk-utils v0.0.0-20240117095744-af21152bceba
+	github.com/celer-network/zk-utils v0.0.0-20240125102252-bb623eb6e152
 	github.com/consensys/gnark v0.0.0
 	github.com/consensys/gnark-crypto v0.12.2-0.20231208203441-d4eab6ddd2af
 	github.com/ethereum/go-ethereum v1.13.8
@@ -55,11 +54,11 @@ require (
 	golang.org/x/crypto v0.17.0 // indirect
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa // indirect
 	golang.org/x/mod v0.14.0 // indirect
-	golang.org/x/net v0.18.0 // indirect
+	golang.org/x/net v0.19.0 // indirect
 	golang.org/x/sync v0.5.0 // indirect
 	golang.org/x/sys v0.15.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
-	golang.org/x/tools v0.15.0 // indirect
+	golang.org/x/tools v0.16.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
