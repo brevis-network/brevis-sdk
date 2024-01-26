@@ -15,7 +15,7 @@ func TestCircuit(t *testing.T) {
 	check(err)
 
 	txHash := common.HexToHash(
-		"8b805e46758497c6b32d0bf3cad3b3b435afeb0adb649857f24e424f75b79e46")
+		"954b01a12e0846eca75751b248796597b6b1715f5a23ada7f2009a8930ce10ad")
 
 	q.AddTransaction(sdk.TransactionQuery{TxHash: txHash})
 
@@ -93,7 +93,6 @@ func TestCircuit(t *testing.T) {
 	///////////////////////////////////////////////////////////////////////////////
 
 	fmt.Println(">> Submit Prove to Brevis")
-
 }
 
 func check(err error) {

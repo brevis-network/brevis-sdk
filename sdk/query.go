@@ -262,9 +262,9 @@ func (q *Querier) BuildSendRequestCalldata(
 }
 
 func (q *Querier) buildSendRequestCalldata(args ...interface{}) ([]byte, error) {
-	sendRequest, ok := q.brevisRequest.Methods["SendRequest"]
+	sendRequest, ok := q.brevisRequest.Methods["sendRequest"]
 	if !ok {
-		return nil, fmt.Errorf("method SendRequest not fonud in abi")
+		return nil, fmt.Errorf("method sendRequest not fonud in abi")
 	}
 	inputs, err := sendRequest.Inputs.Pack(args...)
 	if err != nil {

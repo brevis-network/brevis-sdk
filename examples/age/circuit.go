@@ -4,9 +4,7 @@ import (
 	"github.com/celer-network/brevis-sdk/sdk"
 )
 
-type GuestCircuit struct {
-	UserAddr sdk.Variable
-}
+type GuestCircuit struct{}
 
 var _ sdk.GuestCircuit = &GuestCircuit{}
 
