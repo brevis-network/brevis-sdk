@@ -87,6 +87,13 @@ func TestCircuit(t *testing.T) {
 	check(err)
 	fmt.Printf("calldata %x\n", calldata)
 	fmt.Printf("feeValue %d\n", feeValue)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Submit Proof to Brevis
+	///////////////////////////////////////////////////////////////////////////////
+
+	fmt.Println(">> Submit Prove to Brevis")
+
 }
 
 func check(err error) {

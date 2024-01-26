@@ -15,7 +15,7 @@ func NewGatewayClient(url ...string) (*GatewayClient, error) {
 	if len(url) > 1 {
 		panic("must supply at most one url")
 	}
-	gatewayUrl := "appsdk.brevis.network:11082"
+	gatewayUrl := "100.21.75.26:11080"
 	if len(url) > 0 {
 		gatewayUrl = url[0]
 	}
@@ -24,9 +24,10 @@ func NewGatewayClient(url ...string) (*GatewayClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &GatewayClient{
+	gc := &GatewayClient{
 		c: proto.NewWebClient(conn),
-	}, nil
+	}
+	return gc, nil
 }
 
 func (c *GatewayClient) PrepareQuery(req *proto.PrepareQueryRequest) (resp *proto.PrepareQueryResponse, err error) {
