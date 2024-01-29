@@ -1,6 +1,7 @@
 package sdk
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/celer-network/brevis-sdk/sdk/proto"
@@ -16,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"hash"
 	"math/big"
+	"time"
 )
 
 type LogFieldQuery struct {
@@ -95,8 +97,11 @@ type Querier struct {
 	storageQueries queries[StorageQuery]
 	txQueries      queries[TransactionQuery]
 
-	circuitInput     CircuitInput
-	buildInputCalled bool
+	// cache fields
+	circuitInput           CircuitInput
+	buildInputCalled       bool
+	queryId                []byte
+	srcChainId, dstChainId uint64
 }
 
 func NewQuerier(rpcUrl string, gatewayUrlOverride ...string) (*Querier, error) {
@@ -226,8 +231,10 @@ func (q *Querier) BuildSendRequestCalldata(
 	refundee, appContract common.Address,
 ) (calldata []byte, feeValue *big.Int, err error) {
 	if !q.buildInputCalled {
-		panic("")
+		panic("must call BuildCircuitInput before BuildSendRequestCalldata")
 	}
+	q.srcChainId = srcChainId
+	q.dstChainId = dstChainId
 
 	req := &proto.PrepareQueryRequest{
 		ChainId:           srcChainId,
@@ -244,10 +251,11 @@ func (q *Querier) BuildSendRequestCalldata(
 	if err != nil {
 		return
 	}
-	reqId, err := hexutil.Decode(res.QueryHash)
+	queryId, err := hexutil.Decode(res.QueryHash)
 	if err != nil {
 		return
 	}
+	q.queryId = queryId
 
 	feeValue, ok := new(big.Int).SetString(res.GetFee(), 10)
 	if !ok {
@@ -255,9 +263,9 @@ func (q *Querier) BuildSendRequestCalldata(
 		return
 	}
 
-	fmt.Printf("Brevis gateway responded with requestId %x, feeValue %d\n", reqId, feeValue)
+	fmt.Printf("Brevis gateway responded with queryId %x, feeValue %d\n", queryId, feeValue)
 
-	calldata, err = q.buildSendRequestCalldata(common.BytesToHash(reqId), refundee, appContract)
+	calldata, err = q.buildSendRequestCalldata(common.BytesToHash(queryId), refundee, appContract)
 	return calldata, feeValue, err
 }
 
@@ -271,6 +279,83 @@ func (q *Querier) buildSendRequestCalldata(args ...interface{}) ([]byte, error) 
 		return nil, err
 	}
 	return append(sendRequest.ID, inputs...), nil
+}
+
+type submitProofOptions struct {
+	onFinalProofSubmitted func(txHash common.Hash)
+	ctx                   context.Context
+	async                 bool
+}
+type SubmitProofOption func(option submitProofOptions)
+
+func WithOnFinalProofSubmittedCallback(cb func(txHash common.Hash)) SubmitProofOption {
+	return func(option submitProofOptions) { option.onFinalProofSubmitted = cb }
+}
+
+func WithContext(ctx context.Context) SubmitProofOption {
+	return func(option submitProofOptions) { option.ctx = ctx }
+}
+
+func (q *Querier) SubmitProof(proof plonk.Proof, options ...SubmitProofOption) error {
+	opts := submitProofOptions{}
+	for _, apply := range options {
+		apply(opts)
+	}
+
+	buf := bytes.NewBuffer([]byte{})
+	_, err := proof.WriteTo(buf)
+	if err != nil {
+		return fmt.Errorf("error writing proof to bytes: %s", err.Error())
+	}
+	res, err := q.gc.SubmitProof(&proto.SubmitAppCircuitProofRequest{
+		QueryHash:     hexutil.Encode(q.queryId),
+		TargetChainId: q.dstChainId,
+		Proof:         hexutil.Encode(buf.Bytes()),
+	})
+	if err != nil {
+		return fmt.Errorf("error calling brevis gateway SubmitProof: %s", err.Error())
+	}
+	if !res.GetSuccess() {
+		return fmt.Errorf("error calling brevis gateway SubmitProof: cdoe %s, msg %s",
+			res.GetErr().GetCode(), res.GetErr().GetMsg())
+	}
+
+	if opts.onFinalProofSubmitted != nil {
+		return q.waitFinalProofSubmitted(opts)
+	}
+
+	return nil
+}
+
+func (q *Querier) waitFinalProofSubmitted(opts submitProofOptions) error {
+	var cancel <-chan struct{}
+	if opts.ctx != nil {
+		cancel = opts.ctx.Done()
+	}
+	t := time.NewTicker(12 * time.Second)
+	for {
+		select {
+		case <-t.C:
+			res, err := q.gc.GetQueryStatus(&proto.GetQueryStatusRequest{
+				QueryHash:     hexutil.Encode(q.queryId),
+				TargetChainId: q.dstChainId,
+			})
+			if err != nil {
+				fmt.Printf("error querying proof status: %s\n", err.Error())
+			}
+			if res.Status == Complete {
+				return fmt.Errorf("wait for final proof submission: status %s", res.Status)
+			} else if res.Status == Failure {
+				return fmt.Errorf("proof submission status Failure")
+			} else {
+				fmt.Printf("wait for final proof submission: status %s\n", res.Status)
+			}
+		case <-cancel:
+			fmt.Println("stop waiting for final proof submission: context cancelled")
+			return nil
+		}
+	}
+	return nil
 }
 
 func (q *Querier) checkAllocations(cb GuestCircuit) error {

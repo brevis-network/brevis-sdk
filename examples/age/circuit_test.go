@@ -64,16 +64,16 @@ func TestCircuit(t *testing.T) {
 	// Proving and Verifying
 	///////////////////////////////////////////////////////////////////////////////
 
-	//witness, publicWitness, err := sdk.NewFullWitness(guestAssignment, circuitInput)
-	//check(err)
-	//proof, err := sdk.Prove(ccs, pk, witness)
-	//check(err)
-	//err = sdk.WriteTo(proof, filepath.Join(outDir, "proof-"+txHash.Hex()))
-	//check(err)
-	//
-	//// Test verifying the proof we just generated
-	//err = sdk.Verify(vk, publicWitness, proof)
-	//check(err)
+	witness, publicWitness, err := sdk.NewFullWitness(guestAssignment, circuitInput)
+	check(err)
+	proof, err := sdk.Prove(ccs, pk, witness)
+	check(err)
+	err = sdk.WriteTo(proof, filepath.Join(outDir, "proof-"+txHash.Hex()))
+	check(err)
+
+	// Test verifying the proof we just generated
+	err = sdk.Verify(vk, publicWitness, proof)
+	check(err)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Initiating Brevis Request
@@ -92,7 +92,11 @@ func TestCircuit(t *testing.T) {
 	// Submit Proof to Brevis
 	///////////////////////////////////////////////////////////////////////////////
 
-	fmt.Println(">> Submit Prove to Brevis")
+	fmt.Println(">> Submit Proof to Brevis")
+	err = q.SubmitProof(proof, sdk.WithOnFinalProofSubmittedCallback(func(txHash common.Hash) {
+		fmt.Printf("tx hash %s\n", txHash)
+	}))
+	check(err)
 }
 
 func check(err error) {
