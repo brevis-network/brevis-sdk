@@ -93,10 +93,16 @@ func TestCircuit(t *testing.T) {
 	///////////////////////////////////////////////////////////////////////////////
 
 	fmt.Println(">> Submit Proof to Brevis")
-	err = q.SubmitProof(proof, sdk.WithOnFinalProofSubmittedCallback(func(txHash common.Hash) {
-		fmt.Printf("tx hash %s\n", txHash)
-	}))
+	err = q.SubmitProof(proof)
 	check(err)
+
+	// [Call BrevisProof.sendRequest() with the above calldata]
+
+	// Poll Brevis gateway for query status till the final proof is submitted
+	// on-chain by Brevis and your contract is called
+	tx, err := q.WaitFinalProofSubmitted(context.Background())
+	check(err)
+	fmt.Printf("tx hash %s\n", tx)
 }
 
 func check(err error) {

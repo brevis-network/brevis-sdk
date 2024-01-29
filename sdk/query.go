@@ -282,22 +282,21 @@ func (q *Querier) buildSendRequestCalldata(args ...interface{}) ([]byte, error) 
 }
 
 type submitProofOptions struct {
-	onFinalProofSubmitted func(txHash common.Hash)
-	ctx                   context.Context
-	async                 bool
+	onSubmitted func(txHash common.Hash)
+	onError     func(err error)
+	ctx         context.Context
 }
 type SubmitProofOption func(option submitProofOptions)
 
-func WithOnFinalProofSubmittedCallback(cb func(txHash common.Hash)) SubmitProofOption {
-	return func(option submitProofOptions) { option.onFinalProofSubmitted = cb }
+func WithFinalProofSubmittedCallback(onSubmitted func(txHash common.Hash), onError func(err error)) SubmitProofOption {
+	return func(option submitProofOptions) {
+		option.onSubmitted = onSubmitted
+		option.onError = onError
+	}
 }
 
 func WithContext(ctx context.Context) SubmitProofOption {
 	return func(option submitProofOptions) { option.ctx = ctx }
-}
-
-func WithNonBlocking() SubmitProofOption {
-	return func(option submitProofOptions) { option.async = true }
 }
 
 func (q *Querier) SubmitProof(proof plonk.Proof, options ...SubmitProofOption) error {
@@ -324,18 +323,29 @@ func (q *Querier) SubmitProof(proof plonk.Proof, options ...SubmitProofOption) e
 			res.GetErr().GetCode(), res.GetErr().GetMsg())
 	}
 
-	if opts.onFinalProofSubmitted != nil {
-		return q.waitFinalProofSubmitted(opts)
+	if opts.onSubmitted != nil {
+		var cancel <-chan struct{}
+		if opts.ctx != nil {
+			cancel = opts.ctx.Done()
+		}
+		go func() {
+			tx, err := q.waitFinalProofSubmitted(cancel)
+			if err != nil {
+				fmt.Println(err.Error())
+				opts.onError(err)
+			}
+			opts.onSubmitted(tx)
+		}()
 	}
 
 	return nil
 }
 
-func (q *Querier) waitFinalProofSubmitted(opts submitProofOptions) error {
-	var cancel <-chan struct{}
-	if opts.ctx != nil {
-		cancel = opts.ctx.Done()
-	}
+func (q *Querier) WaitFinalProofSubmitted(ctx context.Context) (tx common.Hash, err error) {
+	return q.waitFinalProofSubmitted(ctx.Done())
+}
+
+func (q *Querier) waitFinalProofSubmitted(cancel <-chan struct{}) (common.Hash, error) {
 	t := time.NewTicker(12 * time.Second)
 	for {
 		select {
@@ -345,18 +355,19 @@ func (q *Querier) waitFinalProofSubmitted(opts submitProofOptions) error {
 				TargetChainId: q.dstChainId,
 			})
 			if err != nil {
-				fmt.Printf("error querying proof status: %s\n", err.Error())
+				return common.Hash{}, fmt.Errorf("error querying proof status: %s", err.Error())
 			}
 			if res.Status == proto.QueryStatus_QS_COMPLETE {
-				return fmt.Errorf("wait for final proof submission: status %s", res.Status)
+				fmt.Printf("final proof for query %s submitted: tx %s\n", q.queryId, res.TxHash)
+				return common.HexToHash(res.TxHash), nil
 			} else if res.Status == proto.QueryStatus_QS_FAILED {
-				return fmt.Errorf("proof submission status Failure")
+				return common.Hash{}, fmt.Errorf("proof submission status Failure")
 			} else {
 				fmt.Printf("polling for final proof submission: status %s\n", res.Status)
 			}
 		case <-cancel:
 			fmt.Println("stop waiting for final proof submission: context cancelled")
-			return nil
+			return common.Hash{}, nil
 		}
 	}
 }
