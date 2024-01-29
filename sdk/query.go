@@ -296,6 +296,10 @@ func WithContext(ctx context.Context) SubmitProofOption {
 	return func(option submitProofOptions) { option.ctx = ctx }
 }
 
+func WithNonBlocking() SubmitProofOption {
+	return func(option submitProofOptions) { option.async = true }
+}
+
 func (q *Querier) SubmitProof(proof plonk.Proof, options ...SubmitProofOption) error {
 	opts := submitProofOptions{}
 	for _, apply := range options {
@@ -343,19 +347,18 @@ func (q *Querier) waitFinalProofSubmitted(opts submitProofOptions) error {
 			if err != nil {
 				fmt.Printf("error querying proof status: %s\n", err.Error())
 			}
-			if res.Status == Complete {
+			if res.Status == proto.QueryStatus_QS_COMPLETE {
 				return fmt.Errorf("wait for final proof submission: status %s", res.Status)
-			} else if res.Status == Failure {
+			} else if res.Status == proto.QueryStatus_QS_FAILED {
 				return fmt.Errorf("proof submission status Failure")
 			} else {
-				fmt.Printf("wait for final proof submission: status %s\n", res.Status)
+				fmt.Printf("polling for final proof submission: status %s\n", res.Status)
 			}
 		case <-cancel:
 			fmt.Println("stop waiting for final proof submission: context cancelled")
 			return nil
 		}
 	}
-	return nil
 }
 
 func (q *Querier) checkAllocations(cb GuestCircuit) error {
