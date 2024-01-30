@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func ProverSucceeded(t *testing.T, guest, assign sdk.GuestCircuit, in sdk.CircuitInput) {
+func ProverSucceeded(t *testing.T, guest, assign sdk.AppCircuit, in sdk.CircuitInput) {
 	host := sdk.NewHostCircuit(in.Clone(), guest)
 	assignment := sdk.NewHostCircuit(in.Clone(), assign)
 
@@ -16,7 +16,7 @@ func ProverSucceeded(t *testing.T, guest, assign sdk.GuestCircuit, in sdk.Circui
 	assert.ProverSucceeded(host, assignment, test.WithBackends(backend.PLONK), test.WithCurves(ecc.BLS12_377))
 }
 
-func ProverFailed(t *testing.T, guest, assign sdk.GuestCircuit, in sdk.CircuitInput) {
+func ProverFailed(t *testing.T, guest, assign sdk.AppCircuit, in sdk.CircuitInput) {
 	host := sdk.NewHostCircuit(in.Clone(), guest)
 	assignment := sdk.NewHostCircuit(in.Clone(), assign)
 
@@ -24,7 +24,7 @@ func ProverFailed(t *testing.T, guest, assign sdk.GuestCircuit, in sdk.CircuitIn
 	assert.ProverFailed(host, assignment, test.WithBackends(backend.PLONK), test.WithCurves(ecc.BLS12_377))
 }
 
-func IsSolved(t *testing.T, guest, assign sdk.GuestCircuit, in sdk.CircuitInput) {
+func IsSolved(t *testing.T, guest, assign sdk.AppCircuit, in sdk.CircuitInput) {
 	host := sdk.NewHostCircuit(in.Clone(), guest)
 	assignment := sdk.NewHostCircuit(in.Clone(), assign)
 

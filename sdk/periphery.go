@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-func Compile(guest GuestCircuit, in CircuitInput) (constraint.ConstraintSystem, error) {
+func Compile(guest AppCircuit, in CircuitInput) (constraint.ConstraintSystem, error) {
 	fmt.Println(">> compile")
 	host := NewHostCircuit(in.Clone(), guest)
 
@@ -35,7 +35,7 @@ func Compile(guest GuestCircuit, in CircuitInput) (constraint.ConstraintSystem, 
 	return ccs, nil
 }
 
-func NewFullWitness(assign GuestCircuit, in CircuitInput) (w, wpub witness.Witness, err error) {
+func NewFullWitness(assign AppCircuit, in CircuitInput) (w, wpub witness.Witness, err error) {
 	fmt.Println(">> generate full witness")
 	host := NewHostCircuit(in.Clone(), assign)
 
@@ -143,7 +143,7 @@ func ReadCircuitFrom(path string) (constraint.ConstraintSystem, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("%d bytes read from %s\n", d, path)
+	fmt.Printf("Constraint system: %d bytes read from %s\n", d, path)
 	return ccs, nil
 }
 
@@ -158,7 +158,7 @@ func ReadPkFrom(path string) (plonk.ProvingKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("%d bytes read from %s\n", d, path)
+	fmt.Printf("Proving key: %d bytes read from %s\n", d, path)
 	return pk, err
 }
 
@@ -173,6 +173,21 @@ func ReadVkFrom(path string) (plonk.VerifyingKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("%d bytes read from %s\n", d, path)
+	fmt.Printf("Verifying key: %d bytes read from %s\n", d, path)
 	return vk, err
+}
+
+func ReadProofFrom(path string) (plonk.Proof, error) {
+	f, err := os.Open(os.ExpandEnv(path))
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	proof := plonk.NewProof(ecc.BLS12_377)
+	d, err := proof.ReadFrom(f)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("Proof: %d bytes read from %s\n", d, path)
+	return proof, err
 }

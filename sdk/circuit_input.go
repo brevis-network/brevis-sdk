@@ -22,6 +22,8 @@ type CircuitInput struct {
 	Receipts     DataPoints[Receipt]
 	StorageSlots DataPoints[StorageSlot]
 	Transactions DataPoints[Transaction]
+
+	dryRunOutput []byte `gnark:"-"`
 }
 
 func (in CircuitInput) Clone() CircuitInput {

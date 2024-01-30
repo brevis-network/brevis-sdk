@@ -54,6 +54,16 @@ func (ds *DataStream[T]) Map(mapFunc MapFunc[T]) *DataStream[Variable] {
 	return newDataStream(ds.api, res, ds.toggles, ds.max)
 }
 
+type Map2Func[T any] func(current T) [2]Variable
+
+func (ds *DataStream[T]) Map2(mapFunc Map2Func[T]) *DataStream[[2]Variable] {
+	res := make([][2]Variable, ds.max)
+	for i, data := range ds.underlying {
+		res[i] = mapFunc(data)
+	}
+	return newDataStream(ds.api, res, ds.toggles, ds.max)
+}
+
 type AssertFunc[T any] func(current T) Variable
 
 // AssertEach performs the standard api.AssertIsEqual on every valid element of the stream

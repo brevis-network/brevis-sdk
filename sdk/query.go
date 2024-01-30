@@ -1,17 +1,23 @@
 package sdk
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"github.com/celer-network/brevis-sdk/sdk/proto"
+	"github.com/celer-network/zk-utils/common/eth"
 	bls12377_fr "github.com/consensys/gnark-crypto/ecc/bls12-377/fr"
+	"github.com/consensys/gnark-crypto/ecc/bls12-377/fr/mimc"
+	"github.com/consensys/gnark/backend/plonk"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"hash"
 	"math/big"
-
-	"github.com/consensys/gnark-crypto/ecc/bls12-377/fr/mimc"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
+	"time"
 )
 
 type LogFieldQuery struct {
@@ -29,7 +35,7 @@ type ReceiptQuery struct {
 	SubQueries [NumMaxLogFields]LogFieldQuery
 }
 
-type StorageSlotQuery struct {
+type StorageQuery struct {
 	BlockNum int
 	Address  common.Address
 	Slot     common.Hash
@@ -39,15 +45,7 @@ type TransactionQuery struct {
 	TxHash common.Hash
 }
 
-type Querier struct {
-	ec *ethclient.Client
-
-	receiptQueries queries[ReceiptQuery]
-	storageQueries queries[StorageSlotQuery]
-	txQueries      queries[TransactionQuery]
-}
-
-type queries[T any] struct {
+type queries[T ReceiptQuery | StorageQuery | TransactionQuery] struct {
 	ordered []T
 	special map[int]T
 }
@@ -66,15 +64,65 @@ func (q *queries[T]) add(query T, index ...int) {
 	}
 }
 
-func NewQuerier(rpcUrl string) (*Querier, error) {
+func (q *queries[T]) list() []T {
+	indexed := map[int]T{}
+	// copy the map
+	for i, v := range q.special {
+		indexed[i] = v
+	}
+
+	var empty T
+	j := 0
+	for _, v := range q.ordered {
+		for indexed[j] != empty {
+			j++
+		}
+		indexed[j] = v
+	}
+
+	l := make([]T, len(indexed))
+	for i, v := range indexed {
+		l[i] = v
+	}
+
+	return l
+}
+
+type Querier struct {
+	ec            *ethclient.Client
+	gc            *GatewayClient
+	brevisRequest *abi.ABI
+
+	receiptQueries queries[ReceiptQuery]
+	storageQueries queries[StorageQuery]
+	txQueries      queries[TransactionQuery]
+
+	// cache fields
+	circuitInput           CircuitInput
+	buildInputCalled       bool
+	queryId                []byte
+	srcChainId, dstChainId uint64
+}
+
+func NewBrevisApp(rpcUrl string, gatewayUrlOverride ...string) (*Querier, error) {
 	ec, err := ethclient.Dial(rpcUrl)
+	if err != nil {
+		return nil, err
+	}
+	gc, err := NewGatewayClient(gatewayUrlOverride...)
+	if err != nil {
+		return nil, err
+	}
+	br, err := eth.BrevisRequestMetaData.GetAbi()
 	if err != nil {
 		return nil, err
 	}
 	return &Querier{
 		ec:             ec,
+		gc:             gc,
+		brevisRequest:  br,
 		receiptQueries: queries[ReceiptQuery]{},
-		storageQueries: queries[StorageSlotQuery]{},
+		storageQueries: queries[StorageQuery]{},
 		txQueries:      queries[TransactionQuery]{},
 	}, nil
 }
@@ -85,10 +133,10 @@ func (q *Querier) AddReceipt(query ReceiptQuery, index ...int) {
 	q.receiptQueries.add(query, index...)
 }
 
-// AddStorageSlot adds the StorageSlotQuery to be queried. If an index is
+// AddStorageSlot adds the StorageQuery to be queried. If an index is
 // specified, the query result will be assigned to the specified index of
 // CircuitInput.StorageSlots.
-func (q *Querier) AddStorageSlot(query StorageSlotQuery, index ...int) {
+func (q *Querier) AddStorageSlot(query StorageQuery, index ...int) {
 	q.storageQueries.add(query, index...)
 }
 
@@ -102,10 +150,7 @@ func (q *Querier) AddTransaction(query TransactionQuery, index ...int) {
 // BuildCircuitInput executes all added queries and package the query results
 // into circuit assignment (the CircuitInput struct) The provided ctx is used
 // when performing network calls to the provided blockchain RPC.
-func (q *Querier) BuildCircuitInput(
-	ctx context.Context,
-	guestCircuit GuestCircuit,
-) (in CircuitInput, abiEncodedOutput []byte, err error) {
+func (q *Querier) BuildCircuitInput(ctx context.Context, guestCircuit AppCircuit) (in CircuitInput, err error) {
 
 	// 1. call rpc to fetch data for each query type, then assign the corresponding input fields
 	// 2. mimc hash data at each position to generate and assign input commitments and toggles commitment
@@ -170,21 +215,177 @@ func (q *Querier) BuildCircuitInput(
 		return buildWitnessErr("failed to generate output commitment", err)
 	}
 	v.OutputCommitment = outputCommit
+	// cache dry-run output to be used in building gateway request later
+	v.dryRunOutput = output
 
-	return *v, output, nil
+	q.circuitInput = *v // cache the generated circuit input for later use in building gateway request
+	q.buildInputCalled = true
+	fmt.Printf("output %x\n", output)
+
+	return *v, nil
 }
 
-func (q *Querier) checkAllocations(cb GuestCircuit) error {
+func (q *Querier) PrepareRequest(
+	vk plonk.VerifyingKey,
+	srcChainId, dstChainId uint64,
+	refundee, appContract common.Address,
+) (calldata []byte, feeValue *big.Int, err error) {
+	if !q.buildInputCalled {
+		panic("must call BuildCircuitInput before PrepareRequest")
+	}
+	q.srcChainId = srcChainId
+	q.dstChainId = dstChainId
+
+	req := &proto.PrepareQueryRequest{
+		ChainId:           srcChainId,
+		TargetChainId:     dstChainId,
+		ReceiptInfos:      buildReceiptInfos(q.receiptQueries),
+		StorageQueryInfos: buildStorageQueryInfos(q.storageQueries),
+		TransactionInfos:  buildTxInfos(q.txQueries),
+		AppCircuitInfo:    buildAppCircuitInfo(q.circuitInput, vk),
+		UseAppCircuitInfo: true,
+	}
+
+	fmt.Println("Calling Brevis gateway PrepareRequest...")
+	res, err := q.gc.PrepareQuery(req)
+	if err != nil {
+		return
+	}
+	queryId, err := hexutil.Decode(res.QueryHash)
+	if err != nil {
+		return
+	}
+	q.queryId = queryId
+
+	feeValue, ok := new(big.Int).SetString(res.GetFee(), 10)
+	if !ok {
+		err = fmt.Errorf("cannot parse fee value of %s", res.GetFee())
+		return
+	}
+
+	fmt.Printf("Brevis gateway responded with queryId %x, feeValue %d\n", queryId, feeValue)
+
+	calldata, err = q.buildSendRequestCalldata(common.BytesToHash(queryId), refundee, appContract)
+	return calldata, feeValue, err
+}
+
+func (q *Querier) buildSendRequestCalldata(args ...interface{}) ([]byte, error) {
+	sendRequest, ok := q.brevisRequest.Methods["sendRequest"]
+	if !ok {
+		return nil, fmt.Errorf("method sendRequest not fonud in abi")
+	}
+	inputs, err := sendRequest.Inputs.Pack(args...)
+	if err != nil {
+		return nil, err
+	}
+	return append(sendRequest.ID, inputs...), nil
+}
+
+type submitProofOptions struct {
+	onSubmitted func(txHash common.Hash)
+	onError     func(err error)
+	ctx         context.Context
+}
+type SubmitProofOption func(option submitProofOptions)
+
+func WithFinalProofSubmittedCallback(onSubmitted func(txHash common.Hash), onError func(err error)) SubmitProofOption {
+	return func(option submitProofOptions) {
+		option.onSubmitted = onSubmitted
+		option.onError = onError
+	}
+}
+
+func WithContext(ctx context.Context) SubmitProofOption {
+	return func(option submitProofOptions) { option.ctx = ctx }
+}
+
+func (q *Querier) SubmitProof(proof plonk.Proof, options ...SubmitProofOption) error {
+	opts := submitProofOptions{}
+	for _, apply := range options {
+		apply(opts)
+	}
+
+	buf := bytes.NewBuffer([]byte{})
+	_, err := proof.WriteTo(buf)
+	if err != nil {
+		return fmt.Errorf("error writing proof to bytes: %s", err.Error())
+	}
+	res, err := q.gc.SubmitProof(&proto.SubmitAppCircuitProofRequest{
+		QueryHash:     hexutil.Encode(q.queryId),
+		TargetChainId: q.dstChainId,
+		Proof:         hexutil.Encode(buf.Bytes()),
+	})
+	if err != nil {
+		return fmt.Errorf("error calling brevis gateway SubmitProof: %s", err.Error())
+	}
+	if !res.GetSuccess() {
+		return fmt.Errorf("error calling brevis gateway SubmitProof: cdoe %s, msg %s",
+			res.GetErr().GetCode(), res.GetErr().GetMsg())
+	}
+
+	if opts.onSubmitted != nil {
+		var cancel <-chan struct{}
+		if opts.ctx != nil {
+			cancel = opts.ctx.Done()
+		}
+		go func() {
+			tx, err := q.waitFinalProofSubmitted(cancel)
+			if err != nil {
+				fmt.Println(err.Error())
+				opts.onError(err)
+			}
+			opts.onSubmitted(tx)
+		}()
+	}
+
+	return nil
+}
+
+func (q *Querier) WaitFinalProofSubmitted(ctx context.Context) (tx common.Hash, err error) {
+	return q.waitFinalProofSubmitted(ctx.Done())
+}
+
+func (q *Querier) waitFinalProofSubmitted(cancel <-chan struct{}) (common.Hash, error) {
+	t := time.NewTicker(12 * time.Second)
+	for {
+		select {
+		case <-t.C:
+			res, err := q.gc.GetQueryStatus(&proto.GetQueryStatusRequest{
+				QueryHash:     hexutil.Encode(q.queryId),
+				TargetChainId: q.dstChainId,
+			})
+			if err != nil {
+				return common.Hash{}, fmt.Errorf("error querying proof status: %s", err.Error())
+			}
+			if res.Status == proto.QueryStatus_QS_COMPLETE {
+				fmt.Printf("final proof for query %s submitted: tx %s\n", q.queryId, res.TxHash)
+				return common.HexToHash(res.TxHash), nil
+			} else if res.Status == proto.QueryStatus_QS_FAILED {
+				return common.Hash{}, fmt.Errorf("proof submission status Failure")
+			} else {
+				fmt.Printf("polling for final proof submission: status %s\n", res.Status)
+			}
+		case <-cancel:
+			fmt.Println("stop waiting for final proof submission: context cancelled")
+			return common.Hash{}, nil
+		}
+	}
+}
+
+func (q *Querier) checkAllocations(cb AppCircuit) error {
 	maxReceipts, maxSlots, maxTxs := cb.Allocate()
 
-	if len(q.receiptQueries.special) > maxReceipts {
-		return allocationLenErr("receipt", len(q.receiptQueries.special), maxReceipts)
+	numReceipts := len(q.receiptQueries.special) + len(q.receiptQueries.ordered)
+	if numReceipts > maxReceipts {
+		return allocationLenErr("receipt", numReceipts, maxReceipts)
 	}
-	if len(q.storageQueries.special) > maxSlots {
-		return allocationLenErr("storage", len(q.storageQueries.special), maxSlots)
+	numStorages := len(q.storageQueries.special) + len(q.storageQueries.ordered)
+	if numStorages > maxSlots {
+		return allocationLenErr("storage", numStorages, maxSlots)
 	}
-	if len(q.txQueries.special) > maxTxs {
-		return allocationLenErr("transaction", len(q.txQueries.special), maxTxs)
+	numTxs := len(q.txQueries.special) + len(q.txQueries.ordered)
+	if numTxs > maxTxs {
+		return allocationLenErr("transaction", numTxs, maxTxs)
 	}
 	total := maxReceipts + maxSlots + maxTxs
 	if total > NumMaxDataPoints {
@@ -409,7 +610,7 @@ func (q *Querier) assignStorageSlots(in *CircuitInput, ordered [][]byte, special
 	return nil
 }
 
-func buildStorageSlot(val []byte, query StorageSlotQuery) (StorageSlot, error) {
+func buildStorageSlot(val []byte, query StorageQuery) (StorageSlot, error) {
 	if len(val) > 32 {
 		return StorageSlot{}, fmt.Errorf("value of address %s slot key %s is %d bytes. only values less than 32 bytes are supported",
 			query.Address, query.Slot, len(val))
@@ -466,11 +667,11 @@ func buildTx(t *txResult) (Transaction, error) {
 	}, nil
 }
 
-func buildWitnessErr(m string, err error) (CircuitInput, []byte, error) {
-	return CircuitInput{}, nil, fmt.Errorf("%s: %s", m, err.Error())
+func buildWitnessErr(m string, err error) (CircuitInput, error) {
+	return CircuitInput{}, fmt.Errorf("%s: %s", m, err.Error())
 }
 
 func allocationLenErr(name string, queryCount, maxCount int) error {
-	return fmt.Errorf("# of %s queries (%d) must not exceed the allocated max %s (%d), check your GuestCircuit.Allocate() method",
+	return fmt.Errorf("# of %s queries (%d) must not exceed the allocated max %s (%d), check your AppCircuit.Allocate() method",
 		name, queryCount, name, maxCount)
 }

@@ -7,11 +7,11 @@ import (
 	"github.com/celer-network/brevis-sdk/sdk"
 )
 
-type GuestCircuit struct{}
+type AppCircuit struct{}
 
-var _ sdk.GuestCircuit = &GuestCircuit{}
+var _ sdk.AppCircuit = &AppCircuit{}
 
-func (c *GuestCircuit) Allocate() (maxReceipts, maxSlots, maxTransactions int) {
+func (c *AppCircuit) Allocate() (maxReceipts, maxSlots, maxTransactions int) {
 	// Here we have allocated 2 circuit slots for proving storage slots, but in this
 	// example we will show that we can only use one of those slots. We will also
 	// show that you can "fixate" a piece of data at a specific index.
@@ -25,7 +25,7 @@ func (c *GuestCircuit) Allocate() (maxReceipts, maxSlots, maxTransactions int) {
 var slot = common.LeftPadBytes([]byte{0}, 32)
 var expectedKey = sdk.ParseBytes32(crypto.Keccak256(slot))
 
-func (c *GuestCircuit) Define(api *sdk.CircuitAPI, in sdk.CircuitInput) error {
+func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.CircuitInput) error {
 	slots := sdk.NewDataStream(api, in.StorageSlots)
 
 	// For educational purposes, when we added the queries to the querier, we

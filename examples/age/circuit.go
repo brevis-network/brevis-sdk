@@ -4,36 +4,27 @@ import (
 	"github.com/celer-network/brevis-sdk/sdk"
 )
 
-type GuestCircuit struct {
-	UserAddr sdk.Variable
+type AppCircuit struct{}
+
+var _ sdk.AppCircuit = &AppCircuit{}
+
+func (c *AppCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions int) {
+	// Our app is only ever going to use one storage data at a time so
+	// we can simply limit the max number of data for storage to 1 and
+	// 0 for all others
+	return 0, 0, 1
 }
 
-var _ sdk.GuestCircuit = &GuestCircuit{}
-
-func (c *GuestCircuit) Allocate() (maxReceipts, maxSlots, maxTransactions int) {
-	return 1, 1, 1
-}
-
-func (c *GuestCircuit) Define(api *sdk.CircuitAPI, in sdk.CircuitInput) error {
+func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.CircuitInput) error {
 	txs := sdk.NewDataStream(api, in.Transactions)
 
-	minNonceBlock := txs.Reduce2([2]sdk.Variable{sdk.MaxInt, 0},
-		func(acc [2]sdk.Variable, tx sdk.Transaction) (newAcc [2]sdk.Variable) {
-			minNonce := acc[0]
-			block := acc[1]
-			curLtMin := api.LT(tx.Nonce, acc[0])
-			return [2]sdk.Variable{
-				api.Select(curLtMin, tx.Nonce, minNonce),
-				api.Select(curLtMin, tx.BlockNum, block),
-			}
-		})
+	tx := txs.Get(0)
+	// This is our main check logic
+	api.AssertIsEqual(tx.Nonce, 0)
 
-	minNonce := minNonceBlock[0]
-	block := minNonceBlock[1]
-
-	api.OutputAddress(c.UserAddr)
-	api.OutputUint(64, block)
-	api.OutputUint(64, minNonce)
+	// Output variables can be later accessed in our app contract
+	api.OutputAddress(tx.From)
+	api.OutputUint(64, tx.BlockNum)
 
 	return nil
 }

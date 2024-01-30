@@ -5,14 +5,14 @@ import (
 	"github.com/consensys/gnark/std/multicommit"
 
 	"github.com/celer-network/brevis-sdk/common/utils"
-	"github.com/celer-network/brevis-sdk/gadgets/keccak"
+	"github.com/celer-network/zk-utils/circuits/gadgets/keccak"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/hash/mimc"
 	"github.com/consensys/gnark/test"
 )
 
-type GuestCircuit interface {
+type AppCircuit interface {
 	Define(api *CircuitAPI, in CircuitInput) error
 	Allocate() (maxReceipts, maxSlots, maxTransactions int)
 }
@@ -21,10 +21,10 @@ type HostCircuit struct {
 	api frontend.API
 
 	Input CircuitInput
-	guest GuestCircuit `gnark:"-"`
+	guest AppCircuit `gnark:"-"`
 }
 
-func NewHostCircuit(in CircuitInput, guest GuestCircuit) *HostCircuit {
+func NewHostCircuit(in CircuitInput, guest AppCircuit) *HostCircuit {
 	return &HostCircuit{
 		Input: in,
 		guest: guest,
@@ -213,10 +213,10 @@ func bits2Bytes(data []Variable) []byte {
 }
 
 var dryRunOutput []byte
-var dryRunOutputCommit OutputCommitment
+var dryRunOutputCommit OutputCommitmen
 
-func dryRun(in CircuitInput, guest GuestCircuit) (OutputCommitment, []byte, error) {
-	// resetting state
+func dryRun(in CircuitInput, guest AppCircuit) (OutputCommitment, []byte, error) {
+  // resetting state
 	dryRunOutputCommit = OutputCommitment{nil, nil}
 	dryRunOutput = nil
 
