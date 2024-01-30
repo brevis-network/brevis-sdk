@@ -37,7 +37,7 @@ const (
 	Web_CheckUniswapSumVolume_FullMethodName         = "/zk.gateway.Web/CheckUniswapSumVolume"
 	Web_GenerateUniswapSumProof_FullMethodName       = "/zk.gateway.Web/GenerateUniswapSumProof"
 	Web_GetUserTierAvailability_FullMethodName       = "/zk.gateway.Web/GetUserTierAvailability"
-	Web_PrepareQuery_FullMethodName                  = "/zk.gateway.Web/PrepareQuery"
+	Web_PrepareQuery_FullMethodName                  = "/zk.gateway.Web/PrepareRequest"
 	Web_RetrieveQueryAndProof_FullMethodName         = "/zk.gateway.Web/RetrieveQueryAndProof"
 	Web_SubmitAppCircuitProof_FullMethodName         = "/zk.gateway.Web/SubmitAppCircuitProof"
 	Web_GetQueryStatus_FullMethodName                = "/zk.gateway.Web/GetQueryStatus"
@@ -370,7 +370,7 @@ func (UnimplementedWebServer) GetUserTierAvailability(context.Context, *GetUserT
 	return nil, status.Errorf(codes.Unimplemented, "method GetUserTierAvailability not implemented")
 }
 func (UnimplementedWebServer) PrepareQuery(context.Context, *PrepareQueryRequest) (*PrepareQueryResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method PrepareQuery not implemented")
+	return nil, status.Errorf(codes.Unimplemented, "method PrepareRequest not implemented")
 }
 func (UnimplementedWebServer) RetrieveQueryAndProof(context.Context, *RetrieveQueryAndProofRequest) (*RetrieveQueryAndProofResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RetrieveQueryAndProof not implemented")
@@ -869,7 +869,7 @@ var Web_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Web_GetUserTierAvailability_Handler,
 		},
 		{
-			MethodName: "PrepareQuery",
+			MethodName: "PrepareRequest",
 			Handler:    _Web_PrepareQuery_Handler,
 		},
 		{

@@ -225,13 +225,13 @@ func (q *Querier) BuildCircuitInput(ctx context.Context, guestCircuit GuestCircu
 	return *v, nil
 }
 
-func (q *Querier) BuildSendRequestCalldata(
+func (q *Querier) PrepareRequest(
 	vk plonk.VerifyingKey,
 	srcChainId, dstChainId uint64,
 	refundee, appContract common.Address,
 ) (calldata []byte, feeValue *big.Int, err error) {
 	if !q.buildInputCalled {
-		panic("must call BuildCircuitInput before BuildSendRequestCalldata")
+		panic("must call BuildCircuitInput before PrepareRequest")
 	}
 	q.srcChainId = srcChainId
 	q.dstChainId = dstChainId
@@ -246,7 +246,7 @@ func (q *Querier) BuildSendRequestCalldata(
 		UseAppCircuitInfo: true,
 	}
 
-	fmt.Println("Calling Brevis gateway PrepareQuery...")
+	fmt.Println("Calling Brevis gateway PrepareRequest...")
 	res, err := q.gc.PrepareQuery(req)
 	if err != nil {
 		return

@@ -5758,7 +5758,7 @@ var file_gateway_proto_depIdxs = []int32{
 	54, // 75: zk.gateway.Web.CheckUniswapSumVolume:input_type -> zk.gateway.CheckUniswapSumVolumeRequest
 	57, // 76: zk.gateway.Web.GenerateUniswapSumProof:input_type -> zk.gateway.GenerateUniswapSumProofRequest
 	59, // 77: zk.gateway.Web.GetUserTierAvailability:input_type -> zk.gateway.GetUserTierAvailabilityRequest
-	61, // 78: zk.gateway.Web.PrepareQuery:input_type -> zk.gateway.PrepareQueryRequest
+	61, // 78: zk.gateway.Web.PrepareRequest:input_type -> zk.gateway.PrepareQueryRequest
 	70, // 79: zk.gateway.Web.RetrieveQueryAndProof:input_type -> zk.gateway.RetrieveQueryAndProofRequest
 	72, // 80: zk.gateway.Web.SubmitAppCircuitProof:input_type -> zk.gateway.SubmitAppCircuitProofRequest
 	74, // 81: zk.gateway.Web.GetQueryStatus:input_type -> zk.gateway.GetQueryStatusRequest
@@ -5780,7 +5780,7 @@ var file_gateway_proto_depIdxs = []int32{
 	55, // 97: zk.gateway.Web.CheckUniswapSumVolume:output_type -> zk.gateway.CheckUniswapSumVolumeResponse
 	58, // 98: zk.gateway.Web.GenerateUniswapSumProof:output_type -> zk.gateway.GenerateUniswapSumProofResponse
 	60, // 99: zk.gateway.Web.GetUserTierAvailability:output_type -> zk.gateway.GetUserTierAvailabilityResponse
-	62, // 100: zk.gateway.Web.PrepareQuery:output_type -> zk.gateway.PrepareQueryResponse
+	62, // 100: zk.gateway.Web.PrepareRequest:output_type -> zk.gateway.PrepareQueryResponse
 	71, // 101: zk.gateway.Web.RetrieveQueryAndProof:output_type -> zk.gateway.RetrieveQueryAndProofResponse
 	73, // 102: zk.gateway.Web.SubmitAppCircuitProof:output_type -> zk.gateway.SubmitAppCircuitProofResponse
 	75, // 103: zk.gateway.Web.GetQueryStatus:output_type -> zk.gateway.GetQueryStatusResponse
