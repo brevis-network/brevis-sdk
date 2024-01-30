@@ -21,16 +21,16 @@ func TestCircuit(t *testing.T) {
 	// By specifying the optional parameter index = 1, the querier will give the
 	// result of this storage slot query a fixed spot in the CircuitInput. This allows us
 	// to later directly access this "special" data in circuit.
-	app.AddStorageSlot(sdk.StorageQuery{
+	app.AddStorage(sdk.StorageQuery{
 		BlockNum: blockNum,
 		Address:  account,
 		Slot:     common.BytesToHash(slot),
 	}, 1)
 	// More slots can be added to be batch proven, but in this example we use only
 	// one to keep it simple
-	// app.AddStorageSlot(...)
-	// app.AddStorageSlot(...)
-	// app.AddStorageSlot(...)
+	// app.AddStorage(...)
+	// app.AddStorage(...)
+	// app.AddStorage(...)
 
 	appCircuit := &AppCircuit{}
 	appCircuitAssignment := &AppCircuit{}
@@ -119,9 +119,9 @@ func TestHostCircuit_dryRun(t *testing.T) {
 	q.AddTransaction(sdk.TransactionQuery{TxHash: txHash})
 	// More slots can be added to be batch proven, but in this example we use only
 	// one to keep it simple
-	// q.AddStorageSlot(...)
-	// q.AddStorageSlot(...)
-	// q.AddStorageSlot(...)
+	// q.AddStorage(...)
+	// q.AddStorage(...)
+	// q.AddStorage(...)
 
 	guest := &age.AppCircuit{}
 	guest2 := &age.AppCircuit{}

@@ -2,42 +2,145 @@
 
 This SDK aims to provide developers with a framework to implement custom data analysis computations and to interoperate with Brevis' provers.
 
-## Concepts & Components
+## Packages
 
-### Querier
+- `github.com/celer-network/brevis-sdk/sdk` Houses all things needed for writing custom circuits, compiling, proving, and interacting with brevis systems.
+- `github.com/celer-network/brevis-sdk/test` Contains testing utilities.
 
-Use `sdk.Querier` to query receipts, storage values, and transactions from regular Ethereum nodes. The querier can process the results into a `Witness object.
+## Creating a Brevis App
 
-### Witness
+`BrevisApp` is the entry point for most of the operations. To create a new app, use
 
-The `sdk.Witness` object is basically the developer's circuit program input. It houses the list of queried receipts, storage values, and transactions.
+```go
+app := sdk.NewBrevisApp("https://<eth-rpc-url>")
+```
 
-### Host Circuit
+### Adding Data
 
-The host circuit is a wrapper around the guest circuit. It handles several commitment steps required to interoperate with the proving system on Brevis' side.
+The data that your circuit uses must be fed into the app before we can generate proofs.
 
-### Guest Circuit
+```go
+app.AddReceipt(sdk.ReceiptQuery{/*...*/})
+app.AddStorage(sdk.StorageQuery{/*...*/})
+app.AddTransaction(sdk.TransactionQuery{/*...*/})
+```
 
-This is what the user of this SDK wants to implement their computation in. A guest circuit needs to conform to the `sdk.GuestCircuit` interface. The guest circuit is embedded into (is part of) the host circuit. 
+### Defining Your Custom Circuit
 
-### Circuit API
+```go
+type AppCircuit struct{}
 
-A set of circuit APIs for performing arithmetic calculations and logical operations over the native circuit variables. The user also must use the `OutputXXX()` methods to export their computation results.
+// the struct AppCircuit must implement the sdk.AppCircuit interface
+var _ sdk.AppCircuit = &AppCircuit{} 
 
-### DataStream API
+func (c *AppCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions int) {
+    // The returned values define the number of max receipt/storage/transaction count
+    // your circuit is going to use. These are needed for optimization reasons. In
+    // this example, your circuit can process a maximum of 1 receipt, 2 storages, and
+    // 3 transactions
+    return 1, 2, 3
+}
+func (c *AppCircuit) Define(api *sdk.CircuitAPI, input sdk.CircuitInput) error {
+    // You can access the data you added through app.AddReceipt etc. in the `input` parameter 
+    receipts := sdk.NewDataStream(api, input.Receipts)
+	
+    // You can then perform various data stream operations on the data. 
+    // You can find the usage of specific API later.  
+    sum := receipts
+        .Map(/*...*/)
+        .Reduce(/*...*/)
+        .Sum(/*...*/)
+    // ...
+	
+    // To output any computation results, use sdk.OutputXXX APIs 
+    // These results will be available for use in your contract when   
+    // the proof is verified on-chain 
+    sdk.OutputUint(64, sum)
+    // sdk.OutputBytes32(...)
+    // and more..
+    
+    return nil
+}
+```
 
-Provides a high level API for processing list data in guest circuit. The main goal of this API is to abstract away the hassle of handling variable-length lists in circuit from the user. 
+### Circuit Testing
 
-## Data Types
+```go
+appCircuit := AppCircuit{}
+appCircuitAssignment := AppCircuit{}
+// BuildAppCircuit fetches additional data required to generate proofs from the
+// ETH RPC you provided and package the actual queried data into sdk.CircuitInput
+circuitInput, err := app.BuildCircuitInput(context.Background(), appCircuit)
 
-### `sdk.Variable`
+// brevis-sdk/test package 
 
-Variable of this type is native to our circuit's scalar field, and it requires to have a bit size of less than or equal to 248 bits as the guest/host circuit runs on BLS12 377 (can only represent numbers <= 252 bits). It can be used to represent anything from the solidity equivalent of boolean to uint248 or bytes31 
+// IsSolved is a quick way to check if your circuit can be solved using the given
+// inputs. This utility doesn't invoke the actual prover, so it's very fast. This
+// function is more useful when you want to quickly iterate and debug your
+// circuit logic.
+test.IsSolved(t, appCircuit, appCircuitAssignment, circuitInput)
+// ProverSucceeded is like IsSolved, but it internally goes through the entire
+// proving/verifying cycle. This function is favored for real testing. 
+test.ProverSucceeded(t, appCircuit, appCircuitAssignment, circuitInput)
+```
 
-### `sdk.Bytes32`
+### Compiling Circuit
 
-Since a normal circuit variable can only represent numbers <= 252 bits, we cannot fit `bytes32` into it. But this type commonly used on ethereum in solidity code, we use the special types `Bytes32` to represent it in circuit. For now, there is no support for performing arithmetics over variables of this type, but the user can still do equality checks and conditional selection on them. If the user knows there is no way for the actual value of a `Bytes32` to overflow `uint248`, then they can use `api.ToVariable()` to cast it into a native circuit variable.
+Compilation and setup are required for every new circuit. If you change your circuit logic or tweak the max counts defined in your `Allocate()` function, you need to recompile and setup  
 
-## Example Guest Circuits
+The compilation output is the description of the circuit's constraint system. You should use sdk.WriteTo to serialize and save your circuit so that it can be used in the proving step later.
 
-[Examples](examples)
+Setup is a one-time effort per circuit. A cache dir can be provided to output external dependencies. Once you have the verifying key you should also save its hash in your contract so that when a proof via Brevis is submitted on-chain you can verify that Brevis indeed used your verifying key to verify your circuit computations 
+
+```go
+outDir := "$HOME/circuitOut/age"
+srsDir := "$HOME/kzgsrs"
+
+appCircuit := AppCircuit{}
+ccs, err := sdk.Compile(appCircuit, circuitInput)
+pk, vk, err := sdk.Setup(ccs, srsDir)
+
+// Save the outputs for use in proving steps later 
+err = sdk.WriteTo(ccs, filepath.Join(outDir, "ccs"))
+err = sdk.WriteTo(pk, filepath.Join(outDir, "pk"))
+err = sdk.WriteTo(vk, filepath.Join(outDir, "vk"))
+```
+
+### Proving
+
+```go
+witness, publicWitness, err := sdk.NewFullWitness(appCircuitAssignment, circuitInput)
+proof, err := sdk.Prove(ccs, pk, witness)
+```
+
+### Verifying
+
+Verifying isn't really needed when using Brevis SDK. This utility function only exists to help developers get a sense of how a proof is verified.
+
+```go
+// returns error if verification fails
+err := sdk.Verify(vk, publicWitness, proof)
+```
+## Circuit API
+
+The circuit API is a collection of math and logic operations that can be used when writing circuits. It also has a set of output methods that allows the user to output computation results to be used later in verifier. 
+
+Please refer to [circuit_api.go](sdk/circuit_api.go) for the usage of each API. 
+
+## Data Stream API
+
+The data stream API gives the user the ability to perform various mapreduce styled aggregations on the source data.
+
+To create an instance of the DataStream struct, use
+
+```go
+receipts := sdk.NewDataStream(input.Receipts)
+```
+
+Please refer to [datastream.go](sdk/datastream.go) for the usage of each API.
+
+## Example App Circuits
+
+[Examples App Circuits](examples)
+
+You could also refer to these examples' test files to see more examples of sdk API usages. 

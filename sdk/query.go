@@ -133,10 +133,10 @@ func (q *Querier) AddReceipt(query ReceiptQuery, index ...int) {
 	q.receiptQueries.add(query, index...)
 }
 
-// AddStorageSlot adds the StorageQuery to be queried. If an index is
+// AddStorage adds the StorageQuery to be queried. If an index is
 // specified, the query result will be assigned to the specified index of
 // CircuitInput.StorageSlots.
-func (q *Querier) AddStorageSlot(query StorageQuery, index ...int) {
+func (q *Querier) AddStorage(query StorageQuery, index ...int) {
 	q.storageQueries.add(query, index...)
 }
 
