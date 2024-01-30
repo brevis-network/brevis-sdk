@@ -213,10 +213,10 @@ func bits2Bytes(data []Variable) []byte {
 }
 
 var dryRunOutput []byte
-var dryRunOutputCommit OutputCommitmen
+var dryRunOutputCommit OutputCommitment
 
 func dryRun(in CircuitInput, guest AppCircuit) (OutputCommitment, []byte, error) {
-  // resetting state
+	// resetting state
 	dryRunOutputCommit = OutputCommitment{nil, nil}
 	dryRunOutput = nil
 
