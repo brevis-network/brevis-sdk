@@ -12,7 +12,7 @@ import (
 	"github.com/consensys/gnark/test"
 )
 
-type GuestCircuit interface {
+type AppCircuit interface {
 	Define(api *CircuitAPI, in CircuitInput) error
 	Allocate() (maxReceipts, maxSlots, maxTransactions int)
 }
@@ -21,10 +21,10 @@ type HostCircuit struct {
 	api frontend.API
 
 	Input CircuitInput
-	guest GuestCircuit `gnark:"-"`
+	guest AppCircuit `gnark:"-"`
 }
 
-func NewHostCircuit(in CircuitInput, guest GuestCircuit) *HostCircuit {
+func NewHostCircuit(in CircuitInput, guest AppCircuit) *HostCircuit {
 	return &HostCircuit{
 		Input: in,
 		guest: guest,
@@ -215,7 +215,7 @@ func bits2Bytes(data []Variable) []byte {
 var dryRunOutput []byte
 var dryRunOutputCommit OutputCommitment
 
-func dryRun(in CircuitInput, guest GuestCircuit) (OutputCommitment, []byte, error) {
+func dryRun(in CircuitInput, guest AppCircuit) (OutputCommitment, []byte, error) {
 	dryRunOutputCommit = OutputCommitment{nil, nil}
 	circuit := &HostCircuit{Input: in, guest: guest}
 	assignment := &HostCircuit{Input: in, guest: guest}

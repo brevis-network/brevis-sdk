@@ -11,25 +11,25 @@ import (
 )
 
 func TestCircuit(t *testing.T) {
-	q, err := sdk.NewQuerier("https://eth-mainnet.nodereal.io/v1/0af795b55d124a61b86836461ece1dee") // TODO use your eth rpc
+	app, err := sdk.NewBrevisApp("https://eth-mainnet.nodereal.io/v1/0af795b55d124a61b86836461ece1dee") // TODO use your eth rpc
 	check(err)
 
 	txHash := common.HexToHash(
 		"954b01a12e0846eca75751b248796597b6b1715f5a23ada7f2009a8930ce10ad")
 
-	q.AddTransaction(sdk.TransactionQuery{TxHash: txHash})
+	app.AddTransaction(sdk.TransactionQuery{TxHash: txHash})
 
-	guest := &GuestCircuit{}
-	guestAssignment := &GuestCircuit{}
+	appCircuit := &AppCircuit{}
+	appCircuitAssignment := &AppCircuit{}
 
-	circuitInput, err := q.BuildCircuitInput(context.Background(), guest)
+	circuitInput, err := app.BuildCircuitInput(context.Background(), appCircuit)
 	check(err)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Testing
 	///////////////////////////////////////////////////////////////////////////////
 
-	test.IsSolved(t, guest, guestAssignment, circuitInput)
+	test.IsSolved(t, appCircuit, appCircuitAssignment, circuitInput)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Compiling and Setup
@@ -41,7 +41,7 @@ func TestCircuit(t *testing.T) {
 	// The compilation output is the description of the circuit's constraint system.
 	// You should use sdk.WriteTo to serialize and save your circuit so that it can
 	// be used in the proving step later.
-	ccs, err := sdk.Compile(guest, circuitInput)
+	ccs, err := sdk.Compile(appCircuit, circuitInput)
 	check(err)
 	err = sdk.WriteTo(ccs, filepath.Join(outDir, "ccs"))
 	check(err)
@@ -64,7 +64,7 @@ func TestCircuit(t *testing.T) {
 	// Proving and Verifying
 	///////////////////////////////////////////////////////////////////////////////
 
-	witness, _, err := sdk.NewFullWitness(guestAssignment, circuitInput)
+	witness, _, err := sdk.NewFullWitness(appCircuitAssignment, circuitInput)
 	check(err)
 	proof, err := sdk.Prove(ccs, pk, witness)
 	check(err)
@@ -77,7 +77,7 @@ func TestCircuit(t *testing.T) {
 	appContract := common.HexToAddress("0x403278A746A72Dc5E88c5D63E24B6B6dC9d94Fe8")
 	refundee := common.HexToAddress("0x164Ef8f77e1C88Fb2C724D3755488bE4a3ba4342")
 
-	calldata, feeValue, err := q.PrepareRequest(vk, 1, 11155111, refundee, appContract)
+	calldata, feeValue, err := app.PrepareRequest(vk, 1, 11155111, refundee, appContract)
 	check(err)
 	fmt.Printf("calldata 0x%x\nfeeValue %d Wei\n", calldata, feeValue)
 
@@ -86,14 +86,14 @@ func TestCircuit(t *testing.T) {
 	///////////////////////////////////////////////////////////////////////////////
 
 	fmt.Println(">> Submit Proof to Brevis")
-	err = q.SubmitProof(proof)
+	err = app.SubmitProof(proof)
 	check(err)
 
 	// [Call BrevisProof.sendRequest() with the above calldata]
 
 	// Poll Brevis gateway for query status till the final proof is submitted
 	// on-chain by Brevis and your contract is called
-	tx, err := q.WaitFinalProofSubmitted(context.Background())
+	tx, err := app.WaitFinalProofSubmitted(context.Background())
 	check(err)
 	fmt.Printf("tx hash %s\n", tx)
 }

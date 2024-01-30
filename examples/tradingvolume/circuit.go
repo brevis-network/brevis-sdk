@@ -8,19 +8,19 @@ import (
 
 // This example circuit analyzes the swap events between USDC and ETH/WETH for a user.
 
-// GuestCircuit is a developer-defined circuit that performs checks and data analysis
+// AppCircuit is a developer-defined circuit that performs checks and data analysis
 // over the input Receipt. The proof of this circuit is to be verified in Brevis
 // in conjunction with various data validity checks. A final proof is then
 // submitted on-chain and expose the output to the developer's contract.
 // The Brevis side ensures that all receipts
-type GuestCircuit struct {
+type AppCircuit struct {
 	// You can define your own custom circuit inputs here, but note that they cannot
 	// have the `gnark:",public"` tag.
 	UserAddr sdk.Variable
 }
 
-// Your guest circuit must implement the sdk.GuestCircuit interface
-var _ sdk.GuestCircuit = &GuestCircuit{}
+// Your guest circuit must implement the sdk.AppCircuit interface
+var _ sdk.AppCircuit = &AppCircuit{}
 
 // sdk.ParseXXX APIs are used to convert Go/EVM data types into circuit types.
 // Note that you can only use these outside of circuit (making constant circuit
@@ -40,7 +40,7 @@ var UsdcAddress = sdk.ParseAddress(
 var Salt = sdk.ParseBytes32(
 	hexutil.MustDecode("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"))
 
-func (c *GuestCircuit) Allocate() (maxReceipts, maxSlots, maxTransactions int) {
+func (c *AppCircuit) Allocate() (maxReceipts, maxSlots, maxTransactions int) {
 	// Allocating regions for different source data. Here, we are allocating 5 data
 	// slots for "receipt" data, and none for other data types. Please note that if
 	// you allocate it this way and compile your circuit, the circuit structure will
@@ -50,7 +50,7 @@ func (c *GuestCircuit) Allocate() (maxReceipts, maxSlots, maxTransactions int) {
 	return 5, 0, 0
 }
 
-func (c *GuestCircuit) Define(api *sdk.CircuitAPI, in sdk.CircuitInput) error {
+func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.CircuitInput) error {
 	// In order to use the nice methods such as .Map() and .Reduce(), raw data needs
 	// to be wrapped in a DataStream. You could also use the raw data directly if you
 	// are familiar with writing gnark circuits.

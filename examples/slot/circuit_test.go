@@ -13,7 +13,7 @@ import (
 )
 
 func TestCircuit(t *testing.T) {
-	q, err := sdk.NewQuerier("https://eth-mainnet.nodereal.io/v1/0af795b55d124a61b86836461ece1dee") // TODO use your eth rpc
+	app, err := sdk.NewBrevisApp("https://eth-mainnet.nodereal.io/v1/0af795b55d124a61b86836461ece1dee") // TODO use your eth rpc
 	check(err)
 
 	account := common.HexToAddress("0x5427FEFA711Eff984124bFBB1AB6fbf5E3DA1820")
@@ -21,21 +21,21 @@ func TestCircuit(t *testing.T) {
 	// By specifying the optional parameter index = 1, the querier will give the
 	// result of this storage slot query a fixed spot in the CircuitInput. This allows us
 	// to later directly access this "special" data in circuit.
-	q.AddStorageSlot(sdk.StorageQuery{
+	app.AddStorageSlot(sdk.StorageQuery{
 		BlockNum: blockNum,
 		Address:  account,
 		Slot:     common.BytesToHash(slot),
 	}, 1)
 	// More slots can be added to be batch proven, but in this example we use only
 	// one to keep it simple
-	// q.AddStorageSlot(...)
-	// q.AddStorageSlot(...)
-	// q.AddStorageSlot(...)
+	// app.AddStorageSlot(...)
+	// app.AddStorageSlot(...)
+	// app.AddStorageSlot(...)
 
-	guest := &GuestCircuit{}
-	guestAssignment := &GuestCircuit{}
+	appCircuit := &AppCircuit{}
+	appCircuitAssignment := &AppCircuit{}
 
-	in, err := q.BuildCircuitInput(context.Background(), guest)
+	in, err := app.BuildCircuitInput(context.Background(), appCircuit)
 	check(err)
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -44,7 +44,7 @@ func TestCircuit(t *testing.T) {
 
 	// Use the test package to check if the circuit can be solved using the given
 	// assignment
-	test.ProverSucceeded(t, guest, guestAssignment, in)
+	test.ProverSucceeded(t, appCircuit, appCircuitAssignment, in)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Compiling and Setup
@@ -55,7 +55,7 @@ func TestCircuit(t *testing.T) {
 	// The compilation output is the description of the circuit's constraint system.
 	// You should use sdk.WriteTo to serialize and save your circuit so that it can
 	// be used in the proving step later.
-	ccs, err := sdk.Compile(guest, in)
+	ccs, err := sdk.Compile(appCircuit, in)
 	check(err)
 	err = sdk.WriteTo(ccs, filepath.Join(outDir, "ccs"))
 	check(err)
@@ -86,7 +86,7 @@ func TestCircuit(t *testing.T) {
 	///////////////////////////////////////////////////////////////////////////////
 
 	fmt.Println(">> prove")
-	witness, publicWitness, err := sdk.NewFullWitness(guestAssignment, in)
+	witness, publicWitness, err := sdk.NewFullWitness(appCircuitAssignment, in)
 	check(err)
 
 	proof, err := sdk.Prove(ccs, pk, witness)
@@ -110,7 +110,7 @@ func check(err error) {
 }
 
 func TestHostCircuit_dryRun(t *testing.T) {
-	q, err := sdk.NewQuerier("https://eth-mainnet.nodereal.io/v1/0af795b55d124a61b86836461ece1dee") // TODO use your eth rpc
+	q, err := sdk.NewBrevisApp("https://eth-mainnet.nodereal.io/v1/0af795b55d124a61b86836461ece1dee") // TODO use your eth rpc
 	check(err)
 
 	txHash := common.HexToHash(
@@ -123,8 +123,8 @@ func TestHostCircuit_dryRun(t *testing.T) {
 	// q.AddStorageSlot(...)
 	// q.AddStorageSlot(...)
 
-	guest := &age.GuestCircuit{}
-	guest2 := &age.GuestCircuit{}
+	guest := &age.AppCircuit{}
+	guest2 := &age.AppCircuit{}
 
 	in, err := q.BuildCircuitInput(context.Background(), guest)
 	check(err)

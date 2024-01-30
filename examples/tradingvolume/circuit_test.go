@@ -14,12 +14,12 @@ import (
 // UniversalRouter contract. Let's declare the fields we want to use:
 
 func TestCircuit(t *testing.T) {
-	q, err := sdk.NewQuerier("https://eth-mainnet.nodereal.io/v1/0af795b55d124a61b86836461ece1dee") // TODO use your eth rpc
+	app, err := sdk.NewBrevisApp("https://eth-mainnet.nodereal.io/v1/0af795b55d124a61b86836461ece1dee") // TODO use your eth rpc
 	check(err)
 
 	// Adding a receipt query into the querier
 	// In this tx, the user sold USDC and took native ETH out
-	q.AddReceipt(sdk.ReceiptQuery{
+	app.AddReceipt(sdk.ReceiptQuery{
 		TxHash: common.HexToHash("53b37ec7975d217295f4bdadf8043b261fc49dccc16da9b9fc8b9530845a5794"),
 		SubQueries: [3]sdk.LogFieldQuery{
 			{LogIndex: 3, IsTopic: false, FieldIndex: 0}, // field: USDCPool.Swap.amount0
@@ -28,20 +28,20 @@ func TestCircuit(t *testing.T) {
 		},
 	})
 	// More receipts can be added, but in this example we only add one to keep it simple
-	// q.AddReceipt(...)
-	// q.AddReceipt(...)
+	// app.AddReceipt(...)
+	// app.AddReceipt(...)
 
-	// Initialize our GuestCircuit and prepare the circuit assignment
-	guest := &GuestCircuit{
+	// Initialize our AppCircuit and prepare the circuit assignment
+	appCircuit := &AppCircuit{
 		UserAddr: sdk.ParseAddress(common.HexToAddress("0xaefB31e9EEee2822f4C1cBC13B70948b0B5C0b3c")),
 	}
-	guestAssignment := &GuestCircuit{
+	appCircuitAssignment := &AppCircuit{
 		UserAddr: sdk.ParseAddress(common.HexToAddress("0xaefB31e9EEee2822f4C1cBC13B70948b0B5C0b3c")),
 	}
 
 	// Execute the added queries and package the query results into circuit inputs
 	// (witness)
-	in, err := q.BuildCircuitInput(context.Background(), guest)
+	in, err := app.BuildCircuitInput(context.Background(), appCircuit)
 	check(err)
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -50,9 +50,9 @@ func TestCircuit(t *testing.T) {
 
 	// Use the test package to check if the circuit can be solved using the given
 	// assignment
-	fmt.Printf("guest %+v\n", guest)
-	fmt.Printf("guestAssignment %+v\n", guestAssignment)
-	test.ProverSucceeded(t, guest, guestAssignment, in)
+	fmt.Printf("appCircuit %+v\n", appCircuit)
+	fmt.Printf("appCircuitAssignment %+v\n", appCircuitAssignment)
+	test.ProverSucceeded(t, appCircuit, appCircuitAssignment, in)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Compiling and Setup
@@ -63,7 +63,7 @@ func TestCircuit(t *testing.T) {
 	// The compilation output is the description of the circuit's constraint system.
 	// You should use sdk.WriteTo to serialize and save your circuit so that it can
 	// be used in the proving step later.
-	ccs, err := sdk.Compile(guest, in)
+	ccs, err := sdk.Compile(appCircuit, in)
 	check(err)
 	err = sdk.WriteTo(ccs, filepath.Join(outDir, "ccs"))
 	check(err)
@@ -94,7 +94,7 @@ func TestCircuit(t *testing.T) {
 	///////////////////////////////////////////////////////////////////////////////
 
 	fmt.Println(">> prove")
-	witness, publicWitness, err := sdk.NewFullWitness(guestAssignment, in)
+	witness, publicWitness, err := sdk.NewFullWitness(appCircuitAssignment, in)
 	check(err)
 
 	proof, err := sdk.Prove(ccs, pk, witness)

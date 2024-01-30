@@ -4,18 +4,18 @@ import (
 	"github.com/celer-network/brevis-sdk/sdk"
 )
 
-type GuestCircuit struct{}
+type AppCircuit struct{}
 
-var _ sdk.GuestCircuit = &GuestCircuit{}
+var _ sdk.AppCircuit = &AppCircuit{}
 
-func (c *GuestCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions int) {
+func (c *AppCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions int) {
 	// Our app is only ever going to use one storage data at a time so
 	// we can simply limit the max number of data for storage to 1 and
 	// 0 for all others
 	return 0, 0, 1
 }
 
-func (c *GuestCircuit) Define(api *sdk.CircuitAPI, in sdk.CircuitInput) error {
+func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.CircuitInput) error {
 	txs := sdk.NewDataStream(api, in.Transactions)
 
 	tx := txs.Get(0)

@@ -104,7 +104,7 @@ type Querier struct {
 	srcChainId, dstChainId uint64
 }
 
-func NewQuerier(rpcUrl string, gatewayUrlOverride ...string) (*Querier, error) {
+func NewBrevisApp(rpcUrl string, gatewayUrlOverride ...string) (*Querier, error) {
 	ec, err := ethclient.Dial(rpcUrl)
 	if err != nil {
 		return nil, err
@@ -150,7 +150,7 @@ func (q *Querier) AddTransaction(query TransactionQuery, index ...int) {
 // BuildCircuitInput executes all added queries and package the query results
 // into circuit assignment (the CircuitInput struct) The provided ctx is used
 // when performing network calls to the provided blockchain RPC.
-func (q *Querier) BuildCircuitInput(ctx context.Context, guestCircuit GuestCircuit) (in CircuitInput, err error) {
+func (q *Querier) BuildCircuitInput(ctx context.Context, guestCircuit AppCircuit) (in CircuitInput, err error) {
 
 	// 1. call rpc to fetch data for each query type, then assign the corresponding input fields
 	// 2. mimc hash data at each position to generate and assign input commitments and toggles commitment
@@ -372,7 +372,7 @@ func (q *Querier) waitFinalProofSubmitted(cancel <-chan struct{}) (common.Hash, 
 	}
 }
 
-func (q *Querier) checkAllocations(cb GuestCircuit) error {
+func (q *Querier) checkAllocations(cb AppCircuit) error {
 	maxReceipts, maxSlots, maxTxs := cb.Allocate()
 
 	numReceipts := len(q.receiptQueries.special) + len(q.receiptQueries.ordered)
@@ -672,6 +672,6 @@ func buildWitnessErr(m string, err error) (CircuitInput, error) {
 }
 
 func allocationLenErr(name string, queryCount, maxCount int) error {
-	return fmt.Errorf("# of %s queries (%d) must not exceed the allocated max %s (%d), check your GuestCircuit.Allocate() method",
+	return fmt.Errorf("# of %s queries (%d) must not exceed the allocated max %s (%d), check your AppCircuit.Allocate() method",
 		name, queryCount, name, maxCount)
 }
