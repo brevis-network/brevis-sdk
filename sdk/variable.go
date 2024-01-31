@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"
+	"github.com/consensys/gnark/std/math/emulated"
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 )
@@ -23,6 +24,8 @@ type Variable = frontend.Variable
 type Bytes32 struct {
 	Val [2]Variable
 }
+
+var MaxBytes32 = ParseBigVariable(common.Hex2Bytes("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"))
 
 // toBinaryVars defines the circuit that decomposes the Variables into little endian bits
 func (b32 Bytes32) toBinaryVars(api frontend.API) []Variable {
@@ -97,4 +100,31 @@ func ParseBool(b bool) Variable {
 // variables
 func ParseEventID(b []byte) Variable {
 	return new(big.Int).SetBytes(b[:6])
+}
+
+type BigField struct{}
+
+func (f BigField) NbLimbs() uint     { return 3 }
+func (f BigField) BitsPerLimb() uint { return 252 } // bls12377 scalar field modulus - 1
+func (f BigField) IsPrime() bool     { return true }
+func (f BigField) Modulus() *big.Int {
+	mod := big.NewInt(1)
+	mod.Lsh(mod, 521).Sub(mod, big.NewInt(1))
+	return mod
+}
+
+type BigVariable struct {
+	*emulated.Element[BigField]
+}
+
+func newBigVariable(el *emulated.Element[BigField]) *BigVariable {
+	return &BigVariable{el}
+}
+
+func ParseBigVariable(data []byte) *BigVariable {
+	if len(data) > 65 {
+		panic(fmt.Errorf("ParseBytes32 called with data of length %d", len(data)))
+	}
+	el := emulated.ValueOf[BigField](data)
+	return newBigVariable(&el)
 }

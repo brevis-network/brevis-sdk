@@ -2,6 +2,7 @@ package sdk
 
 import (
 	"fmt"
+	"github.com/consensys/gnark/std/math/emulated"
 
 	"github.com/consensys/gnark/frontend"
 )
@@ -11,6 +12,8 @@ import (
 // of gnark's frontend.API.
 type CircuitAPI struct {
 	frontend.API
+	bigField emulated.Field[BigField]
+
 	output []Variable `gnark:"-"`
 }
 
@@ -40,16 +43,21 @@ func (api *CircuitAPI) OutputBool(v Variable) {
 // with a step size 8. e.g. uint8, uint16, ..., uint248.
 // Panics if a bitSize of non-multiple of 8 is used.
 // Panics if the bitSize exceeds 248. For outputting uint256, use OutputBytes32 instead
-func (api *CircuitAPI) OutputUint(bitSize int, v Variable) {
+func (api *CircuitAPI) OutputUint(bitSize int, i interface{}) {
 	if bitSize%8 != 0 {
 		panic("bitSize must be multiple of 8")
 	}
-	if bitSize > 248 {
-		panic("bitSIze must be less than or equal to 248")
+	switch v := i.(type) {
+	case *BigVariable:
+		b := api.ToBytes32(v).toBinaryVars(api.API)
+		api.addOutput(b)
+	case Variable:
+		b := api.ToBinary(v, bitSize)
+		api.addOutput(b)
+	default:
+		panic(fmt.Errorf("cannot output variable of type %T, only supports *BigVariable and Variable", i))
 	}
-	b := api.ToBinary(v, bitSize)
-	api.addOutput(b)
-	fmt.Printf("added uint%d output: %d\n", bitSize, v)
+	fmt.Printf("added uint%d output: %v\n", bitSize, i)
 }
 
 // OutputAddress adds an output of solidity address type.
@@ -66,22 +74,16 @@ func (api *CircuitAPI) addOutput(bits []Variable) {
 	dryRunOutput = append(dryRunOutput, bits2Bytes(b)...)
 }
 
+// SolidityMappingStorageKey computes the storage key of a solidity mapping data type.
+// https://docs.soliditylang.org/en/v0.8.24/internals/layout_in_storage.html#mappings-and-dynamic-arrays
+// keccak256(key | slot)
+func (api *CircuitAPI) SolidityMappingStorageKey(mappingKey Bytes32, slot uint) Bytes32 {
+	return Bytes32{}
+}
+
 // ABS returns |a|
 func (api *CircuitAPI) ABS(a Variable) Variable {
 	return api.Mul(api.Cmp(a, 0), a)
-}
-
-// ToVariable casts a Bytes32 type to a Variable type. It requires the variable
-// being cast does not exceed the circuit's scalar field max (i.e. around 253
-// bits)
-func (api *CircuitAPI) ToVariable(b32 Bytes32) Variable {
-	api.AssertIsEqual(b32.Val[1], 0)
-	return b32.Val[0]
-}
-
-// ToBytes32 casts a Variable type to a Bytes32 type.
-func (api *CircuitAPI) ToBytes32(v Variable) Bytes32 {
-	return Bytes32{[2]Variable{v, 0}}
 }
 
 // LT returns 1 if a < b, and 0 otherwise
@@ -147,7 +149,6 @@ func (api *CircuitAPI) Equal(a, b Variable) Variable {
 	return api.API.IsZero(api.API.Sub(a, b))
 }
 
-// Sqrt returns √a
 // Sqrt returns √a. Uses SqrtHint
 func (api *CircuitAPI) Sqrt(a Variable) Variable {
 	out, err := api.API.Compiler().NewHint(SqrtHint, 1, a)
@@ -167,4 +168,61 @@ func (api *CircuitAPI) QuoRem(a, b Variable) (quotient, remainder Variable) {
 	orig := api.API.Add(api.API.Mul(quo, b), rem)
 	api.API.AssertIsEqual(orig, a)
 	return quo, rem
+}
+
+func (api *CircuitAPI) ToBytes32(i interface{}) Bytes32 {
+	switch v := i.(type) {
+	case *BigVariable:
+		api.bigField.AssertIsLessOrEqual(v.Element, MaxBytes32.Element)
+		return Bytes32{Val: [2]Variable{v.Limbs[0], v.Limbs[1]}}
+	case Variable:
+		return Bytes32{Val: [2]Variable{v, 0}}
+	}
+	panic(fmt.Errorf("unsupported casting from %T to Bytes32", i))
+}
+
+// ToBigVariable casts a Bytes32 or a Variable type to a BigVariable type
+func (api *CircuitAPI) ToBigVariable(i interface{}) *BigVariable {
+	switch v := i.(type) {
+	case Bytes32:
+		el := api.bigField.NewElement(v.Val[:])
+		return newBigVariable(el)
+	case Variable:
+		el := api.bigField.NewElement(v)
+		return newBigVariable(el)
+	}
+	panic(fmt.Errorf("unsupported casting from %T to *BigVariable", i))
+}
+
+// ToVariable casts a BigVariable or a Bytes32 type to a Variable type. It
+// requires the variable being cast does not overflow the circuit's scalar field
+// max
+func (api *CircuitAPI) ToVariable(i interface{}) Variable {
+	switch v := i.(type) {
+	case Bytes32:
+		el := api.bigField.NewElement(v.Val[:])
+		return newBigVariable(el)
+	case *BigVariable:
+		reduced := api.bigField.Reduce(v.Element)
+		api.AssertIsEqual(reduced.Limbs[1], 0)
+		api.AssertIsEqual(reduced.Limbs[2], 0)
+		return v.Limbs[0]
+	}
+	panic(fmt.Errorf("unsupported casting from %T to Variable", i))
+}
+
+func (api *CircuitAPI) AddBig(a, b *BigVariable) *BigVariable {
+	return newBigVariable(api.bigField.Add(a.Element, b.Element))
+}
+
+func (api *CircuitAPI) SubBig(a, b *BigVariable) *BigVariable {
+	return newBigVariable(api.bigField.Sub(a.Element, b.Element))
+}
+
+func (api *CircuitAPI) MulBig(a, b *BigVariable) *BigVariable {
+	return newBigVariable(api.bigField.Mul(a.Element, b.Element))
+}
+
+func (api *CircuitAPI) DivBig(a, b *BigVariable) *BigVariable {
+	return newBigVariable(api.bigField.Div(a.Element, b.Element))
 }
