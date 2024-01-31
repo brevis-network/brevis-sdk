@@ -94,8 +94,8 @@ func (api *CircuitAPI) GT(a, b Variable) Variable {
 	return api.IsZero(api.Sub(api.Cmp(a, b), 1))
 }
 
-// Between returns whether val is between a and b, inclusive.
-func (api *CircuitAPI) Between(val, a, b Variable) Variable {
+// IsBetween returns whether val is between a and b, inclusive.
+func (api *CircuitAPI) IsBetween(val, a, b Variable) Variable {
 	a = api.Sub(a, 1)
 	b = api.Add(b, 1)
 	return api.And(api.GT(val, a), api.LT(val, b))
