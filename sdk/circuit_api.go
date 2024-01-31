@@ -119,6 +119,10 @@ func (api *CircuitAPI) Or(a, b Variable, other ...Variable) Variable {
 	return res
 }
 
+func (api *CircuitAPI) Not(a Variable) Variable {
+	return api.IsZero(a)
+}
+
 // SelectBytes32 returns a if s == 1, and b otherwise
 func (api *CircuitAPI) SelectBytes32(s Variable, a, b Bytes32) Bytes32 {
 	r := Bytes32{}
