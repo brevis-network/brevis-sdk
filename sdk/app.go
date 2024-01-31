@@ -88,7 +88,7 @@ func (q *queries[T]) list() []T {
 	return l
 }
 
-type Querier struct {
+type BrevisApp struct {
 	ec            *ethclient.Client
 	gc            *GatewayClient
 	brevisRequest *abi.ABI
@@ -104,7 +104,7 @@ type Querier struct {
 	srcChainId, dstChainId uint64
 }
 
-func NewBrevisApp(rpcUrl string, gatewayUrlOverride ...string) (*Querier, error) {
+func NewBrevisApp(rpcUrl string, gatewayUrlOverride ...string) (*BrevisApp, error) {
 	ec, err := ethclient.Dial(rpcUrl)
 	if err != nil {
 		return nil, err
@@ -117,7 +117,7 @@ func NewBrevisApp(rpcUrl string, gatewayUrlOverride ...string) (*Querier, error)
 	if err != nil {
 		return nil, err
 	}
-	return &Querier{
+	return &BrevisApp{
 		ec:             ec,
 		gc:             gc,
 		brevisRequest:  br,
@@ -129,28 +129,28 @@ func NewBrevisApp(rpcUrl string, gatewayUrlOverride ...string) (*Querier, error)
 
 // AddReceipt adds the ReceiptQuery to be queried. If an index is specified, the
 // query result will be assigned to the specified index of CircuitInput.Receipts.
-func (q *Querier) AddReceipt(query ReceiptQuery, index ...int) {
+func (q *BrevisApp) AddReceipt(query ReceiptQuery, index ...int) {
 	q.receiptQueries.add(query, index...)
 }
 
 // AddStorage adds the StorageQuery to be queried. If an index is
 // specified, the query result will be assigned to the specified index of
 // CircuitInput.StorageSlots.
-func (q *Querier) AddStorage(query StorageQuery, index ...int) {
+func (q *BrevisApp) AddStorage(query StorageQuery, index ...int) {
 	q.storageQueries.add(query, index...)
 }
 
 // AddTransaction adds the TransactionQuery to be queried. If an index is
 // specified, the query result will be assigned to the specified index of
 // CircuitInput.Transactions.
-func (q *Querier) AddTransaction(query TransactionQuery, index ...int) {
+func (q *BrevisApp) AddTransaction(query TransactionQuery, index ...int) {
 	q.txQueries.add(query, index...)
 }
 
 // BuildCircuitInput executes all added queries and package the query results
 // into circuit assignment (the CircuitInput struct) The provided ctx is used
 // when performing network calls to the provided blockchain RPC.
-func (q *Querier) BuildCircuitInput(ctx context.Context, guestCircuit AppCircuit) (in CircuitInput, err error) {
+func (q *BrevisApp) BuildCircuitInput(ctx context.Context, guestCircuit AppCircuit) (in CircuitInput, err error) {
 
 	// 1. call rpc to fetch data for each query type, then assign the corresponding input fields
 	// 2. mimc hash data at each position to generate and assign input commitments and toggles commitment
@@ -225,7 +225,7 @@ func (q *Querier) BuildCircuitInput(ctx context.Context, guestCircuit AppCircuit
 	return *v, nil
 }
 
-func (q *Querier) PrepareRequest(
+func (q *BrevisApp) PrepareRequest(
 	vk plonk.VerifyingKey,
 	srcChainId, dstChainId uint64,
 	refundee, appContract common.Address,
@@ -269,7 +269,7 @@ func (q *Querier) PrepareRequest(
 	return calldata, feeValue, err
 }
 
-func (q *Querier) buildSendRequestCalldata(args ...interface{}) ([]byte, error) {
+func (q *BrevisApp) buildSendRequestCalldata(args ...interface{}) ([]byte, error) {
 	sendRequest, ok := q.brevisRequest.Methods["sendRequest"]
 	if !ok {
 		return nil, fmt.Errorf("method sendRequest not fonud in abi")
@@ -299,7 +299,7 @@ func WithContext(ctx context.Context) SubmitProofOption {
 	return func(option submitProofOptions) { option.ctx = ctx }
 }
 
-func (q *Querier) SubmitProof(proof plonk.Proof, options ...SubmitProofOption) error {
+func (q *BrevisApp) SubmitProof(proof plonk.Proof, options ...SubmitProofOption) error {
 	opts := submitProofOptions{}
 	for _, apply := range options {
 		apply(opts)
@@ -341,11 +341,11 @@ func (q *Querier) SubmitProof(proof plonk.Proof, options ...SubmitProofOption) e
 	return nil
 }
 
-func (q *Querier) WaitFinalProofSubmitted(ctx context.Context) (tx common.Hash, err error) {
+func (q *BrevisApp) WaitFinalProofSubmitted(ctx context.Context) (tx common.Hash, err error) {
 	return q.waitFinalProofSubmitted(ctx.Done())
 }
 
-func (q *Querier) waitFinalProofSubmitted(cancel <-chan struct{}) (common.Hash, error) {
+func (q *BrevisApp) waitFinalProofSubmitted(cancel <-chan struct{}) (common.Hash, error) {
 	t := time.NewTicker(12 * time.Second)
 	for {
 		select {
@@ -372,7 +372,7 @@ func (q *Querier) waitFinalProofSubmitted(cancel <-chan struct{}) (common.Hash, 
 	}
 }
 
-func (q *Querier) checkAllocations(cb AppCircuit) error {
+func (q *BrevisApp) checkAllocations(cb AppCircuit) error {
 	maxReceipts, maxSlots, maxTxs := cb.Allocate()
 
 	numReceipts := len(q.receiptQueries.special) + len(q.receiptQueries.ordered)
@@ -394,7 +394,7 @@ func (q *Querier) checkAllocations(cb AppCircuit) error {
 	return nil
 }
 
-func (q *Querier) assignInputCommitment(w *CircuitInput) {
+func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 	hasher := mimc.NewMiMC()
 	// assign 0 to input commit for dummy slots and actual data hash for non-dummies
 	j := 0
@@ -427,7 +427,7 @@ func doHash(hasher hash.Hash, packed []*big.Int) *big.Int {
 	return ret
 }
 
-func (q *Querier) assignToggleCommitment(in *CircuitInput) {
+func (q *BrevisApp) assignToggleCommitment(in *CircuitInput) {
 	var toggles []Variable
 	toggles = append(toggles, in.Receipts.Toggles...)
 	toggles = append(toggles, in.StorageSlots.Toggles...)
@@ -445,7 +445,7 @@ func (q *Querier) assignToggleCommitment(in *CircuitInput) {
 	in.TogglesCommitment = new(big.Int).SetBytes(hasher.Sum(nil))
 }
 
-func (q *Querier) executeReceiptQueries(ctx context.Context) ([]*types.Receipt, map[int]*types.Receipt, error) {
+func (q *BrevisApp) executeReceiptQueries(ctx context.Context) ([]*types.Receipt, map[int]*types.Receipt, error) {
 	var ordered []*types.Receipt
 	special := make(map[int]*types.Receipt)
 	// TODO: parallelize this
@@ -466,7 +466,7 @@ func (q *Querier) executeReceiptQueries(ctx context.Context) ([]*types.Receipt, 
 	return ordered, special, nil
 }
 
-func (q *Querier) executeStorageQueries(ctx context.Context) ([][]byte, map[int][]byte, error) {
+func (q *BrevisApp) executeStorageQueries(ctx context.Context) ([][]byte, map[int][]byte, error) {
 	var ordered [][]byte
 	special := make(map[int][]byte)
 	for _, query := range q.storageQueries.ordered {
@@ -491,7 +491,7 @@ type txResult struct {
 	blockNum *big.Int
 }
 
-func (q *Querier) executeTransactionQueries(ctx context.Context) ([]*txResult, map[int]*txResult, error) {
+func (q *BrevisApp) executeTransactionQueries(ctx context.Context) ([]*txResult, map[int]*txResult, error) {
 	var ordered []*txResult
 	special := make(map[int]*txResult)
 
@@ -514,7 +514,7 @@ func (q *Querier) executeTransactionQueries(ctx context.Context) ([]*txResult, m
 	return ordered, special, nil
 }
 
-func (q *Querier) getTx(ctx context.Context, txHash common.Hash) (*txResult, error) {
+func (q *BrevisApp) getTx(ctx context.Context, txHash common.Hash) (*txResult, error) {
 	tx, pending, err := q.ec.TransactionByHash(ctx, txHash)
 	if err != nil {
 		return nil, err
@@ -532,7 +532,7 @@ func (q *Querier) getTx(ctx context.Context, txHash common.Hash) (*txResult, err
 	}, nil
 }
 
-func (q *Querier) assignReceipts(in *CircuitInput, ordered []*types.Receipt, special map[int]*types.Receipt) error {
+func (q *BrevisApp) assignReceipts(in *CircuitInput, ordered []*types.Receipt, special map[int]*types.Receipt) error {
 	// assigning user appointed receipts at specific indices
 	for i, receipt := range special {
 		in.Receipts.Raw[i] = Receipt{
@@ -582,7 +582,7 @@ func buildLogFields(receipt *types.Receipt, query ReceiptQuery) (fields [NumMaxL
 	return
 }
 
-func (q *Querier) assignStorageSlots(in *CircuitInput, ordered [][]byte, special map[int][]byte) (err error) {
+func (q *BrevisApp) assignStorageSlots(in *CircuitInput, ordered [][]byte, special map[int][]byte) (err error) {
 	// assigning user appointed data at specific indices
 	for i, val := range special {
 		query := q.storageQueries.special[i]
@@ -624,7 +624,7 @@ func buildStorageSlot(val []byte, query StorageQuery) (StorageSlot, error) {
 	}, nil
 }
 
-func (q *Querier) assignTransactions(in *CircuitInput, ordered []*txResult, special map[int]*txResult) (err error) {
+func (q *BrevisApp) assignTransactions(in *CircuitInput, ordered []*txResult, special map[int]*txResult) (err error) {
 	// assigning user appointed data at specific indices
 	for i, t := range special {
 		in.Transactions.Raw[i], err = buildTx(t)
