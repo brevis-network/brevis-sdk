@@ -24,7 +24,7 @@ func NewCircuitAPI(gapi frontend.API) *CircuitAPI {
 // contracts by opening the commitment using
 // keccak256(abi.encodedPacked(outputs...))
 
-// OutputBytes32 adds an output of solidity uint256 type
+// OutputBytes32 adds an output of solidity bytes32/uint256 type
 func (api *CircuitAPI) OutputBytes32(v Bytes32) {
 	b := v.toBinaryVars(api.API)
 	api.addOutput(b)
@@ -36,10 +36,10 @@ func (api *CircuitAPI) OutputBool(v Variable) {
 	api.addOutput(api.ToBinary(v, 8))
 }
 
-// OutputUint adds an output of solidity uint_bitSize type where N is in range [8, 248]
-// with a step size 8. e.g. uint8, uint16, ..., uint248.
-// Panics if a bitSize of non-multiple of 8 is used.
-// Panics if the bitSize exceeds 248. For outputting uint256, use OutputBytes32 instead
+// OutputUint adds an output of solidity uint_bitSize type where N is in range
+// [8, 248] with a step size 8. e.g. uint8, uint16, ..., uint248. Panics if a
+// bitSize of non-multiple of 8 is used. Panics if the bitSize exceeds 248. For
+// outputting uint256, use OutputBytes32 instead
 func (api *CircuitAPI) OutputUint(bitSize int, v Variable) {
 	if bitSize%8 != 0 {
 		panic("bitSize must be multiple of 8")
@@ -59,8 +59,8 @@ func (api *CircuitAPI) OutputAddress(v Variable) {
 }
 
 func (api *CircuitAPI) addOutput(bits []Variable) {
-	// the decomposed v bits are little-endian bits. The way evm uses Keccak expects the input
-	// to be big-endian bytes, but the bits in each byte are little endian
+	// the decomposed v bits are little-endian bits. The way evm uses Keccak expects
+	// the input to be big-endian bytes, but the bits in each byte are little endian
 	b := flipByGroups(bits, 8)
 	api.output = append(api.output, b...)
 	dryRunOutput = append(dryRunOutput, bits2Bytes(b)...)
@@ -94,7 +94,7 @@ func (api *CircuitAPI) GT(a, b Variable) Variable {
 	return api.IsZero(api.Sub(api.Cmp(a, b), 1))
 }
 
-// IsBetween returns whether val is between a and b, inclusive.
+// IsBetween returns 1 if a < val < b, 0 otherwise
 func (api *CircuitAPI) IsBetween(val, a, b Variable) Variable {
 	a = api.Sub(a, 1)
 	b = api.Add(b, 1)
@@ -119,6 +119,8 @@ func (api *CircuitAPI) Or(a, b Variable, other ...Variable) Variable {
 	return res
 }
 
+// Not returns 1 if `a` is 0, and 0 if `a` is 1. The user must make sure `a` is
+// either 0 or 1
 func (api *CircuitAPI) Not(a Variable) Variable {
 	return api.IsZero(a)
 }
@@ -161,7 +163,8 @@ func (api *CircuitAPI) Sqrt(a Variable) Variable {
 	return out[0]
 }
 
-// QuoRem computes quo = a / b and remainder rem. Uses QuoRemHint.
+// QuoRem computes the standard unsigned integer division a / b and
+// its remainder. Uses QuoRemHint.
 func (api *CircuitAPI) QuoRem(a, b Variable) (quotient, remainder Variable) {
 	out, err := api.API.Compiler().NewHint(QuoRemHint, 2, a, b)
 	if err != nil {

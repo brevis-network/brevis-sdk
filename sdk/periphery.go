@@ -76,17 +76,25 @@ func Setup(ccs constraint.ConstraintSystem, cacheDir ...string) (pk plonk.Provin
 	}
 	fmt.Printf("setup done in %s\n", time.Since(before))
 
-	vkHash, err := ComputeVkHash(vk)
+	printVkHash(vk)
+
+	return
+}
+
+func printVkHash(vk plonk.VerifyingKey) {
+	vkHash, err := computeVkHash(vk)
+	if err != nil {
+		fmt.Println("error computing vk hash: %s", err.Error())
+		return
+	}
 	fmt.Println()
 	fmt.Println("///////////////////////////////////////////////////////////////////////////////")
 	fmt.Printf("// vk hash: %s\n", vkHash)
 	fmt.Println("///////////////////////////////////////////////////////////////////////////////")
 	fmt.Println()
-
-	return
 }
 
-func ComputeVkHash(vk plonk.VerifyingKey) (common.Hash, error) {
+func computeVkHash(vk plonk.VerifyingKey) (common.Hash, error) {
 	plonkCircuitVk, err := replonk.ValueOfVerifyingKey[sw_bls12377.ScalarField, sw_bls12377.G1Affine, sw_bls12377.G2Affine](vk)
 	if err != nil {
 		return common.Hash{}, err
@@ -174,6 +182,7 @@ func ReadVkFrom(path string) (plonk.VerifyingKey, error) {
 		return nil, err
 	}
 	fmt.Printf("Verifying key: %d bytes read from %s\n", d, path)
+	printVkHash(vk)
 	return vk, err
 }
 
