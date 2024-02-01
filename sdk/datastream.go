@@ -30,8 +30,8 @@ func newDataStream[T any](api *CircuitAPI, in []T, toggles []Variable, max int) 
 	}
 }
 
-// Get gets an element from the data stream. Performed on the underlying data directly.
-// It also requires the underlying data slot is valid
+// Get gets an element from the data stream. Performed on the underlying data
+// directly. It also requires the underlying data slot is valid
 func (ds *DataStream[T]) Get(index int) T {
 	v := ds.underlying[index]
 	t := ds.toggles[index]
@@ -46,6 +46,7 @@ func (ds *DataStream[T]) Range(start, end int) *DataStream[T] {
 
 type MapFunc[T any] func(current T) Variable
 
+// Map calls the input mapFunc on every valid element in the stream
 func (ds *DataStream[T]) Map(mapFunc MapFunc[T]) *DataStream[Variable] {
 	res := make([]Variable, ds.max)
 	for i, data := range ds.underlying {
@@ -56,6 +57,7 @@ func (ds *DataStream[T]) Map(mapFunc MapFunc[T]) *DataStream[Variable] {
 
 type Map2Func[T any] func(current T) [2]Variable
 
+// Map2 is like Map but maps every element to two variables
 func (ds *DataStream[T]) Map2(mapFunc Map2Func[T]) *DataStream[[2]Variable] {
 	res := make([][2]Variable, ds.max)
 	for i, data := range ds.underlying {
