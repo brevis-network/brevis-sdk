@@ -66,11 +66,6 @@ func (api *CircuitAPI) addOutput(bits []Variable) {
 	dryRunOutput = append(dryRunOutput, bits2Bytes(b)...)
 }
 
-// ABS returns |a|
-func (api *CircuitAPI) ABS(a Variable) Variable {
-	return api.Mul(api.Cmp(a, 0), a)
-}
-
 // ToVariable casts a Bytes32 type to a Variable type. It requires the variable
 // being cast does not exceed the circuit's scalar field max (i.e. around 253
 // bits)

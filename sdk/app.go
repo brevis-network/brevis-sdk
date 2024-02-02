@@ -358,7 +358,7 @@ func (q *BrevisApp) waitFinalProofSubmitted(cancel <-chan struct{}) (common.Hash
 				return common.Hash{}, fmt.Errorf("error querying proof status: %s", err.Error())
 			}
 			if res.Status == proto.QueryStatus_QS_COMPLETE {
-				fmt.Printf("final proof for query %s submitted: tx %s\n", q.queryId, res.TxHash)
+				fmt.Printf("final proof for query %x submitted: tx %s\n", q.queryId, res.TxHash)
 				return common.HexToHash(res.TxHash), nil
 			} else if res.Status == proto.QueryStatus_QS_FAILED {
 				return common.Hash{}, fmt.Errorf("proof submission status Failure")
