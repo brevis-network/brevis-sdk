@@ -229,7 +229,7 @@ func (q *BrevisApp) PrepareRequest(
 	vk plonk.VerifyingKey,
 	srcChainId, dstChainId uint64,
 	refundee, appContract common.Address,
-) (calldata []byte, feeValue *big.Int, err error) {
+) (calldata []byte, requestId common.Hash, feeValue *big.Int, err error) {
 	if !q.buildInputCalled {
 		panic("must call BuildCircuitInput before PrepareRequest")
 	}
@@ -263,10 +263,10 @@ func (q *BrevisApp) PrepareRequest(
 		return
 	}
 
-	fmt.Printf("Brevis gateway responded with queryId %x, feeValue %d\n", queryId, feeValue)
+	fmt.Printf("Brevis gateway responded with requestId %x, feeValue %d\n", queryId, feeValue)
 
 	calldata, err = q.buildSendRequestCalldata(common.BytesToHash(queryId), refundee, appContract)
-	return calldata, feeValue, err
+	return calldata, common.BytesToHash(queryId), feeValue, err
 }
 
 func (q *BrevisApp) buildSendRequestCalldata(args ...interface{}) ([]byte, error) {
