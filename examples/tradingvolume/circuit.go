@@ -97,7 +97,7 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.CircuitInput) error {
 
 	// Sum up the volume of each trade
 	sumVolume := receipts.Sum(func(l sdk.Receipt) sdk.Variable {
-		return api.ABS(api.ToVariable(l.Fields[0].Value))
+		return api.ToVariable(l.Fields[0].Value)
 	})
 
 	// Output will be reflected in app contract's callback in the form of

@@ -13,13 +13,17 @@ import (
 // of gnark's frontend.API.
 type CircuitAPI struct {
 	frontend.API
-	bigField emulated.Field[BigField]
+	bigField *emulated.Field[BigField]
 
 	output []Variable `gnark:"-"`
 }
 
 func NewCircuitAPI(gapi frontend.API) *CircuitAPI {
-	api := &CircuitAPI{API: gapi}
+	f, err := emulated.NewField[BigField](gapi)
+	if err != nil {
+		panic(err)
+	}
+	api := &CircuitAPI{API: gapi, bigField: f}
 	return api
 }
 
@@ -177,7 +181,11 @@ func (api *CircuitAPI) ToBytes32(i interface{}) Bytes32 {
 	switch v := i.(type) {
 	case *BigVariable:
 		api.bigField.AssertIsLessOrEqual(v.Element, MaxBytes32.Element)
-		return Bytes32{Val: [2]Variable{v.Limbs[0], v.Limbs[1]}}
+		r := api.bigField.Reduce(v.Element)
+		bits := api.bigField.ToBits(r)
+		lo := api.FromBinary(bits[:numBitsPerVar]...)
+		hi := api.FromBinary(bits[numBitsPerVar:256]...)
+		return Bytes32{Val: [2]Variable{lo, hi}}
 	case Variable:
 		return Bytes32{Val: [2]Variable{v, 0}}
 	}
@@ -188,7 +196,16 @@ func (api *CircuitAPI) ToBytes32(i interface{}) Bytes32 {
 func (api *CircuitAPI) ToBigVariable(i interface{}) *BigVariable {
 	switch v := i.(type) {
 	case Bytes32:
-		el := api.bigField.NewElement(v.Val[:])
+		// Recompose the Bytes32 into BigField.NbLimbs limbs
+		bits := v.toBinaryVars(api.API)
+		f := BigField{}
+		limbs := make([]Variable, f.NbLimbs())
+		b := f.BitsPerLimb()
+		limbs[0] = api.FromBinary(bits[:b]...)
+		limbs[1] = api.FromBinary(bits[b : 2*b]...)
+		limbs[2] = api.FromBinary(bits[2*b:]...)
+		limbs[3], limbs[4], limbs[5] = 0, 0, 0
+		el := api.bigField.NewElement(limbs)
 		return newBigVariable(el)
 	case Variable:
 		el := api.bigField.NewElement(v)
@@ -203,8 +220,8 @@ func (api *CircuitAPI) ToBigVariable(i interface{}) *BigVariable {
 func (api *CircuitAPI) ToVariable(i interface{}) Variable {
 	switch v := i.(type) {
 	case Bytes32:
-		el := api.bigField.NewElement(v.Val[:])
-		return newBigVariable(el)
+		api.AssertIsEqual(v.Val[1], 0)
+		return v.Val[0]
 	case *BigVariable:
 		reduced := api.bigField.Reduce(v.Element)
 		api.AssertIsEqual(reduced.Limbs[1], 0)
@@ -228,4 +245,8 @@ func (api *CircuitAPI) MulBig(a, b *BigVariable) *BigVariable {
 
 func (api *CircuitAPI) DivBig(a, b *BigVariable) *BigVariable {
 	return newBigVariable(api.bigField.Div(a.Element, b.Element))
+}
+
+func (api *CircuitAPI) AssertIsEqualBig(a, b *BigVariable) {
+	api.bigField.AssertIsEqual(a.Element, b.Element)
 }

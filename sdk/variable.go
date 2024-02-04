@@ -104,8 +104,8 @@ func ParseEventID(b []byte) Variable {
 
 type BigField struct{}
 
-func (f BigField) NbLimbs() uint     { return 3 }
-func (f BigField) BitsPerLimb() uint { return 252 } // bls12377 scalar field modulus - 1
+func (f BigField) NbLimbs() uint     { return 6 }
+func (f BigField) BitsPerLimb() uint { return 96 }
 func (f BigField) IsPrime() bool     { return true }
 func (f BigField) Modulus() *big.Int {
 	mod := big.NewInt(1)
@@ -122,7 +122,7 @@ func newBigVariable(el *emulated.Element[BigField]) *BigVariable {
 }
 
 func ParseBigVariable(data []byte) *BigVariable {
-	if len(data) > 65 {
+	if len(data) > 64 {
 		panic(fmt.Errorf("ParseBytes32 called with data of length %d", len(data)))
 	}
 	el := emulated.ValueOf[BigField](data)
