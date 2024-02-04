@@ -118,8 +118,8 @@ github.com/btcsuite/btcd/btcec/v2 v2.2.0/go.mod h1:U7MHm051Al6XmscBQ0BoNydpOTsFA
 github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1 h1:q0rUy8C/TYNBQS1+CGKw68tLOFYSNEs0TFnxxnS9+4U=
 github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1/go.mod h1:7SFka0XMvUgj3hfZtydOrQY2mwhPclbT2snogU7SQQc=
 github.com/c-bata/go-prompt v0.2.2/go.mod h1:VzqtzE2ksDBcdln8G7mk2RX9QyGjH+OVqOCSiVIqS34=
-github.com/celer-network/gnark v0.0.0-20240103092544-e37f964b1a96 h1:ARE27xDy/eDPONZZVDrOJyU5rbvrKLOjvu/H9eMrPH4=
-github.com/celer-network/gnark v0.0.0-20240103092544-e37f964b1a96/go.mod h1:E5guEwrZsY3XVOe6wEuXiOBCeb2HHFDwUesSQy6LhlM=
+github.com/celer-network/gnark v0.0.0-20240204054508-d08e3ed6bd9f h1:jnQdUB9RerA8cDst4w2++1Bc4EeKUt/9FkJRpwxTS5I=
+github.com/celer-network/gnark v0.0.0-20240204054508-d08e3ed6bd9f/go.mod h1:ADyECY7hSqe+hSyFuIrm1t3fCZ1VCX5gQbiGC2iPjy8=
 github.com/celer-network/goutils v0.1.60 h1:/FfVaK4j1zzRXGUHlH0QGnBRDzxwYhOaUFnoZQphkAU=
 github.com/celer-network/goutils v0.1.60/go.mod h1:jk1BUuNQLr7hByLX5hdFMcovAta5UEGQ0BlI6NCXDwQ=
 github.com/celer-network/zk-utils v0.0.0-20240125102252-bb623eb6e152 h1:9qtm9cIp3Wg0zfvSi85FLLb7Suto0kLxa6vWQSQ35uI=
@@ -166,8 +166,8 @@ github.com/consensys/bavard v0.1.13 h1:oLhMLOFGTLdlda/kma4VOJazblc7IM5y5QPd2A/Yj
 github.com/consensys/bavard v0.1.13/go.mod h1:9ItSMtA/dXMAiL7BG6bqW2m3NdSEObYWoH223nGHukI=
 github.com/consensys/gnark-crypto v0.4.1-0.20210426202927-39ac3d4b3f1f/go.mod h1:815PAHg3wvysy0SyIqanF8gZ0Y1wjk/hrDHD/iT88+Q=
 github.com/consensys/gnark-crypto v0.9.1-0.20230105202408-1a7a29904a7c/go.mod h1:CkbdF9hbRidRJYMRzmfX8TMOr95I2pYXRHF18MzRrvA=
-github.com/consensys/gnark-crypto v0.12.2-0.20231208203441-d4eab6ddd2af h1:QbTpU3l/2wEFLtF4DQgApTXCDEtd9Jb8olP84VxvP4E=
-github.com/consensys/gnark-crypto v0.12.2-0.20231208203441-d4eab6ddd2af/go.mod h1:v2Gy7L/4ZRosZ7Ivs+9SfUDr0f5UlG+EM5t7MPHiLuY=
+github.com/consensys/gnark-crypto v0.12.2-0.20231221171913-5d5eded6bb15 h1:mcxhrDtXKIepsKXofxSuXRst+41yzAcoNWKIotsjMTQ=
+github.com/consensys/gnark-crypto v0.12.2-0.20231221171913-5d5eded6bb15/go.mod h1:wKqwsieaKPThcFkHe0d0zMsbHEUWFmZcG7KBCse210o=
 github.com/coreos/bbolt v1.3.2/go.mod h1:iRUV2dpdMOn7Bo10OQBFzIJO9kkE559Wcmn+qkEiiKk=
 github.com/coreos/etcd v3.3.10+incompatible/go.mod h1:uF7uidLiAD3TWHmW31ZFd/JWoc32PjwdhPthX9715RE=
 github.com/coreos/go-etcd v2.0.0+incompatible/go.mod h1:Jez6KQU2B/sWsbdaef3ED8NzMklzPG4d5KIOhIy30Tk=
@@ -494,10 +494,10 @@ github.com/influxdata/promql/v2 v2.12.0/go.mod h1:fxOPu+DY0bqCTCECchSRtWfc+0X19y
 github.com/influxdata/roaring v0.4.13-0.20180809181101-fc520f41fab6/go.mod h1:bSgUQ7q5ZLSO+bKBGqJiCBGAl+9DxyW63zLTujjUlOE=
 github.com/influxdata/tdigest v0.0.0-20181121200506-bf2b5ad3c0a9/go.mod h1:Js0mqiSBE6Ffsg94weZZ2c+v/ciT8QRHFOap7EKDrR0=
 github.com/influxdata/usage-client v0.0.0-20160829180054-6d3895376368/go.mod h1:Wbbw6tYNvwa5dlB6304Sd+82Z3f7PmVZHVKU637d4po=
-github.com/ingonyama-zk/icicle v0.1.0 h1:9zbHaYv8/4g3HWRabBCpeH+64U8GJ99K1qeqE2jO6LM=
-github.com/ingonyama-zk/icicle v0.1.0/go.mod h1:kAK8/EoN7fUEmakzgZIYdWy1a2rBnpCaZLqSHwZWxEk=
-github.com/ingonyama-zk/iciclegnark v0.1.1 h1:BugVGAkKFu2uy02cRsgQdsE18VaFIJz55dBeZQJl4R0=
-github.com/ingonyama-zk/iciclegnark v0.1.1/go.mod h1:g17CDuMfNBiN4hhZ4aA0rGF24Abv5GBFHJqE7aLxaZQ=
+github.com/ingonyama-zk/icicle v0.1.1-0.20240120093837-db9eff751859 h1:zUNn7pKri9mM6+2fMEoGbt822QWh4xzVB65L2peHW1w=
+github.com/ingonyama-zk/icicle v0.1.1-0.20240120093837-db9eff751859/go.mod h1:kAK8/EoN7fUEmakzgZIYdWy1a2rBnpCaZLqSHwZWxEk=
+github.com/ingonyama-zk/iciclegnark v0.1.2-0.20240120100015-8653136f9db4 h1:G6rREPYobR/WTuXcypQAedckBhdh6XlDtDs3rZC/K5I=
+github.com/ingonyama-zk/iciclegnark v0.1.2-0.20240120100015-8653136f9db4/go.mod h1:L4ipdq3/9xeOW3t6RGEpy5n1h88jJsvtuTopHd9x4dQ=
 github.com/iris-contrib/blackfriday v2.0.0+incompatible/go.mod h1:UzZ2bDEoaSGPbkg6SAB4att1aAwTmVIx/5gCVqeyUdI=
 github.com/iris-contrib/go.uuid v2.0.0+incompatible/go.mod h1:iz2lgM/1UnEf1kP0L/+fafWORmlnuysV2EMP8MW+qe0=
 github.com/iris-contrib/httpexpect/v2 v2.3.1/go.mod h1:ICTf89VBKSD3KB0fsyyHviKF8G8hyepP0dOXJPWz3T0=

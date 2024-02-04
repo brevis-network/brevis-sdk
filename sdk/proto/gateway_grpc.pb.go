@@ -37,7 +37,7 @@ const (
 	Web_CheckUniswapSumVolume_FullMethodName         = "/zk.gateway.Web/CheckUniswapSumVolume"
 	Web_GenerateUniswapSumProof_FullMethodName       = "/zk.gateway.Web/GenerateUniswapSumProof"
 	Web_GetUserTierAvailability_FullMethodName       = "/zk.gateway.Web/GetUserTierAvailability"
-	Web_PrepareQuery_FullMethodName                  = "/zk.gateway.Web/PrepareRequest"
+	Web_PrepareQuery_FullMethodName                  = "/zk.gateway.Web/PrepareQuery"
 	Web_RetrieveQueryAndProof_FullMethodName         = "/zk.gateway.Web/RetrieveQueryAndProof"
 	Web_SubmitAppCircuitProof_FullMethodName         = "/zk.gateway.Web/SubmitAppCircuitProof"
 	Web_GetQueryStatus_FullMethodName                = "/zk.gateway.Web/GetQueryStatus"

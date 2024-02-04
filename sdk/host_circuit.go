@@ -14,7 +14,7 @@ import (
 
 type AppCircuit interface {
 	Define(api *CircuitAPI, in CircuitInput) error
-	Allocate() (maxReceipts, maxSlots, maxTransactions int)
+	Allocate() (maxReceipts, maxStorage, maxTransactions int)
 }
 
 type HostCircuit struct {

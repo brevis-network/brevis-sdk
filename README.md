@@ -55,7 +55,7 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, input sdk.CircuitInput) error {
     // To output any computation results, use sdk.OutputXXX APIs 
     // These results will be available for use in your contract when   
     // the proof is verified on-chain 
-    sdk.OutputUint(64, sum)
+    api.OutputUint(64, sum)
     // sdk.OutputBytes32(...)
     // and more..
     
