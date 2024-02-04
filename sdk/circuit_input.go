@@ -52,6 +52,12 @@ func (in CircuitInput) Toggles() []Variable {
 	return toggles
 }
 
+func (in CircuitInput) GetAbiPackedOutput() []byte {
+	ret := make([]byte, len(dryRunOutput))
+	copy(ret, dryRunOutput)
+	return ret
+}
+
 // OutputCommitment represents the value of a keccak256 hash H in the form of {H[:16], H[16:]}
 type OutputCommitment [2]Variable
 
