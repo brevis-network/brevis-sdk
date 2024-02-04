@@ -15,15 +15,8 @@ func CalculateAppVkHashFor761(vk replonk.VerifyingKey[sw_bls12377.ScalarField, s
 	var hashData []byte
 
 	var data [mimc_761.BlockSize]byte
-	hashData = append(hashData, new(big.Int).SetUint64(vk.BaseVerifyingKey.Size).FillBytes(data[:])...)
 	hashData = append(hashData, new(big.Int).SetUint64(vk.BaseVerifyingKey.NbPublicVariables).FillBytes(data[:])...)
 
-	for _, generatorLimb := range vk.BaseVerifyingKey.Generator.Limbs {
-		hashData = append(hashData, generatorLimb.(*big.Int).FillBytes(data[:])...)
-	}
-	for _, sizeInvLimb := range vk.BaseVerifyingKey.SizeInv.Limbs {
-		hashData = append(hashData, sizeInvLimb.(*big.Int).FillBytes(data[:])...)
-	}
 	for _, cosetShiftLimb := range vk.BaseVerifyingKey.CosetShift.Limbs {
 		hashData = append(hashData, cosetShiftLimb.(*big.Int).FillBytes(data[:])...)
 	}
