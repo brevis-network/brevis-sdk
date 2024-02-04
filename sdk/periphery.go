@@ -84,7 +84,7 @@ func Setup(ccs constraint.ConstraintSystem, cacheDir ...string) (pk plonk.Provin
 func printVkHash(vk plonk.VerifyingKey) {
 	vkHash, err := computeVkHash(vk)
 	if err != nil {
-		fmt.Println("error computing vk hash: %s", err.Error())
+		fmt.Printf("error computing vk hash: %s", err.Error())
 		return
 	}
 	fmt.Println()
