@@ -370,7 +370,7 @@ func (UnimplementedWebServer) GetUserTierAvailability(context.Context, *GetUserT
 	return nil, status.Errorf(codes.Unimplemented, "method GetUserTierAvailability not implemented")
 }
 func (UnimplementedWebServer) PrepareQuery(context.Context, *PrepareQueryRequest) (*PrepareQueryResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method PrepareQuery not implemented")
+	return nil, status.Errorf(codes.Unimplemented, "method PrepareRequest not implemented")
 }
 func (UnimplementedWebServer) RetrieveQueryAndProof(context.Context, *RetrieveQueryAndProofRequest) (*RetrieveQueryAndProofResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RetrieveQueryAndProof not implemented")
@@ -869,7 +869,7 @@ var Web_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Web_GetUserTierAvailability_Handler,
 		},
 		{
-			MethodName: "PrepareQuery",
+			MethodName: "PrepareRequest",
 			Handler:    _Web_PrepareQuery_Handler,
 		},
 		{

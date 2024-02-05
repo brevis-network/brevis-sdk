@@ -656,24 +656,27 @@ func buildTx(t *txResult) (Transaction, error) {
 		return Transaction{}, err
 	}
 
-	var gasPriceOrCap = new(big.Int)
+	var maxPriorityFeePerGas = new(big.Int)
+	var maxFeePerGas = new(big.Int)
 
 	if t.Transaction.Type() == types.LegacyTxType {
-		gasPriceOrCap.SetBytes(t.GasPrice().Bytes())
+		maxPriorityFeePerGas.SetBytes(t.GasPrice().Bytes())
+		maxFeePerGas.SetUint64(0)
 	} else {
-		gasPriceOrCap.SetBytes(t.GasTipCap().Bytes())
+		maxPriorityFeePerGas.SetBytes(t.GasTipCap().Bytes())
+		maxFeePerGas.SetBytes(t.GasFeeCap().Bytes())
 	}
 
 	return Transaction{
-		ChainId:       t.ChainId(),
-		BlockNum:      t.blockNum,
-		Nonce:         t.Nonce(),
-		GasPriceOrCap: gasPriceOrCap,
-		MaxFeePerGas:  t.GasFeeCap(),
-		GasLimit:      t.Gas(),
-		From:          ParseAddress(from),
-		To:            ParseAddress(*t.To()),
-		Value:         ParseBytes32(t.Value().Bytes()),
+		ChainId:              t.ChainId(),
+		BlockNum:             t.blockNum,
+		Nonce:                t.Nonce(),
+		MaxPriorityFeePerGas: maxPriorityFeePerGas,
+		MaxFeePerGas:         maxFeePerGas,
+		GasLimit:             t.Gas(),
+		From:                 ParseAddress(from),
+		To:                   ParseAddress(*t.To()),
+		Value:                ParseBytes32(t.Value().Bytes()),
 	}, nil
 }
 

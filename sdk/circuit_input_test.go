@@ -168,15 +168,15 @@ func (c *TestTransactionPackCircuit) Define(api frontend.API) error {
 
 func TestTransactionPack(t *testing.T) {
 	tx := Transaction{
-		ChainId:       1,
-		BlockNum:      1234567,
-		Nonce:         123,
-		GasPriceOrCap: 1234567890,
-		MaxFeePerGas:  1876543212,
-		GasLimit:      123456,
-		From:          ParseAddress(common.HexToAddress("0x58b529F9084D7eAA598EB3477Fe36064C5B7bbC1")),
-		To:            ParseAddress(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
-		Value:         ParseBytes32(hexutil.MustDecode("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
+		ChainId:              1,
+		BlockNum:             1234567,
+		Nonce:                123,
+		MaxPriorityFeePerGas: 1234567890,
+		MaxFeePerGas:         1876543212,
+		GasLimit:             123456,
+		From:                 ParseAddress(common.HexToAddress("0x58b529F9084D7eAA598EB3477Fe36064C5B7bbC1")),
+		To:                   ParseAddress(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
+		Value:                ParseBytes32(hexutil.MustDecode("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
 	}
 	c := &TestTransactionPackCircuit{
 		Transaction: tx,
