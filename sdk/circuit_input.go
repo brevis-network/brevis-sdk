@@ -1,9 +1,10 @@
 package sdk
 
 import (
+	"math/big"
+
 	bls12377_fr "github.com/consensys/gnark-crypto/ecc/bls12-377/fr"
 	"github.com/ethereum/go-ethereum/common"
-	"math/big"
 
 	"github.com/consensys/gnark/frontend"
 )
@@ -248,7 +249,7 @@ type Transaction struct {
 	BlockNum             Variable
 	Nonce                Variable
 	MaxPriorityFeePerGas Variable
-	MaxFeePerGas         Variable
+	GasPriceOrCap        Variable
 	GasLimit             Variable
 	From                 Variable
 	To                   Variable
@@ -261,7 +262,7 @@ func NewTransaction() Transaction {
 		BlockNum:             0,
 		Nonce:                0,
 		MaxPriorityFeePerGas: 0,
-		MaxFeePerGas:         0,
+		GasPriceOrCap:        0,
 		GasLimit:             0,
 		From:                 0,
 		To:                   0,
@@ -284,7 +285,7 @@ func (t Transaction) pack(api frontend.API) []Variable {
 	bits = append(bits, api.ToBinary(t.ChainId, 8*4)...)
 	bits = append(bits, api.ToBinary(t.Nonce, 8*4)...)
 	bits = append(bits, api.ToBinary(t.MaxPriorityFeePerGas, 8*8)...)
-	bits = append(bits, api.ToBinary(t.MaxFeePerGas, 8*8)...)
+	bits = append(bits, api.ToBinary(t.GasPriceOrCap, 8*8)...)
 	bits = append(bits, api.ToBinary(t.GasLimit, 8*4)...)
 	bits = append(bits, api.ToBinary(t.From, 8*20)...)
 	bits = append(bits, api.ToBinary(t.To, 8*20)...)
@@ -298,7 +299,7 @@ func (t Transaction) goPack() []*big.Int {
 	bits = append(bits, decomposeBits(var2BigInt(t.ChainId), 8*4)...)
 	bits = append(bits, decomposeBits(var2BigInt(t.Nonce), 8*4)...)
 	bits = append(bits, decomposeBits(var2BigInt(t.MaxPriorityFeePerGas), 8*8)...)
-	bits = append(bits, decomposeBits(var2BigInt(t.MaxFeePerGas), 8*8)...)
+	bits = append(bits, decomposeBits(var2BigInt(t.GasPriceOrCap), 8*8)...)
 	bits = append(bits, decomposeBits(var2BigInt(t.GasLimit), 8*4)...)
 	bits = append(bits, decomposeBits(var2BigInt(t.From), 8*20)...)
 	bits = append(bits, decomposeBits(var2BigInt(t.To), 8*20)...)

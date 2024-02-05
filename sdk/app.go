@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"hash"
+	"math/big"
+	"time"
+
 	"github.com/celer-network/brevis-sdk/sdk/proto"
 	"github.com/celer-network/zk-utils/common/eth"
 	bls12377_fr "github.com/consensys/gnark-crypto/ecc/bls12-377/fr"
@@ -15,9 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"hash"
-	"math/big"
-	"time"
 )
 
 type LogFieldQuery struct {
@@ -654,12 +655,24 @@ func buildTx(t *txResult) (Transaction, error) {
 	if err != nil {
 		return Transaction{}, err
 	}
+
+	var maxPriorityFeePerGas = new(big.Int)
+	var gasPriceOrCap = new(big.Int)
+
+	if t.Transaction.Type() == types.LegacyTxType {
+		maxPriorityFeePerGas.SetBytes(t.GasPrice().Bytes())
+		gasPriceOrCap.SetUint64(0)
+	} else {
+		maxPriorityFeePerGas.SetBytes(t.GasTipCap().Bytes())
+		gasPriceOrCap.SetBytes(t.GasFeeCap().Bytes())
+	}
+
 	return Transaction{
 		ChainId:              t.ChainId(),
 		BlockNum:             t.blockNum,
 		Nonce:                t.Nonce(),
-		MaxPriorityFeePerGas: t.GasTipCap(),
-		MaxFeePerGas:         t.GasFeeCap(),
+		MaxPriorityFeePerGas: maxPriorityFeePerGas,
+		GasPriceOrCap:        gasPriceOrCap,
 		GasLimit:             t.Gas(),
 		From:                 ParseAddress(from),
 		To:                   ParseAddress(*t.To()),
