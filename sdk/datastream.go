@@ -215,3 +215,17 @@ func (ds *DataStream[T]) StdDev(getValue GetValueFunc[T]) Variable {
 
 	return ds.api.Sqrt(ds.api.Div(k, n))
 }
+
+func (ds *DataStream[T]) Partition(n int) *DataStream[Tuple[T]] {
+	l := len(ds.underlying)
+	var ret []Tuple[T]
+	for i := 0; i < l-n; i += n {
+		start := i
+		end := start + n
+		if end > l {
+			end = l
+		}
+		ret = append(ret, ds.underlying[start:end])
+	}
+	return newDataStream(ds.api, ret, ds.toggles, ds.max)
+}

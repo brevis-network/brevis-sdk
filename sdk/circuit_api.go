@@ -127,6 +127,21 @@ func (api *CircuitAPI) Not(a Variable) Variable {
 	return api.IsZero(a)
 }
 
+func Select[T CircuitVariable](api *CircuitAPI, s Variable, a, b CircuitVariable) T {
+	aVals := a.Values()
+	bVals := b.Values()
+	if len(aVals) != len(bVals) {
+		panic(fmt.Errorf("cannot select: inconsistent value length of a (%d) and b (%d)", len(aVals), len(bVals)))
+	}
+	res := make([]frontend.Variable, len(aVals))
+	for i := range aVals {
+		res[i] = api.Select(s, aVals[i], bVals[i])
+	}
+	t := *new(T)
+	t.SetValues(res)
+	return t
+}
+
 // SelectBytes32 returns a if s == 1, and b otherwise
 func (api *CircuitAPI) SelectBytes32(s Variable, a, b Bytes32) Bytes32 {
 	r := Bytes32{}
