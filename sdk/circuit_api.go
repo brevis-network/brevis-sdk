@@ -2,10 +2,8 @@ package sdk
 
 import (
 	"fmt"
-
-	"github.com/consensys/gnark/std/math/emulated"
-
 	"github.com/consensys/gnark/frontend"
+	"github.com/consensys/gnark/std/math/emulated"
 )
 
 // CircuitAPI contains a set of APIs that can only be used in circuit to perform
@@ -208,7 +206,7 @@ func (api *CircuitAPI) ToBigVariable(i interface{}) *BigVariable {
 		el := api.bigField.NewElement(limbs)
 		return newBigVariable(el)
 	case Variable:
-		el := api.bigField.NewElement(v)
+		el := api.bigField.NewElement([]frontend.Variable{v, 0, 0, 0, 0, 0})
 		return newBigVariable(el)
 	}
 	panic(fmt.Errorf("unsupported casting from %T to *BigVariable", i))
@@ -232,7 +230,10 @@ func (api *CircuitAPI) ToVariable(i interface{}) Variable {
 }
 
 func (api *CircuitAPI) AddBig(a, b *BigVariable) *BigVariable {
-	return newBigVariable(api.bigField.Add(a.Element, b.Element))
+	aEl := api.bigField.Reduce(a.Element)
+	bEl := api.bigField.Reduce(b.Element)
+	sum := newBigVariable(api.bigField.Add(aEl, bEl))
+	return sum
 }
 
 func (api *CircuitAPI) SubBig(a, b *BigVariable) *BigVariable {
@@ -247,7 +248,28 @@ func (api *CircuitAPI) DivBig(a, b *BigVariable) *BigVariable {
 	return newBigVariable(api.bigField.Div(a.Element, b.Element))
 }
 
+func (api *CircuitAPI) QuoRemBig(a, b *BigVariable) (quo, rem *BigVariable) {
+	aEl := api.bigField.Reduce(a.Element)
+	bEl := api.bigField.Reduce(b.Element)
+
+	fmt.Printf("a %v\n", aEl.Limbs)
+	fmt.Printf("b %v\n", bEl.Limbs)
+	out, err := api.bigField.NewHint(QuoRemBigHint, 2, aEl, bEl)
+	if err != nil {
+		panic(err)
+	}
+
+	q, r := out[0], out[1]
+	fmt.Printf("q %v\n", api.bigField.Reduce(q).Limbs)
+	fmt.Printf("r %v\n", api.bigField.Reduce(r).Limbs)
+	num := api.bigField.Mul(q, b.Element)
+	num = api.bigField.Add(num, r)
+
+	api.bigField.AssertIsEqual(num, a.Element)
+
+	return newBigVariable(q), newBigVariable(r)
+}
+
 func (api *CircuitAPI) AssertIsEqualBig(a, b *BigVariable) {
-	fmt.Printf("a %+v\nb %+v\n", a.Limbs, b.Limbs)
 	api.bigField.AssertIsEqual(a.Element, b.Element)
 }

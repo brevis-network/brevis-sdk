@@ -38,8 +38,8 @@ func (b32 Bytes32) toBinaryVars(api frontend.API) []Variable {
 // toBinary decomposes the Variables into little endian bits
 func (b32 Bytes32) toBinary() []uint {
 	var bits []uint
-	bits = append(bits, decomposeBits(var2BigInt(b32.Val[0]), numBitsPerVar)...)
-	bits = append(bits, decomposeBits(var2BigInt(b32.Val[1]), 32*8-numBitsPerVar)...)
+	bits = append(bits, decomposeBits(var2BigInt(b32.Val[0]), uint(numBitsPerVar))...)
+	bits = append(bits, decomposeBits(var2BigInt(b32.Val[1]), uint(32*8-numBitsPerVar))...)
 	return bits
 }
 
@@ -121,10 +121,7 @@ func newBigVariable(el *emulated.Element[BigField]) *BigVariable {
 	return &BigVariable{el}
 }
 
-func ParseBigVariable(data []byte) *BigVariable {
-	if len(data) > 64 {
-		panic(fmt.Errorf("ParseBigVariable called with data of length %d", len(data)))
-	}
-	el := emulated.ValueOf[BigField](data)
+func ParseBigVariable(i interface{}) *BigVariable {
+	el := emulated.ValueOf[BigField](i)
 	return newBigVariable(&el)
 }
