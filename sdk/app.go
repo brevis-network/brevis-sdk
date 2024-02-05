@@ -659,7 +659,8 @@ func buildTx(t *txResult) (Transaction, error) {
 	var maxPriorityFeePerGas = new(big.Int)
 	var gasPriceOrCap = new(big.Int)
 
-	if t.Transaction.Type() == types.LegacyTxType {
+	txType := t.Transaction.Type()
+	if txType == types.LegacyTxType || txType == types.AccessListTxType {
 		maxPriorityFeePerGas.SetBytes(t.GasPrice().Bytes())
 		gasPriceOrCap.SetUint64(0)
 	} else {
