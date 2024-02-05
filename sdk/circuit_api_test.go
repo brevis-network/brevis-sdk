@@ -1,24 +1,34 @@
 package sdk
 
 import (
+	"fmt"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/test"
+	"math/big"
 	"testing"
 )
 
 func TestCasting(t *testing.T) {
 	//assert := test.NewAssert(t)
 
+	uint248Max := new(big.Int)
+	uint248Max.Lsh(big.NewInt(1), 248).Sub(uint248Max, big.NewInt(1))
+	uint256Max := new(big.Int)
+	uint256Max.Lsh(big.NewInt(1), 248).Sub(uint256Max, big.NewInt(1))
 	circuit := &TestCastingCircuit{
 		A: 1,
-		B: Bytes32{Val: [2]frontend.Variable{1, 0}},
+		B: Bytes32{Val: [2]Variable{1, 0}},
 		C: ParseBigVariable([]byte{1}),
+		D: Bytes32{Val: [2]Variable{uint248Max, 255}},
+		E: ParseBigVariable(uint256Max.Bytes()),
 	}
 	assignment := &TestCastingCircuit{
 		A: 1,
-		B: Bytes32{Val: [2]frontend.Variable{1, 0}},
+		B: Bytes32{Val: [2]Variable{1, 0}},
 		C: ParseBigVariable([]byte{1}),
+		D: Bytes32{Val: [2]Variable{uint248Max, 255}},
+		E: ParseBigVariable(uint256Max.Bytes()),
 	}
 	//
 	//ccs, err := frontend.Compile(ecc.BLS12_377.ScalarField(), r1cs.NewBuilder, circuit)
@@ -44,6 +54,8 @@ type TestCastingCircuit struct {
 	A Variable
 	B Bytes32
 	C *BigVariable
+	D Bytes32
+	E *BigVariable
 }
 
 func (c *TestCastingCircuit) Define(gapi frontend.API) error {
@@ -57,6 +69,11 @@ func (c *TestCastingCircuit) Define(gapi frontend.API) error {
 
 	api.AssertIsEqualBig(api.ToBigVariable(c.A), c.C)
 	api.AssertIsEqualBig(api.ToBigVariable(c.B), c.C)
+
+	uint256 := api.ToBigVariable(c.D)
+	uint512 := api.AddBig(uint256, uint256)
+	fmt.Println("1111")
+	api.AssertIsEqualBig(uint512, c.E)
 
 	return nil
 }

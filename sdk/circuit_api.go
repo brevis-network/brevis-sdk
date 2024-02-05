@@ -248,5 +248,6 @@ func (api *CircuitAPI) DivBig(a, b *BigVariable) *BigVariable {
 }
 
 func (api *CircuitAPI) AssertIsEqualBig(a, b *BigVariable) {
+	fmt.Printf("a %+v\nb %+v\n", a.Limbs, b.Limbs)
 	api.bigField.AssertIsEqual(a.Element, b.Element)
 }

@@ -123,7 +123,7 @@ func newBigVariable(el *emulated.Element[BigField]) *BigVariable {
 
 func ParseBigVariable(data []byte) *BigVariable {
 	if len(data) > 64 {
-		panic(fmt.Errorf("ParseBytes32 called with data of length %d", len(data)))
+		panic(fmt.Errorf("ParseBigVariable called with data of length %d", len(data)))
 	}
 	el := emulated.ValueOf[BigField](data)
 	return newBigVariable(&el)
