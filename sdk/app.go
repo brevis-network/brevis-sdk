@@ -660,12 +660,15 @@ func buildTx(t *txResult) (Transaction, error) {
 	var gasPriceOrCap = new(big.Int)
 
 	txType := t.Transaction.Type()
-	if txType == types.LegacyTxType || txType == types.AccessListTxType {
+	switch txType {
+	case types.LegacyTxType:
 		maxPriorityFeePerGas.SetUint64(0)
 		gasPriceOrCap.SetBytes(t.GasPrice().Bytes())
-	} else {
+	case types.DynamicFeeTxType:
 		maxPriorityFeePerGas.SetBytes(t.GasTipCap().Bytes())
 		gasPriceOrCap.SetBytes(t.GasFeeCap().Bytes())
+	default:
+		return Transaction{}, fmt.Errorf("tx type %d is not supported yet", txType)
 	}
 
 	return Transaction{
