@@ -245,15 +245,17 @@ func (s StorageSlot) goPack() []*big.Int {
 }
 
 type Transaction struct {
-	ChainId              Variable
-	BlockNum             Variable
-	Nonce                Variable
+	ChainId  Variable
+	BlockNum Variable
+	Nonce    Variable
+	// MaxPriorityFeePerGas is always 0 for non-dynamic fee txs
 	MaxPriorityFeePerGas Variable
-	GasPriceOrCap        Variable
-	GasLimit             Variable
-	From                 Variable
-	To                   Variable
-	Value                Bytes32
+	// GasPriceOrFeeCap means GasPrice for non-dynamic fee txs and GasFeeCap for dynamic fee txs
+	GasPriceOrFeeCap Variable
+	GasLimit         Variable
+	From             Variable
+	To               Variable
+	Value            Bytes32
 }
 
 func NewTransaction() Transaction {
@@ -262,7 +264,7 @@ func NewTransaction() Transaction {
 		BlockNum:             0,
 		Nonce:                0,
 		MaxPriorityFeePerGas: 0,
-		GasPriceOrCap:        0,
+		GasPriceOrFeeCap:     0,
 		GasLimit:             0,
 		From:                 0,
 		To:                   0,
@@ -285,7 +287,7 @@ func (t Transaction) pack(api frontend.API) []Variable {
 	bits = append(bits, api.ToBinary(t.ChainId, 8*4)...)
 	bits = append(bits, api.ToBinary(t.Nonce, 8*4)...)
 	bits = append(bits, api.ToBinary(t.MaxPriorityFeePerGas, 8*8)...)
-	bits = append(bits, api.ToBinary(t.GasPriceOrCap, 8*8)...)
+	bits = append(bits, api.ToBinary(t.GasPriceOrFeeCap, 8*8)...)
 	bits = append(bits, api.ToBinary(t.GasLimit, 8*4)...)
 	bits = append(bits, api.ToBinary(t.From, 8*20)...)
 	bits = append(bits, api.ToBinary(t.To, 8*20)...)
@@ -299,7 +301,7 @@ func (t Transaction) goPack() []*big.Int {
 	bits = append(bits, decomposeBits(var2BigInt(t.ChainId), 8*4)...)
 	bits = append(bits, decomposeBits(var2BigInt(t.Nonce), 8*4)...)
 	bits = append(bits, decomposeBits(var2BigInt(t.MaxPriorityFeePerGas), 8*8)...)
-	bits = append(bits, decomposeBits(var2BigInt(t.GasPriceOrCap), 8*8)...)
+	bits = append(bits, decomposeBits(var2BigInt(t.GasPriceOrFeeCap), 8*8)...)
 	bits = append(bits, decomposeBits(var2BigInt(t.GasLimit), 8*4)...)
 	bits = append(bits, decomposeBits(var2BigInt(t.From), 8*20)...)
 	bits = append(bits, decomposeBits(var2BigInt(t.To), 8*20)...)
