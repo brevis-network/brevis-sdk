@@ -657,14 +657,14 @@ func buildTx(t *txResult) (Transaction, error) {
 	}
 
 	var maxPriorityFeePerGas = new(big.Int)
-	var maxFeePerGas = new(big.Int)
+	var gasPriceOrCap = new(big.Int)
 
 	if t.Transaction.Type() == types.LegacyTxType {
 		maxPriorityFeePerGas.SetBytes(t.GasPrice().Bytes())
-		maxFeePerGas.SetUint64(0)
+		gasPriceOrCap.SetUint64(0)
 	} else {
 		maxPriorityFeePerGas.SetBytes(t.GasTipCap().Bytes())
-		maxFeePerGas.SetBytes(t.GasFeeCap().Bytes())
+		gasPriceOrCap.SetBytes(t.GasFeeCap().Bytes())
 	}
 
 	return Transaction{
@@ -672,7 +672,7 @@ func buildTx(t *txResult) (Transaction, error) {
 		BlockNum:             t.blockNum,
 		Nonce:                t.Nonce(),
 		MaxPriorityFeePerGas: maxPriorityFeePerGas,
-		MaxFeePerGas:         maxFeePerGas,
+		GasPriceOrCap:        gasPriceOrCap,
 		GasLimit:             t.Gas(),
 		From:                 ParseAddress(from),
 		To:                   ParseAddress(*t.To()),
