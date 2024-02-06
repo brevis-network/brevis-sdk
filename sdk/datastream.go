@@ -2,17 +2,18 @@ package sdk
 
 import (
 	"github.com/consensys/gnark-crypto/ecc"
+	"github.com/consensys/gnark/frontend"
 	"math/big"
 )
 
-type DataStream[T any] struct {
+type DataStream[T CircuitVariable] struct {
 	api        *CircuitAPI
 	underlying []T
 	toggles    []Variable
 	max        int
 }
 
-func NewDataStream[T any](api *CircuitAPI, in DataPoints[T]) *DataStream[T] {
+func NewDataStream[T CircuitVariable](api *CircuitAPI, in DataPoints[T]) *DataStream[T] {
 	return &DataStream[T]{
 		api:        api,
 		underlying: in.Raw,
@@ -21,7 +22,7 @@ func NewDataStream[T any](api *CircuitAPI, in DataPoints[T]) *DataStream[T] {
 	}
 }
 
-func newDataStream[T any](api *CircuitAPI, in []T, toggles []Variable, max int) *DataStream[T] {
+func newDataStream[T CircuitVariable](api *CircuitAPI, in []T, toggles []Variable, max int) *DataStream[T] {
 	return &DataStream[T]{
 		api:        api,
 		underlying: in,
@@ -55,26 +56,33 @@ func (ds *DataStream[T]) Map(mapFunc MapFunc[T]) *DataStream[Variable] {
 	return newDataStream(ds.api, res, ds.toggles, ds.max)
 }
 
-type Map2Func[T any] func(current T) [2]Variable
+type Map2Func[T CircuitVariable] func(current T) Tuple[T]
 
 // Map2 is like Map but maps every element to two variables
-func (ds *DataStream[T]) Map2(mapFunc Map2Func[T]) *DataStream[[2]Variable] {
-	res := make([][2]Variable, ds.max)
-	for i, data := range ds.underlying {
-		res[i] = mapFunc(data)
-	}
-	return newDataStream(ds.api, res, ds.toggles, ds.max)
+func (ds *DataStream[T]) Map2(mapFunc Map2Func[T]) *DataStream[Tuple[T]] {
+	var mapFunc2 MapGenericFunc[T, Tuple[T]] = mapFunc
+	return Map(ds, mapFunc)
 }
 
-type AssertFunc[T any] func(current T) Variable
+type AssertFunc[T CircuitVariable] func(current T) Variable
 
-// AssertEach performs the standard api.AssertIsEqual on every valid element of the stream
-func (ds *DataStream[T]) AssertEach(assertFunc AssertFunc[T]) {
+func AssertEach[T CircuitVariable](ds *DataStream[T], assertFunc AssertFunc[T]) {
 	for i, data := range ds.underlying {
 		pass := assertFunc(data)
-		valid := ds.api.Equal(ds.toggles[i], 1)
-		pass = ds.api.Select(valid, pass, 1)
-		ds.api.AssertIsEqual(pass, 1)
+		valid := Equal(ds.api, ds.toggles[i], newVariable(1))
+		pass = Select(ds.api, valid, pass, newVariable(1))
+		AssertIsEqual(ds.api, pass, newVariable(1))
+	}
+}
+
+func AssertIsEqual(api *CircuitAPI, a, b CircuitVariable) {
+	aVals := a.Values()
+	bVals := b.Values()
+	if len(aVals) != len(bVals) {
+		panic("AssertIsEqual inconsistent values len")
+	}
+	for i := range aVals {
+		api.AssertIsEqual(aVals[i], bVals[i])
 	}
 }
 
@@ -122,52 +130,74 @@ func (ds *DataStream[T]) Count() Variable {
 	return count
 }
 
-type ReduceFunc[T any] func(accumulator Variable, current T) (newAccumulator Variable)
+type ReduceFunc[T CircuitVariable] func(accumulator Variable, current T) (newAccumulator Variable)
 
 // Reduce reduces the data stream to a single circuit variable
-func (ds *DataStream[T]) Reduce(initial Variable, reduceFunc ReduceFunc[T]) Variable {
+func (ds *DataStream[T]) Reduce(initial *Variable, reduceFunc ReduceGenericFunc[T, *Variable]) *Variable {
+	return Reduce(ds, initial, reduceFunc)
+}
+
+type MapGenericFunc[T, R CircuitVariable] func(current T) R
+
+func Map[T, R CircuitVariable](ds *DataStream[T], mapFunc MapGenericFunc[T, R]) *DataStream[R] {
+	res := make([]R, ds.max)
+	for i, data := range ds.underlying {
+		res[i] = mapFunc(data)
+	}
+	return newDataStream(ds.api, res, ds.toggles, ds.max)
+}
+
+type ReduceGenericFunc[T, R CircuitVariable] func(accumulator R, current T) (newAccumulator R)
+
+func Reduce[T, R CircuitVariable](ds *DataStream[T], initial R, reduceFunc ReduceGenericFunc[T, R]) R {
 	var acc = initial
 	for i, data := range ds.underlying {
 		newAcc := reduceFunc(acc, data)
-		acc = ds.api.Select(ds.toggles[i], newAcc, acc)
+		oldAccVals := acc.Values()
+		values := make([]frontend.Variable, len(oldAccVals))
+		for j, newAccV := range newAcc.Values() {
+			values[j] = ds.api.Select(ds.toggles[i], newAccV, oldAccVals[j])
+		}
+		acc.SetValues(values...)
 	}
 	return acc
 }
 
-type Reduce2Func[T any] func(accumulator [2]Variable, current T) (newAccumulator [2]Variable)
-
-// Reduce2 works the same way as Reduce but works on two elements
-func (ds *DataStream[T]) Reduce2(initial [2]Variable, reduceFunc Reduce2Func[T]) [2]Variable {
-	api := ds.api
-	acc := initial
-	for i, data := range ds.underlying {
-		newAcc := reduceFunc(acc, data)
-		valid := api.Equal(ds.toggles[i], 1)
-		acc[0] = api.Select(valid, newAcc[0], acc[0])
-		acc[1] = api.Select(valid, newAcc[1], acc[1])
+func Partition[T CircuitVariable](ds *DataStream[T], n int) *DataStream[Tuple[T]] {
+	l := len(ds.underlying)
+	var ret []Tuple[T]
+	for i := 0; i < l-n; i += n {
+		start := i
+		end := start + n
+		if end > l {
+			end = l
+		}
+		ret = append(ret, ds.underlying[start:end])
 	}
-	return acc
+	return newDataStream(ds.api, ret, ds.toggles, ds.max)
 }
 
-// FilterFunc must return 1/0 to include/exclude `current` in the filter result
-type FilterFunc[T any] func(current T) Variable
+type FilterGenericFunc[T CircuitVariable] func(current T) Variable
 
-// Filter filters the data stream with a user-supplied filterFunc
-// Internally it toggles off the elements that does not meet the filter criteria
-func (ds *DataStream[T]) Filter(filterFunc FilterFunc[T]) *DataStream[T] {
+func Filter[T CircuitVariable](ds *DataStream[T], filterFunc FilterGenericFunc[T]) *DataStream[T] {
 	newToggles := make([]Variable, ds.max)
 	for i, data := range ds.underlying {
 		toggle := filterFunc(data)
-		valid := ds.api.Equal(ds.toggles[i], 1)
-		newToggles[i] = ds.api.API.Select(ds.api.API.And(toggle, valid), 1, 0)
+		valid := Equal(ds.api, ds.toggles[i], newVariable(1))
+		newToggles[i] = Select(ds.api, ds.api.And(toggle, valid), newVariable(1), newVariable(0))
 	}
 	return newDataStream(ds.api, ds.underlying, newToggles, ds.max)
 }
 
+type Reduce2Func[T any] func(accumulator [2]Variable, current T) (newAccumulator [2]Variable)
+
+// FilterFunc must return 1/0 to include/exclude `current` in the filter result
+type FilterFunc[T any] func(current T) Variable
+
 type GetValueFunc[T any] func(current T) Variable
 
 // Min finds out the minimum value of the selected field from the data stream. Uses Reduce under the hood.
-func (ds *DataStream[T]) Min(getValue GetValueFunc[T]) Variable {
+func Min(ds *DataStream[T], getValue GetValueFunc[T]) Variable {
 	maxInt := new(big.Int).Sub(ecc.BLS12_377.ScalarField(), big.NewInt(1))
 	return ds.Reduce(maxInt, func(min Variable, current T) (newMin Variable) {
 		curr := getValue(current)

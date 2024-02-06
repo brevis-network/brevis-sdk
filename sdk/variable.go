@@ -19,7 +19,7 @@ var numBitsPerVar = 248
 
 type CircuitVariable interface {
 	Values() []frontend.Variable
-	SetValues(v []frontend.Variable)
+	SetValues(vs ...frontend.Variable)
 }
 
 type Variable struct {
@@ -30,8 +30,15 @@ func newVariable(v frontend.Variable) Variable {
 	return Variable{Val: v}
 }
 
-func (v *Variable) Values() []frontend.Variable {
+func (v Variable) Values() []frontend.Variable {
 	return []frontend.Variable{v.Val}
+}
+
+func (v Variable) SetValues(vs ...frontend.Variable) {
+	if len(vs) != 1 {
+		panic("Variables.SetValues only takes len 1 slice")
+	}
+	v.Val = vs[0]
 }
 
 type Tuple[T CircuitVariable] []T
@@ -42,6 +49,12 @@ func (t Tuple[T]) Values() []frontend.Variable {
 		ret = append(ret, data.Values())
 	}
 	return ret
+}
+
+func (t Tuple[T]) SetValues(vs ...frontend.Variable) {
+	for i, v := range vs {
+		t[i].SetValues(v)
+	}
 }
 
 // Bytes32 is an in-circuit representation of the solidity bytes32 type.

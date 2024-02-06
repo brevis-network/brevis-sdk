@@ -109,7 +109,7 @@ func (api *CircuitAPI) And(a, b Variable, other ...Variable) Variable {
 	for _, v := range other {
 		api.API.And(res, v)
 	}
-	return res
+	return newVariable(res)
 }
 
 // Or returns 1 if a || b [|| other[0] [|| other[1]...]] is true, and 0 otherwise
@@ -127,7 +127,7 @@ func (api *CircuitAPI) Not(a Variable) Variable {
 	return api.IsZero(a)
 }
 
-func Select[T CircuitVariable](api *CircuitAPI, s Variable, a, b CircuitVariable) T {
+func Select[T CircuitVariable](api *CircuitAPI, s Variable, a, b T) T {
 	aVals := a.Values()
 	bVals := b.Values()
 	if len(aVals) != len(bVals) {
@@ -168,6 +168,19 @@ func (api *CircuitAPI) EqualBytes32(a, b Bytes32) Variable {
 // Equal returns 1 if a == b, and 0 otherwise
 func (api *CircuitAPI) Equal(a, b Variable) Variable {
 	return api.API.IsZero(api.API.Sub(a, b))
+}
+
+// Equal returns 1 if a == b, and 0 otherwise
+func Equal(api *CircuitAPI, a, b Variable) Variable {
+	return IsZero(api, Sub(api, a, b))
+}
+
+func Sub(api *CircuitAPI, a, b Variable) Variable {
+	return newVariable(api.Sub(a.Val, b.Val))
+}
+
+func IsZero(api *CircuitAPI, a Variable) Variable {
+	return newVariable(api.IsZero(a.Val))
 }
 
 // Sqrt returns √a. Uses SqrtHint
