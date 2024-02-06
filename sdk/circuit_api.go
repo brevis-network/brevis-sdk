@@ -178,8 +178,8 @@ func (api *CircuitAPI) QuoRem(a, b Variable) (quotient, remainder Variable) {
 func (api *CircuitAPI) ToBytes32(i interface{}) Bytes32 {
 	switch v := i.(type) {
 	case *BigVariable:
-		api.bigField.AssertIsLessOrEqual(v.Element, MaxBytes32.Element)
 		r := api.bigField.Reduce(v.Element)
+		api.bigField.AssertIsLessOrEqual(r, MaxBytes32.Element)
 		bits := api.bigField.ToBits(r)
 		lo := api.FromBinary(bits[:numBitsPerVar]...)
 		hi := api.FromBinary(bits[numBitsPerVar:256]...)
@@ -221,10 +221,11 @@ func (api *CircuitAPI) ToVariable(i interface{}) Variable {
 		api.AssertIsEqual(v.Val[1], 0)
 		return v.Val[0]
 	case *BigVariable:
-		reduced := api.bigField.Reduce(v.Element)
-		api.AssertIsEqual(reduced.Limbs[1], 0)
-		api.AssertIsEqual(reduced.Limbs[2], 0)
-		return v.Limbs[0]
+		r := api.bigField.Reduce(v.Element)
+		max248 := emulated.ValueOf[BigField](MaxUint248)
+		api.bigField.AssertIsLessOrEqual(r, &max248)
+		bits := api.bigField.ToBits(r)
+		return api.FromBinary(bits[:numBitsPerVar]...)
 	}
 	panic(fmt.Errorf("unsupported casting from %T to Variable", i))
 }
