@@ -252,22 +252,27 @@ func (api *CircuitAPI) QuoRemBig(a, b *BigVariable) (quo, rem *BigVariable) {
 	aEl := api.bigField.Reduce(a.Element)
 	bEl := api.bigField.Reduce(b.Element)
 
-	fmt.Printf("a %v\n", aEl.Limbs)
-	fmt.Printf("b %v\n", bEl.Limbs)
 	out, err := api.bigField.NewHint(QuoRemBigHint, 2, aEl, bEl)
 	if err != nil {
 		panic(err)
 	}
 
 	q, r := out[0], out[1]
-	fmt.Printf("q %v\n", api.bigField.Reduce(q).Limbs)
-	fmt.Printf("r %v\n", api.bigField.Reduce(r).Limbs)
 	num := api.bigField.Mul(q, b.Element)
 	num = api.bigField.Add(num, r)
 
 	api.bigField.AssertIsEqual(num, a.Element)
 
 	return newBigVariable(q), newBigVariable(r)
+}
+
+func (api *CircuitAPI) SelectBig(s Variable, a, b *BigVariable) *BigVariable {
+	el := api.bigField.Select(s, a.Element, b.Element)
+	return newBigVariable(el)
+}
+
+func (api *CircuitAPI) EqualBig(a, b *BigVariable) Variable {
+	return api.bigField.IsZero(api.bigField.Sub(a.Element, b.Element))
 }
 
 func (api *CircuitAPI) AssertIsEqualBig(a, b *BigVariable) {
