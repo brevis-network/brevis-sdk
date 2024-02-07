@@ -89,7 +89,7 @@ func (b32 Bytes32) String() string {
 // ParseBytes32 initializes a constant Bytes32 circuit variable. Panics if the
 // length of the supplied data bytes is larger than 32. It decomposes data (big
 // endian) into little endian bits then recomposes the result into two big ints
-// in the form of {lo, hi} This function is not a circuit API and should only be
+// in the form of {lo, hi} This function is not a circuit g and should only be
 // used outside of circuit to initialize constant circuit variables
 func ParseBytes32(data []byte) Bytes32 {
 	if len(data) > 32 {
@@ -105,14 +105,14 @@ func ParseBytes32(data []byte) Bytes32 {
 }
 
 // ParseAddress initializes a circuit Variable from an address type. This
-// function is not a circuit API and should only be used outside of circuit to
+// function is not a circuit g and should only be used outside of circuit to
 // initialize constant circuit variables
 func ParseAddress(addr [20]byte) Variable {
 	return newVariable(new(big.Int).SetBytes(addr[:]))
 }
 
 // ParseBytes initializes a circuit Variable from a bytes type. Panics if len(b)
-// > 31. This function is not a circuit API and should only be used outside of
+// > 31. This function is not a circuit g and should only be used outside of
 // circuit to initialize constant circuit variables
 func ParseBytes(b []byte) Variable {
 	if len(b) > 31 {
@@ -122,7 +122,7 @@ func ParseBytes(b []byte) Variable {
 }
 
 // ParseBool initializes a circuit Variable from a bool type. This function is
-// not a circuit API and should only be used outside of circuit to initialize
+// not a circuit g and should only be used outside of circuit to initialize
 // constant circuit variables
 func ParseBool(b bool) Variable {
 	if b {
@@ -132,7 +132,7 @@ func ParseBool(b bool) Variable {
 }
 
 // ParseEventID initializes a circuit Variable from bytes. Only the first 6 bytes
-// of the event id is used to save space. This function is not a circuit API and
+// of the event id is used to save space. This function is not a circuit g and
 // should only be used outside of circuit to initialize constant circuit
 // variables
 func ParseEventID(b []byte) Variable {
@@ -152,6 +152,14 @@ func (f BigField) Modulus() *big.Int {
 
 type BigVariable struct {
 	*emulated.Element[BigField]
+}
+
+func (b *BigVariable) Values() []frontend.Variable {
+	return b.Limbs
+}
+
+func (b *BigVariable) SetValues(vs []frontend.Variable) {
+
 }
 
 func newBigVariable(el *emulated.Element[BigField]) *BigVariable {

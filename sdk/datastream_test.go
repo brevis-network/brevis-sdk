@@ -58,7 +58,7 @@ func (c *TestDataStreamCircuit) Define(gapi frontend.API) error {
 	api.AssertIsEqual(mean, 4)
 
 	//stddev := b.StdDev(func(v Variable) Variable { return v })
-	//api.AssertIsEqual(stddev, nil)
+	//g.AssertIsEqual(stddev, nil)
 
 	b.AssertEach(func(v Variable) Variable { return api.IsBetween(v, 3, 5) })
 

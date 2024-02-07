@@ -18,16 +18,14 @@ func NewDataStream[T CircuitVariable](api *CircuitAPI, in DataPoints[T]) *DataSt
 		api:        api,
 		underlying: in.Raw,
 		toggles:    in.Toggles,
-		max:        NumMaxDataPoints, // TODO allow developer to customize max
 	}
 }
 
-func newDataStream[T CircuitVariable](api *CircuitAPI, in []T, toggles []Variable, max int) *DataStream[T] {
+func newDataStream[T CircuitVariable](api *CircuitAPI, in []T, toggles []Variable) *DataStream[T] {
 	return &DataStream[T]{
 		api:        api,
 		underlying: in,
 		toggles:    toggles,
-		max:        max,
 	}
 }
 
@@ -45,24 +43,11 @@ func (ds *DataStream[T]) Range(start, end int) *DataStream[T] {
 	return newDataStream(ds.api, ds.underlying[start:end], ds.toggles[start:end], end-start)
 }
 
+func Add[T CircuitVariable](api *CircuitAPI, a, b T) T {
+
+}
+
 type MapFunc[T any] func(current T) Variable
-
-// Map calls the input mapFunc on every valid element in the stream
-func (ds *DataStream[T]) Map(mapFunc MapFunc[T]) *DataStream[Variable] {
-	res := make([]Variable, ds.max)
-	for i, data := range ds.underlying {
-		res[i] = mapFunc(data)
-	}
-	return newDataStream(ds.api, res, ds.toggles, ds.max)
-}
-
-type Map2Func[T CircuitVariable] func(current T) Tuple[T]
-
-// Map2 is like Map but maps every element to two variables
-func (ds *DataStream[T]) Map2(mapFunc Map2Func[T]) *DataStream[Tuple[T]] {
-	var mapFunc2 MapGenericFunc[T, Tuple[T]] = mapFunc
-	return Map(ds, mapFunc)
-}
 
 type AssertFunc[T CircuitVariable] func(current T) Variable
 
@@ -71,18 +56,7 @@ func AssertEach[T CircuitVariable](ds *DataStream[T], assertFunc AssertFunc[T]) 
 		pass := assertFunc(data)
 		valid := Equal(ds.api, ds.toggles[i], newVariable(1))
 		pass = Select(ds.api, valid, pass, newVariable(1))
-		AssertIsEqual(ds.api, pass, newVariable(1))
-	}
-}
-
-func AssertIsEqual(api *CircuitAPI, a, b CircuitVariable) {
-	aVals := a.Values()
-	bVals := b.Values()
-	if len(aVals) != len(bVals) {
-		panic("AssertIsEqual inconsistent values len")
-	}
-	for i := range aVals {
-		api.AssertIsEqual(aVals[i], bVals[i])
+		ds.api.g.AssertIsEqual(ds.api, pass, newVariable(1))
 	}
 }
 
@@ -105,12 +79,12 @@ func (ds *DataStream[T]) IsSorted(getValue GetValueFunc[T], sortFunc SortFunc) V
 	prev := getValue(ds.underlying[0])
 	prevValid := ds.toggles[0]
 
-	for i := 1; i < ds.max; i++ {
+	for i := 1; i < len(ds.underlying); i++ {
 		curr := getValue(ds.underlying[i])
 		currValid := ds.toggles[i]
 
 		sorted = sortFunc(prev, curr)
-		sorted = api.API.Select(api.API.And(prevValid, currValid), sorted, 1)
+		sorted = api.g.Select(api.g.And(prevValid, currValid), sorted, 1)
 
 		prev = api.Select(currValid, curr, prev)
 		prevValid = currValid
@@ -126,8 +100,22 @@ func (ds *DataStream[T]) AssertSorted(getValue GetValueFunc[T], sortFunc SortFun
 // Count returns the number of valid elements (i.e. toggled on) in the data stream.
 func (ds *DataStream[T]) Count() Variable {
 	t := ds.toggles
-	count := ds.api.API.Add(t[0], t[1], t[2:]...) // Todo: cache this signal in case it's used more than once
+	count := ds.api.g.Add(t[0], t[1], t[2:]...) // Todo: cache this signal in case it's used more than once
 	return count
+}
+
+func GroupBy[T, R CircuitVariable](ds *DataStream[T], f ReduceGenericFunc[T, R], aggInitial R, groupValues []Variable, byFieldIndex int) *DataStream[R] {
+	aggResults := make([]R, len(groupValues))
+	aggResultToggles := make([]Variable, len(aggResults))
+	for i, p := range groupValues {
+		group := Filter(ds, func(current T) Variable {
+			v := current.Values()[byFieldIndex]
+			return Equal(ds.api, newVariable(v), p)
+		})
+		aggResults[i] = Reduce(group, aggInitial, f)
+		aggResultToggles[i] = Sub(ds.api, newVariable(1), IsZero(ds.api, p))
+	}
+	return newDataStream(ds.api, aggResults, aggResultToggles)
 }
 
 type ReduceFunc[T CircuitVariable] func(accumulator Variable, current T) (newAccumulator Variable)
@@ -140,11 +128,11 @@ func (ds *DataStream[T]) Reduce(initial *Variable, reduceFunc ReduceGenericFunc[
 type MapGenericFunc[T, R CircuitVariable] func(current T) R
 
 func Map[T, R CircuitVariable](ds *DataStream[T], mapFunc MapGenericFunc[T, R]) *DataStream[R] {
-	res := make([]R, ds.max)
+	res := make([]R, len(ds.underlying))
 	for i, data := range ds.underlying {
 		res[i] = mapFunc(data)
 	}
-	return newDataStream(ds.api, res, ds.toggles, ds.max)
+	return newDataStream(ds.api, res, ds.toggles)
 }
 
 type ReduceGenericFunc[T, R CircuitVariable] func(accumulator R, current T) (newAccumulator R)
@@ -163,30 +151,33 @@ func Reduce[T, R CircuitVariable](ds *DataStream[T], initial R, reduceFunc Reduc
 	return acc
 }
 
-func Partition[T CircuitVariable](ds *DataStream[T], n int) *DataStream[Tuple[T]] {
+func Window[T CircuitVariable](ds *DataStream[T], n int) *DataStream[Tuple[T]] {
 	l := len(ds.underlying)
+	var toggles []Variable
 	var ret []Tuple[T]
 	for i := 0; i < l-n; i += n {
 		start := i
 		end := start + n
-		if end > l {
-			end = l
-		}
 		ret = append(ret, ds.underlying[start:end])
+		toggle := newVariable(0)
+		for _, t := range ds.toggles[start:end] {
+			toggle = And(ds.api, toggle, t)
+		}
+		toggles = append(toggles, toggle)
 	}
-	return newDataStream(ds.api, ret, ds.toggles, ds.max)
+	return newDataStream(ds.api, ret, toggles)
 }
 
 type FilterGenericFunc[T CircuitVariable] func(current T) Variable
 
 func Filter[T CircuitVariable](ds *DataStream[T], filterFunc FilterGenericFunc[T]) *DataStream[T] {
-	newToggles := make([]Variable, ds.max)
+	newToggles := make([]Variable, len(ds.underlying))
 	for i, data := range ds.underlying {
 		toggle := filterFunc(data)
 		valid := Equal(ds.api, ds.toggles[i], newVariable(1))
 		newToggles[i] = Select(ds.api, ds.api.And(toggle, valid), newVariable(1), newVariable(0))
 	}
-	return newDataStream(ds.api, ds.underlying, newToggles, ds.max)
+	return newDataStream(ds.api, ds.underlying, newToggles)
 }
 
 type Reduce2Func[T any] func(accumulator [2]Variable, current T) (newAccumulator [2]Variable)
@@ -244,18 +235,4 @@ func (ds *DataStream[T]) StdDev(getValue GetValueFunc[T]) Variable {
 	})
 
 	return ds.api.Sqrt(ds.api.Div(k, n))
-}
-
-func (ds *DataStream[T]) Partition(n int) *DataStream[Tuple[T]] {
-	l := len(ds.underlying)
-	var ret []Tuple[T]
-	for i := 0; i < l-n; i += n {
-		start := i
-		end := start + n
-		if end > l {
-			end = l
-		}
-		ret = append(ret, ds.underlying[start:end])
-	}
-	return newDataStream(ds.api, ret, ds.toggles, ds.max)
 }

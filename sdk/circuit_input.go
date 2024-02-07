@@ -12,18 +12,18 @@ type CircuitInput struct {
 	// InputCommitments is a list of hash commitment to each value of Raw. These
 	// commitments must match sub-prover circuit's commitment to its rlp decoded
 	// values
-	InputCommitments  []Variable `gnark:",public"`
-	TogglesCommitment Variable   `gnark:",public"`
+	InputCommitments  []Variable `g:",public"`
+	TogglesCommitment Variable   `g:",public"`
 	// OutputCommitment is a keccak256 commitment to the computation results of the
 	// developer's circuit. The output of this commitment is revealed by the
 	// developer in their application contract.
-	OutputCommitment OutputCommitment `gnark:",public"`
+	OutputCommitment OutputCommitment `g:",public"`
 
 	Receipts     DataPoints[Receipt]
 	StorageSlots DataPoints[StorageSlot]
 	Transactions DataPoints[Transaction]
 
-	dryRunOutput []byte `gnark:"-"`
+	dryRunOutput []byte `g:"-"`
 }
 
 func (in CircuitInput) Clone() CircuitInput {
@@ -121,7 +121,7 @@ type Receipt struct {
 
 func NewReceipt() Receipt {
 	return Receipt{
-		BlockNum: big.NewInt(0),
+		BlockNum: newVariable(0),
 		Fields:   [3]LogField{NewLogField(), NewLogField(), NewLogField()},
 	}
 }

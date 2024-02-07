@@ -21,7 +21,7 @@ type HostCircuit struct {
 	api frontend.API
 
 	Input CircuitInput
-	guest AppCircuit `gnark:"-"`
+	guest AppCircuit `g:"-"`
 }
 
 func NewHostCircuit(in CircuitInput, guest AppCircuit) *HostCircuit {
@@ -96,7 +96,7 @@ func (c *HostCircuit) commitInput() error {
 	togglesCommit := hasher.Sum()
 	c.api.AssertIsEqual(togglesCommit, c.Input.TogglesCommitment)
 
-	//assertInputUniqueness(c.api, c.Input.InputCommitments)
+	//assertInputUniqueness(c.g, c.Input.InputCommitments)
 
 	return nil
 }
