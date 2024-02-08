@@ -72,7 +72,7 @@ func (c OutputCommitment) Hash() common.Hash {
 }
 
 type DataPoints[T any] struct {
-	// Raw is the structured input data (receiptQueries, txs, and slots).
+	// Raw is the structured input data (receipts, txs, and slots).
 	Raw []T
 	// Toggles is a bitmap that toggles the effectiveness of each position of Raw.
 	// len(Toggles) must equal len(Raw)

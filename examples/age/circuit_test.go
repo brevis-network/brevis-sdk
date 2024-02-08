@@ -6,12 +6,14 @@ import (
 	"github.com/celer-network/brevis-sdk/sdk"
 	"github.com/celer-network/brevis-sdk/test"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"path/filepath"
 	"testing"
 )
 
 func TestCircuit(t *testing.T) {
-	app, err := sdk.NewBrevisApp("https://eth-mainnet.nodereal.io/v1/0af795b55d124a61b86836461ece1dee") // TODO use your eth rpc
+	app, err := sdk.NewBrevisApp()
 	check(err)
 
 	//txHash := common.HexToHash(
@@ -19,12 +21,32 @@ func TestCircuit(t *testing.T) {
 	txHash := common.HexToHash(
 		"0x6dc75e61220cc775aafa17796c20e49ac08030020fce710e3e546aa4e003454c")
 
-	app.AddTransaction(sdk.TransactionQuery{TxHash: txHash})
+	ec, err := ethclient.Dial("https://eth-mainnet.nodereal.io/v1/0af795b55d124a61b86836461ece1dee")
+	check(err)
+	tx, _, err := ec.TransactionByHash(context.Background(), txHash)
+	check(err)
+	receipt, err := ec.TransactionReceipt(context.Background(), txHash)
+	check(err)
+	from, err := types.Sender(types.NewLondonSigner(tx.ChainId()), tx)
+	check(err)
+
+	app.AddTransaction(sdk.TransactionData{
+		Hash:                 txHash,
+		ChainId:              tx.ChainId(),
+		BlockNum:             receipt.BlockNumber,
+		Nonce:                tx.Nonce(),
+		MaxPriorityFeePerGas: tx.GasTipCap(),
+		GasPriceOrFeeCap:     tx.GasFeeCap(),
+		GasLimit:             tx.Gas(),
+		From:                 from,
+		To:                   *tx.To(),
+		Value:                tx.Value(),
+	})
 
 	appCircuit := &AppCircuit{}
 	appCircuitAssignment := &AppCircuit{}
 
-	circuitInput, err := app.BuildCircuitInput(context.Background(), appCircuit)
+	circuitInput, err := app.BuildCircuitInput(appCircuit)
 	check(err)
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -102,9 +124,9 @@ func TestCircuit(t *testing.T) {
 
 	// Poll Brevis gateway for query status till the final proof is submitted
 	// on-chain by Brevis and your contract is called
-	tx, err := app.WaitFinalProofSubmitted(context.Background())
+	submitTx, err := app.WaitFinalProofSubmitted(context.Background())
 	check(err)
-	fmt.Printf("tx hash %s\n", tx)
+	fmt.Printf("tx hash %s\n", submitTx)
 }
 
 func check(err error) {

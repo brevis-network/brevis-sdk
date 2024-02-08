@@ -1,7 +1,6 @@
 package tradingvolume
 
 import (
-	"context"
 	"fmt"
 	"github.com/celer-network/brevis-sdk/sdk"
 	"github.com/celer-network/brevis-sdk/test"
@@ -14,17 +13,19 @@ import (
 // UniversalRouter contract. Let's declare the fields we want to use:
 
 func TestCircuit(t *testing.T) {
-	app, err := sdk.NewBrevisApp("https://eth-mainnet.nodereal.io/v1/0af795b55d124a61b86836461ece1dee") // TODO use your eth rpc
+	app, err := sdk.NewBrevisApp()
 	check(err)
 
+	usdcPool := common.HexToAddress("0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640")
+	usdc := common.HexToAddress("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")
 	// Adding a receipt query into the querier
 	// In this tx, the user sold USDC and took native ETH out
-	app.AddReceipt(sdk.ReceiptQuery{
+	app.AddReceipt(sdk.ReceiptData{
 		TxHash: common.HexToHash("53b37ec7975d217295f4bdadf8043b261fc49dccc16da9b9fc8b9530845a5794"),
-		SubQueries: [3]sdk.LogFieldQuery{
-			{LogIndex: 3, IsTopic: false, FieldIndex: 0}, // field: USDCPool.Swap.amount0
-			{LogIndex: 3, IsTopic: true, FieldIndex: 2},  // field: USDCPool.Swap.recipient (topic field)
-			{LogIndex: 2, IsTopic: true, FieldIndex: 1},  // field: USDC.Transfer.from
+		Fields: [3]sdk.LogFieldData{
+			{Contract: usdcPool, LogIndex: 3, IsTopic: false, FieldIndex: 0}, // field: USDCPool.Swap.amount0
+			{Contract: usdcPool, LogIndex: 3, IsTopic: true, FieldIndex: 2},  // field: USDCPool.Swap.recipient (topic field)
+			{Contract: usdc, LogIndex: 2, IsTopic: true, FieldIndex: 1},      // field: USDC.Transfer.from
 		},
 	})
 	// More receipts can be added, but in this example we only add one to keep it simple
@@ -41,7 +42,7 @@ func TestCircuit(t *testing.T) {
 
 	// Execute the added queries and package the query results into circuit inputs
 	// (witness)
-	in, err := app.BuildCircuitInput(context.Background(), appCircuit)
+	in, err := app.BuildCircuitInput(appCircuit)
 	check(err)
 
 	///////////////////////////////////////////////////////////////////////////////

@@ -29,39 +29,39 @@ func buildAppCircuitInfo(in CircuitInput, vk plonk.VerifyingKey) *proto.AppCircu
 	}
 }
 
-func buildReceiptInfos(qs queries[ReceiptQuery]) (infos []*proto.ReceiptInfo) {
-	for _, query := range qs.list() {
+func buildReceiptInfos(r rawData[ReceiptData]) (infos []*proto.ReceiptInfo) {
+	for _, d := range r.list() {
 		var logExtractInfo []*proto.LogExtractInfo
-		for _, sub := range query.SubQueries {
+		for _, f := range d.Fields {
 			logExtractInfo = append(logExtractInfo, &proto.LogExtractInfo{
-				LogIndex:       uint64(sub.LogIndex),
-				ValueFromTopic: sub.IsTopic,
-				ValueIndex:     uint64(sub.FieldIndex),
+				LogIndex:       uint64(f.LogIndex),
+				ValueFromTopic: f.IsTopic,
+				ValueIndex:     uint64(f.FieldIndex),
 			})
 		}
 		infos = append(infos, &proto.ReceiptInfo{
-			TransactionHash: query.TxHash.Hex(),
+			TransactionHash: d.TxHash.Hex(),
 			LogExtractInfos: logExtractInfo,
 		})
 	}
 	return
 }
 
-func buildStorageQueryInfos(qs queries[StorageQuery]) (infos []*proto.StorageQueryInfo) {
-	for _, query := range qs.list() {
+func buildStorageQueryInfos(r rawData[StorageData]) (infos []*proto.StorageQueryInfo) {
+	for _, d := range r.list() {
 		infos = append(infos, &proto.StorageQueryInfo{
-			Account:     query.Address.Hex(),
-			StorageKeys: []string{query.Slot.Hex()},
-			BlkNum:      uint64(query.BlockNum),
+			Account:     d.Address.Hex(),
+			StorageKeys: []string{d.Key.Hex()},
+			BlkNum:      d.BlockNum.Uint64(),
 		})
 	}
 	return
 }
 
-func buildTxInfos(qs queries[TransactionQuery]) (infos []*proto.TransactionInfo) {
-	for _, query := range qs.list() {
+func buildTxInfos(r rawData[TransactionData]) (infos []*proto.TransactionInfo) {
+	for _, d := range r.list() {
 		infos = append(infos, &proto.TransactionInfo{
-			TransactionHash: query.TxHash.Hex(),
+			TransactionHash: d.Hash.Hex(),
 		})
 	}
 	return
