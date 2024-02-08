@@ -83,8 +83,6 @@ func (c *HostCircuit) commitInput() error {
 		c.api.AssertIsEqual(c.Input.InputCommitments[i], inputCommits[i])
 	}
 
-	assertUnique(c.api, c.Input.InputCommitments)
-
 	toggles := c.Input.Toggles()
 	// sanity check, this shouldn't happen
 	if len(toggles) != NumMaxDataPoints {
@@ -95,6 +93,8 @@ func (c *HostCircuit) commitInput() error {
 	hasher.Write(packed...)
 	togglesCommit := hasher.Sum()
 	c.api.AssertIsEqual(togglesCommit, c.Input.TogglesCommitment)
+
+	assertUnique(c.api, c.Input.InputCommitments)
 
 	return nil
 }

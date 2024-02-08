@@ -433,11 +433,7 @@ func doHash(hasher hash.Hash, packed []*big.Int) *big.Int {
 }
 
 func (q *BrevisApp) assignToggleCommitment(in *CircuitInput) {
-	var toggles []Variable
-	toggles = append(toggles, in.Receipts.Toggles...)
-	toggles = append(toggles, in.StorageSlots.Toggles...)
-	toggles = append(toggles, in.Transactions.Toggles...)
-
+	var toggles = in.Toggles()
 	var toggleBits []uint
 	for _, t := range toggles {
 		toggleBits = append(toggleBits, uint(var2BigInt(t).Uint64()))
