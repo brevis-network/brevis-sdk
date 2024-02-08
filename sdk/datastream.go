@@ -191,24 +191,9 @@ func (ds *DataStream[T]) Sum(getValue GetValueFunc[T]) Variable {
 }
 
 // Mean calculates the arithmetic mean over the selected fields of the data stream. Uses Sum.
+// The division step in calculating the mean is an integer division. The result is truncated.
 func (ds *DataStream[T]) Mean(getValue GetValueFunc[T]) Variable {
 	sum := ds.Sum(getValue)
-	return ds.api.Div(sum, ds.Count())
-}
-
-// StdDev calculates the standard deviation over the selected fields of the data stream. Uses Mean and Sum.
-// Uses the formula: 𝛔 = sqrt(Σ(x_i - μ)^2 / N)
-func (ds *DataStream[T]) StdDev(getValue GetValueFunc[T]) Variable {
-	mu := ds.Mean(getValue)
-	n := ds.Count()
-
-	// compute k = Σ(x_i - μ)^2
-	k := ds.Reduce(0, func(acc Variable, current T) Variable {
-		x := getValue(current)
-		r := ds.api.Sub(x, mu)
-		r2 := ds.api.Mul(r, r)
-		return ds.api.Add(acc, r2)
-	})
-
-	return ds.api.Sqrt(ds.api.Div(k, n))
+	q, _ := ds.api.QuoRem(sum, ds.Count())
+	return q
 }
