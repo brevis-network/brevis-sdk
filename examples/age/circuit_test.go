@@ -2,8 +2,8 @@ package age
 
 import (
 	"context"
-	"github.com/celer-network/brevis-sdk/sdk"
-	"github.com/celer-network/brevis-sdk/test"
+	"github.com/brevis-network/brevis-sdk/sdk"
+	"github.com/brevis-network/brevis-sdk/test"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"

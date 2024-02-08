@@ -2,13 +2,13 @@ package slot
 
 import (
 	"fmt"
-	"github.com/celer-network/brevis-sdk/test"
+	"github.com/brevis-network/brevis-sdk/test"
 	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"path/filepath"
 	"testing"
 
-	"github.com/celer-network/brevis-sdk/sdk"
+	"github.com/brevis-network/brevis-sdk/sdk"
 	"github.com/ethereum/go-ethereum/common"
 )
 

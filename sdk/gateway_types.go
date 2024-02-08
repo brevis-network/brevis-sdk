@@ -2,7 +2,7 @@ package sdk
 
 import (
 	"fmt"
-	"github.com/celer-network/brevis-sdk/sdk/proto"
+	"github.com/brevis-network/brevis-sdk/sdk/proto"
 	"github.com/consensys/gnark/backend/plonk"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )

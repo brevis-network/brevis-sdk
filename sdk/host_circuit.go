@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/consensys/gnark/std/multicommit"
 
-	"github.com/celer-network/brevis-sdk/common/utils"
+	"github.com/brevis-network/brevis-sdk/common/utils"
 	"github.com/celer-network/zk-utils/circuits/gadgets/keccak"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"

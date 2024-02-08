@@ -1,7 +1,7 @@
 package age
 
 import (
-	"github.com/celer-network/brevis-sdk/sdk"
+	"github.com/brevis-network/brevis-sdk/sdk"
 )
 
 type AppCircuit struct{}
