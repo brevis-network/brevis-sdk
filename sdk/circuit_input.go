@@ -59,10 +59,6 @@ func (in CircuitInput) Clone() CircuitInput {
 	}
 }
 
-func (in CircuitInput) Toggles() List[Variable] {
-	return in.Data.Toggles()
-}
-
 func (in CircuitInput) GetAbiPackedOutput() []byte {
 	ret := make([]byte, len(dryRunOutput))
 	copy(ret, dryRunOutput)

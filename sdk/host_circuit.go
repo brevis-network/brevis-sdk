@@ -65,17 +65,17 @@ func (c *HostCircuit) commitInput() error {
 	}
 
 	var inputCommits []frontend.Variable
-	receipts := c.Input.Data.Receipts
+	receipts := c.Input.Receipts
 	for i, receipt := range receipts.Raw {
 		packed := receipt.pack(c.api)
 		inputCommits = append(inputCommits, hashOrZero(receipts.Toggles[i].Val, packed))
 	}
-	storage := c.Input.Data.StorageSlots
+	storage := c.Input.StorageSlots
 	for i, slot := range storage.Raw {
 		packed := slot.pack(c.api)
 		inputCommits = append(inputCommits, hashOrZero(storage.Toggles[i].Val, packed))
 	}
-	txs := c.Input.Data.Transactions
+	txs := c.Input.Transactions
 	for i, tx := range txs.Raw {
 		packed := tx.pack(c.api)
 		inputCommits = append(inputCommits, hashOrZero(txs.Toggles[i].Val, packed))
@@ -97,7 +97,7 @@ func (c *HostCircuit) commitInput() error {
 	togglesCommit := hasher.Sum()
 	c.api.AssertIsEqual(togglesCommit, c.Input.TogglesCommitment)
 
-	assertUnique(c.g, c.Input.InputCommitments)
+	assertUnique(c.api, c.Input.InputCommitments)
 
 	return nil
 }
@@ -122,7 +122,7 @@ func assertUnique(api frontend.API, in []frontend.Variable) {
 	}
 	// Grand product check. Asserts the following equation holds:
 	// Σ_{a \in in} a+ɣ = Σ_{b \in sorted} b+ɣ
-	var lhs, rhs Variable = 0, 0
+	var lhs, rhs frontend.Variable = 0, 0
 	for i := 0; i < len(sorted); i++ {
 		lhs = api.Mul(lhs, api.Add(in[i], gamma))
 		rhs = api.Mul(rhs, api.Add(sorted[i], gamma))
@@ -140,12 +140,12 @@ func assertUnique(api frontend.API, in []frontend.Variable) {
 }
 
 func (c *HostCircuit) dataLen() int {
-	d := c.Input.Data
+	d := c.Input
 	return len(d.Receipts.Raw) + len(d.StorageSlots.Raw) + len(d.Transactions.Raw)
 }
 
 func (c *HostCircuit) validateInput() error {
-	d := c.Input.Data
+	d := c.Input
 	inputLen := len(d.Receipts.Raw) + len(d.StorageSlots.Raw) + len(d.Transactions.Raw)
 	if inputLen > NumMaxDataPoints {
 		return fmt.Errorf("input len must be less than %d", NumMaxDataPoints)
