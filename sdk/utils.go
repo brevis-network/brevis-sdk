@@ -3,7 +3,6 @@ package sdk
 import (
 	"bytes"
 	"fmt"
-	"github.com/consensys/gnark/frontend"
 	"io"
 	"math/big"
 
@@ -72,13 +71,15 @@ func flipByGroups[T any](in []T, groupSize int) []T {
 // copied from
 // https://github.com/Consensys/gnark/blob/5711c4ae475535ce2a0febdeade86ff98914a378/internal/utils/convert.go#L39C1-L39C1
 // with minor changes
-func var2BigInt(input frontend.Variable) *big.Int {
+func var2BigInt(input interface{}) *big.Int {
 	if input == nil {
 		return big.NewInt(0)
 	}
 	in := input.(interface{})
 	var r big.Int
 	switch v := in.(type) {
+	case Variable:
+		r.Set(var2BigInt(v.Val))
 	case big.Int:
 		r.Set(&v)
 	case *big.Int:

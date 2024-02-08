@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-func Compile(guest AppCircuit, in CircuitInput) (constraint.ConstraintSystem, error) {
+func Compile(guest AppCircuit, in PublicInput) (constraint.ConstraintSystem, error) {
 	fmt.Println(">> compile")
 	host := NewHostCircuit(in.Clone(), guest)
 
@@ -35,7 +35,7 @@ func Compile(guest AppCircuit, in CircuitInput) (constraint.ConstraintSystem, er
 	return ccs, nil
 }
 
-func NewFullWitness(assign AppCircuit, in CircuitInput) (w, wpub witness.Witness, err error) {
+func NewFullWitness(assign AppCircuit, in PublicInput) (w, wpub witness.Witness, err error) {
 	fmt.Println(">> generate full witness")
 	host := NewHostCircuit(in.Clone(), assign)
 

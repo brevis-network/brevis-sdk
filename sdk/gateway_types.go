@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
-func buildAppCircuitInfo(in CircuitInput, vk plonk.VerifyingKey) *proto.AppCircuitInfo {
+func buildAppCircuitInfo(in PublicInput, vk plonk.VerifyingKey) *proto.AppCircuitInfo {
 	inputCommitments := make([]string, len(in.InputCommitments))
 	for i, value := range in.InputCommitments {
 		inputCommitments[i] = fmt.Sprintf("0x%x", value)

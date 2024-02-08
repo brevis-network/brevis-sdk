@@ -15,7 +15,7 @@ type CircuitAPI struct {
 	g        frontend.API
 	bigField *emulated.Field[BigField]
 
-	output []Variable `g:"-"`
+	output []frontend.Variable `gnark:"-"`
 }
 
 func NewCircuitAPI(gapi frontend.API) *CircuitAPI {
@@ -86,18 +86,26 @@ func (api *CircuitAPI) SolidityMappingStorageKey(mappingKey Bytes32, slot uint) 
 	return Bytes32{}
 }
 
+func Add(api *CircuitAPI, a, b Variable, other ...Variable) Variable {
+	vo := make([]frontend.Variable, len(other))
+	for i, o := range other {
+		vo[i] = o.Val
+	}
+	return newV(api.g.Add(a.Val, b.Val, vo...))
+}
+
 func Cmp(api *CircuitAPI, a, b Variable) Variable {
-	return newVariable(api.g.Cmp(a.Val, b.Val))
+	return newV(api.g.Cmp(a.Val, b.Val))
 }
 
 // LT returns 1 if a < b, and 0 otherwise
 func LT(api *CircuitAPI, a, b Variable) Variable {
-	return IsZero(api, Add(api, Cmp(api, a, b), newVariable(1)))
+	return IsZero(api, Add(api, Cmp(api, a, b), newV(1)))
 }
 
 // GT returns 1 if a > b, and 0 otherwise
 func GT(api *CircuitAPI, a, b Variable) Variable {
-	return IsZero(api, Sub(api, newVariable(Cmp(api, a, b)), newVariable(1)))
+	return IsZero(api, Sub(api, newV(Cmp(api, a, b)), newV(1)))
 }
 
 // And returns 1 if a && b [&& other[0] [&& other[1]...]] is true, and 0 otherwise
@@ -106,7 +114,7 @@ func And(api *CircuitAPI, a, b Variable, other ...Variable) Variable {
 	for _, v := range other {
 		api.g.And(res, v)
 	}
-	return newVariable(res)
+	return newV(res)
 }
 
 // Or returns 1 if a || b [|| other[0] [|| other[1]...]] is true, and 0 otherwise
@@ -115,7 +123,7 @@ func Or(api *CircuitAPI, a, b Variable, other ...Variable) Variable {
 	for _, v := range other {
 		api.g.Or(res, v.Val)
 	}
-	return newVariable(res)
+	return newV(res)
 }
 
 // Not returns 1 if `a` is 0, and 0 if `a` is 1. The user must make sure `a` is
@@ -145,37 +153,56 @@ func Equal(api *CircuitAPI, a, b Variable) Variable {
 }
 
 func Sub(api *CircuitAPI, a, b Variable) Variable {
-	return newVariable(api.g.Sub(a.Val, b.Val))
+	return newV(api.g.Sub(a.Val, b.Val))
 }
 
 func IsZero(api *CircuitAPI, a Variable) Variable {
-	return newVariable(api.g.IsZero(a.Val))
+	return newV(api.g.IsZero(a.Val))
 }
 
 // Sqrt returns √a. Uses SqrtHint
-func (api *CircuitAPI) Sqrt(a Variable) Variable {
+func Sqrt(api *CircuitAPI, a Variable) Variable {
 	out, err := api.g.Compiler().NewHint(SqrtHint, 1, a)
 	if err != nil {
 		panic(fmt.Errorf("failed to initialize SqrtHint instance: %s", err.Error()))
 	}
-	return out[0]
-}
-
-type Var interface {
-	Variable | BigVariable
+	return newV(out[0])
 }
 
 // QuoRem computes the standard unsigned integer division a / b and
 // its remainder. Uses QuoRemHint.
-func (api *CircuitAPI) QuoRem(a, b Variable) (quotient, remainder Variable) {
+func QuoRem(api *CircuitAPI, a, b Variable) (quo, rem Variable) {
 	out, err := api.g.Compiler().NewHint(QuoRemHint, 2, a, b)
 	if err != nil {
 		panic(fmt.Errorf("failed to initialize QuoRem hint instance: %s", err.Error()))
 	}
-	quo, rem := out[0], out[1]
-	orig := api.g.Add(api.g.Mul(quo, b), rem)
+	q, r := out[0], out[1]
+	orig := api.g.Add(api.g.Mul(q, b), r)
 	api.g.AssertIsEqual(orig, a)
-	return quo, rem
+	return newV(q), newV(r)
+}
+
+func FromBinary(api *CircuitAPI, vs ...Variable) {
+
+}
+
+func ToBinary(api *CircuitAPI, v Variable, n uint) {
+
+}
+
+func ToBytes32(api *CircuitAPI, i interface{}) Bytes32 {
+	switch v := i.(type) {
+	case *BigVariable:
+		api.bigField.AssertIsLessOrEqual(v.Element, MaxBytes32.Element)
+		r := api.bigField.Reduce(v.Element)
+		bits := api.bigField.ToBits(r)
+		lo := api.FromBinary(bits[:numBitsPerVar]...)
+		hi := api.FromBinary(bits[numBitsPerVar:256]...)
+		return Bytes32{Val: [2]Variable{lo, hi}}
+	case Variable:
+		return Bytes32{Val: [2]Variable{v, 0}}
+	}
+	panic(fmt.Errorf("unsupported casting from %T to Bytes32", i))
 }
 
 func (api *CircuitAPI) ToBytes32(i interface{}) Bytes32 {

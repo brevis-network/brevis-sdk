@@ -48,9 +48,9 @@ func TestPackBitsToFr(t *testing.T) {
 }
 
 type TestReceiptPackCircuit struct {
-	Receipt      Receipt    `g:",public"`
-	ExpectPacked []Variable `g:",public"`
-	ExpectHash   Variable   `g:",public"`
+	Receipt      Receipt    `gnark:",public"`
+	ExpectPacked []Variable `gnark:",public"`
+	ExpectHash   Variable   `gnark:",public"`
 }
 
 func (c *TestReceiptPackCircuit) Define(api frontend.API) error {
@@ -115,8 +115,8 @@ func TestReceiptPack(t *testing.T) {
 }
 
 type TestStoragePackCircuit struct {
-	Slot   StorageSlot `g:",public"`
-	Packed []Variable  `g:",public"`
+	Slot   StorageSlot `gnark:",public"`
+	Packed []Variable  `gnark:",public"`
 }
 
 func (c *TestStoragePackCircuit) Define(api frontend.API) error {
@@ -152,8 +152,8 @@ func TestStoragePack(t *testing.T) {
 }
 
 type TestTransactionPackCircuit struct {
-	Transaction Transaction `g:",public"`
-	Packed      []Variable  `g:",public"`
+	Transaction Transaction `gnark:",public"`
+	Packed      []Variable  `gnark:",public"`
 }
 
 func (c *TestTransactionPackCircuit) Define(api frontend.API) error {

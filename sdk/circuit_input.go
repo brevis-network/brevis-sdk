@@ -8,58 +8,68 @@ import (
 	"github.com/consensys/gnark/frontend"
 )
 
-type CircuitInput struct {
-	// InputCommitments is a list of hash commitment to each value of Raw. These
-	// commitments must match sub-prover circuit's commitment to its rlp decoded
-	// values
-	InputCommitments  []Variable `g:",public"`
-	TogglesCommitment Variable   `g:",public"`
-	// OutputCommitment is a keccak256 commitment to the computation results of the
-	// developer's circuit. The output of this commitment is revealed by the
-	// developer in their application contract.
-	OutputCommitment OutputCommitment `g:",public"`
-
+type DataInput struct {
 	Receipts     DataPoints[Receipt]
 	StorageSlots DataPoints[StorageSlot]
 	Transactions DataPoints[Transaction]
-
-	dryRunOutput []byte `g:"-"`
 }
 
-func (in CircuitInput) Clone() CircuitInput {
-	inputCommits := make([]Variable, len(in.InputCommitments))
-	copy(inputCommits, in.InputCommitments)
-
-	return CircuitInput{
-		InputCommitments:  inputCommits,
-		TogglesCommitment: in.TogglesCommitment,
-		OutputCommitment:  in.OutputCommitment,
-		Receipts:          in.Receipts.Clone(),
-		StorageSlots:      in.StorageSlots.Clone(),
-		Transactions:      in.Transactions.Clone(),
-	}
-}
-
-func (in CircuitInput) Toggles() []Variable {
+func (d DataInput) Toggles() List[Variable] {
 	var toggles []Variable
-	toggles = append(toggles, in.Receipts.Toggles...)
-	toggles = append(toggles, in.StorageSlots.Toggles...)
-	toggles = append(toggles, in.Transactions.Toggles...)
+	toggles = append(toggles, d.Receipts.Toggles...)
+	toggles = append(toggles, d.StorageSlots.Toggles...)
+	toggles = append(toggles, d.Transactions.Toggles...)
 	// pad the reset (the dummy part) with off toggles
 	for i := len(toggles); i < NumMaxDataPoints; i++ {
-		toggles = append(toggles, 0)
+		toggles = append(toggles, newV(0))
 	}
 	return toggles
 }
 
-func (in CircuitInput) GetAbiPackedOutput() []byte {
+type PublicInput struct {
+	// InputCommitments is a list of hash commitment to each value of Raw. These
+	// commitments must match sub-prover circuit's commitment to its rlp decoded
+	// values
+	InputCommitments  []frontend.Variable `gnark:",public"`
+	TogglesCommitment frontend.Variable   `gnark:",public"`
+	// OutputCommitment is a keccak256 commitment to the computation results of the
+	// developer's circuit. The output of this commitment is revealed by the
+	// developer in their application contract.
+	OutputCommitment OutputCommitment `gnark:",public"`
+
+	Data DataInput
+
+	dryRunOutput []byte `gnark:"-"`
+}
+
+func (in PublicInput) Clone() PublicInput {
+	inputCommits := make([]frontend.Variable, len(in.InputCommitments))
+	copy(inputCommits, in.InputCommitments)
+
+	return PublicInput{
+		InputCommitments:  inputCommits,
+		TogglesCommitment: in.TogglesCommitment,
+		OutputCommitment:  in.OutputCommitment,
+		Data: DataInput{
+			Receipts:     in.Data.Receipts.Clone(),
+			StorageSlots: in.Data.StorageSlots.Clone(),
+			Transactions: in.Data.Transactions.Clone(),
+		},
+	}
+}
+
+func (in PublicInput) Toggles() List[Variable] {
+	return in.Data.Toggles()
+}
+
+func (in PublicInput) GetAbiPackedOutput() []byte {
 	ret := make([]byte, len(dryRunOutput))
 	copy(ret, dryRunOutput)
 	return ret
 }
 
 // OutputCommitment represents the value of a keccak256 hash H in the form of {H[:16], H[16:]}
-type OutputCommitment [2]Variable
+type OutputCommitment [2]frontend.Variable
 
 // Hash returns the go hash representation of the commitment
 func (c OutputCommitment) Hash() common.Hash {
@@ -75,7 +85,7 @@ type DataPoints[T any] struct {
 	Raw []T
 	// Toggles is a bitmap that toggles the effectiveness of each position of Raw.
 	// len(Toggles) must equal len(Raw)
-	Toggles []Variable
+	Toggles List[Variable]
 }
 
 func NewDataPoints[T any](maxCount int, newEmpty func() T) DataPoints[T] {
@@ -85,7 +95,7 @@ func NewDataPoints[T any](maxCount int, newEmpty func() T) DataPoints[T] {
 	}
 	for i := range dp.Raw {
 		dp.Raw[i] = newEmpty()
-		dp.Toggles[i] = 0
+		dp.Toggles[i] = newV(0)
 	}
 	return dp
 }
@@ -121,7 +131,7 @@ type Receipt struct {
 
 func NewReceipt() Receipt {
 	return Receipt{
-		BlockNum: newVariable(0),
+		BlockNum: newV(0),
 		Fields:   [3]LogField{NewLogField(), NewLogField(), NewLogField()},
 	}
 }
@@ -143,10 +153,10 @@ type LogField struct {
 
 func NewLogField() LogField {
 	return LogField{
-		Contract: 0,
-		EventID:  0,
-		IsTopic:  0,
-		Index:    0,
+		Contract: newV(0),
+		EventID:  newV(0),
+		IsTopic:  newV(0),
+		Index:    newV(0),
 		Value:    ParseBytes32([]byte{}),
 	}
 }
@@ -160,8 +170,8 @@ func NewLogField() LogField {
 //   - 1 bit for whether the field is a topic
 //   - 7 bits for field index
 //   - 32 bytes for value
-func (r Receipt) pack(api frontend.API) []Variable {
-	var bits []Variable
+func (r Receipt) pack(api frontend.API) []frontend.Variable {
+	var bits []frontend.Variable
 	bits = append(bits, api.ToBinary(r.BlockNum, 8*4)...)
 
 	for _, field := range r.Fields {
@@ -187,9 +197,9 @@ func (r Receipt) goPack() []*big.Int {
 	return packBitsToInt(bits, bls12377_fr.Bits-1) // pack to ints of bit size of BLS12377Fr - 1, which is 252 bits
 }
 
-func packBitsToFr(api frontend.API, bits []Variable) []Variable {
+func packBitsToFr(api frontend.API, bits []frontend.Variable) []frontend.Variable {
 	bitSize := api.Compiler().FieldBitLen() - 1
-	var r []Variable
+	var r []frontend.Variable
 	for i := 0; i < len(bits); i += bitSize {
 		end := i + bitSize
 		if end > len(bits) {
@@ -213,8 +223,8 @@ type StorageSlot struct {
 
 func NewStorageSlot() StorageSlot {
 	return StorageSlot{
-		BlockNum: 0,
-		Contract: 0,
+		BlockNum: newV(0),
+		Contract: newV(0),
 		Key:      ParseBytes32([]byte{}),
 		Value:    ParseBytes32([]byte{}),
 	}
@@ -225,8 +235,8 @@ func NewStorageSlot() StorageSlot {
 // - 20 bytes for contract address
 // - 32 bytes for slot key
 // - 32 bytes for slot value
-func (s StorageSlot) pack(api frontend.API) []Variable {
-	var bits []Variable
+func (s StorageSlot) pack(api frontend.API) []frontend.Variable {
+	var bits []frontend.Variable
 	bits = append(bits, api.ToBinary(s.BlockNum, 8*4)...)
 	bits = append(bits, api.ToBinary(s.Contract, 8*20)...)
 	bits = append(bits, s.Key.toBinaryVars(api)...)
@@ -257,14 +267,14 @@ type Transaction struct {
 
 func NewTransaction() Transaction {
 	return Transaction{
-		ChainId:              0,
-		BlockNum:             0,
-		Nonce:                0,
-		MaxPriorityFeePerGas: 0,
-		MaxFeePerGas:         0,
-		GasLimit:             0,
-		From:                 0,
-		To:                   0,
+		ChainId:              newV(0),
+		BlockNum:             newV(0),
+		Nonce:                newV(0),
+		MaxPriorityFeePerGas: newV(0),
+		MaxFeePerGas:         newV(0),
+		GasLimit:             newV(0),
+		From:                 newV(0),
+		To:                   newV(0),
 		Value:                ParseBytes32([]byte{}),
 	}
 }
@@ -278,8 +288,8 @@ func NewTransaction() Transaction {
 // to - 20 bytes
 // from - 20 bytes
 // value - 32 bytes
-func (t Transaction) pack(api frontend.API) []Variable {
-	var bits []Variable
+func (t Transaction) pack(api frontend.API) []frontend.Variable {
+	var bits []frontend.Variable
 	bits = append(bits, api.ToBinary(t.BlockNum, 8*4)...)
 	bits = append(bits, api.ToBinary(t.ChainId, 8*4)...)
 	bits = append(bits, api.ToBinary(t.Nonce, 8*4)...)

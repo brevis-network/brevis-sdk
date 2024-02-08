@@ -1,9 +1,8 @@
 package sdk
 
 import (
-	"github.com/consensys/gnark-crypto/ecc"
+	"fmt"
 	"github.com/consensys/gnark/frontend"
-	"math/big"
 )
 
 type DataStream[T CircuitVariable] struct {
@@ -29,22 +28,42 @@ func newDataStream[T CircuitVariable](api *CircuitAPI, in []T, toggles []Variabl
 	}
 }
 
-// Get gets an element from the data stream. Performed on the underlying data
+// GetUnderlying gets an element from the DataStream. Performed on the underlying data
 // directly. It also requires the underlying data slot is valid
-func (ds *DataStream[T]) Get(index int) T {
+func GetUnderlying[T CircuitVariable](ds *DataStream[T], index int) T {
 	v := ds.underlying[index]
 	t := ds.toggles[index]
-	ds.api.AssertIsEqual(t, 1)
+	AssertIsEqual(t, 1)
 	return v
 }
 
-// Range selects a range of the data stream. Performed on the underlying data directly.
-func (ds *DataStream[T]) Range(start, end int) *DataStream[T] {
-	return newDataStream(ds.api, ds.underlying[start:end], ds.toggles[start:end], end-start)
+// RangeUnderlying selects a range of the data stream. Performed on the underlying data directly.
+func RangeUnderlying[T CircuitVariable](ds *DataStream[T], start, end int) *DataStream[T] {
+	return newDataStream(ds.api, ds.underlying[start:end], ds.toggles[start:end])
 }
 
-func Add[T CircuitVariable](api *CircuitAPI, a, b T) T {
-
+// WindowUnderlying splits a DataStream into many equal sized List. Performed on the
+// underlying data directly. Panics if `size` does not divide the length of the
+// underlying list. Use Range to cut the list length into a multiple of `size`
+// first
+func WindowUnderlying[T CircuitVariable](ds *DataStream[T], size int) *DataStream[List[T]] {
+	l := len(ds.underlying)
+	if l%size != 0 {
+		panic(fmt.Errorf("cannot Window on DataStream of size %d: %d % %d != 0", l, l, size))
+	}
+	var toggles []Variable
+	var ret []List[T]
+	for i := 0; i < l-size; i += size {
+		start := i
+		end := start + size
+		ret = append(ret, ds.underlying[start:end])
+		toggle := newV(0)
+		for _, t := range ds.toggles[start:end] {
+			toggle = And(ds.api, toggle, t)
+		}
+		toggles = append(toggles, toggle)
+	}
+	return newDataStream(ds.api, ret, toggles)
 }
 
 type MapFunc[T any] func(current T) Variable
@@ -54,17 +73,17 @@ type AssertFunc[T CircuitVariable] func(current T) Variable
 func AssertEach[T CircuitVariable](ds *DataStream[T], assertFunc AssertFunc[T]) {
 	for i, data := range ds.underlying {
 		pass := assertFunc(data)
-		valid := Equal(ds.api, ds.toggles[i], newVariable(1))
-		pass = Select(ds.api, valid, pass, newVariable(1))
-		ds.api.g.AssertIsEqual(ds.api, pass, newVariable(1))
+		valid := Equal(ds.api, ds.toggles[i], newV(1))
+		pass = Select(ds.api, valid, pass, newV(1))
+		AssertIsEqual(ds.api, pass, newV(1))
 	}
 }
 
 // SortFunc returns 1 if a, b are sorted, 0 if not.
-type SortFunc func(a, b Variable) Variable
+type SortFunc[T CircuitVariable] func(a, b T) Variable
 
 // IsSorted returns 1 if the data stream is sorted to the criteria of sortFunc, 0 if not.
-func (ds *DataStream[T]) IsSorted(getValue GetValueFunc[T], sortFunc SortFunc) Variable {
+func IsSorted[T CircuitVariable](ds *DataStream[T], sortFunc SortFunc[T]) Variable {
 	// The following code uses prev and prevValid to pass the signal of last known
 	// valid element of the data stream. This is needed because the stream could have
 	// already been filtered, meaning we could have "gaps" between valid elements
@@ -76,53 +95,46 @@ func (ds *DataStream[T]) IsSorted(getValue GetValueFunc[T], sortFunc SortFunc) V
 	// need to use prev and prevValid signals.
 	api := ds.api
 	var sorted Variable
-	prev := getValue(ds.underlying[0])
+	prev := ds.underlying[0]
 	prevValid := ds.toggles[0]
 
 	for i := 1; i < len(ds.underlying); i++ {
-		curr := getValue(ds.underlying[i])
+		curr := ds.underlying[i]
 		currValid := ds.toggles[i]
 
 		sorted = sortFunc(prev, curr)
-		sorted = api.g.Select(api.g.And(prevValid, currValid), sorted, 1)
+		sorted = Select(api, And(api, prevValid, currValid), sorted, newV(1))
 
-		prev = api.Select(currValid, curr, prev)
+		prev = Select(api, currValid, curr, prev)
 		prevValid = currValid
 	}
 	return sorted
 }
 
 // AssertSorted Performs the sortFunc on each valid pair of data points and assert the result to be 1.
-func (ds *DataStream[T]) AssertSorted(getValue GetValueFunc[T], sortFunc SortFunc) {
-	ds.api.AssertIsEqual(ds.IsSorted(getValue, sortFunc), 1)
+func AssertSorted[T CircuitVariable](ds *DataStream[T], sortFunc SortFunc[T]) {
+	AssertIsEqual(ds.api, IsSorted(ds, sortFunc), newV(1))
 }
 
 // Count returns the number of valid elements (i.e. toggled on) in the data stream.
-func (ds *DataStream[T]) Count() Variable {
+func Count[T CircuitVariable](ds *DataStream[T]) Variable {
 	t := ds.toggles
-	count := ds.api.g.Add(t[0], t[1], t[2:]...) // Todo: cache this signal in case it's used more than once
+	count := Add(ds.api, t[0], t[1], t[2:]...) // Todo: cache this signal in case it's used more than once
 	return count
 }
 
-func GroupBy[T, R CircuitVariable](ds *DataStream[T], f ReduceGenericFunc[T, R], aggInitial R, groupValues []Variable, byFieldIndex int) *DataStream[R] {
+func GroupBy[T, R CircuitVariable](ds *DataStream[T], f ReduceFunc[T, R], aggInitial R, groupValues []Variable, byFieldIndex int) *DataStream[R] {
 	aggResults := make([]R, len(groupValues))
 	aggResultToggles := make([]Variable, len(aggResults))
 	for i, p := range groupValues {
 		group := Filter(ds, func(current T) Variable {
 			v := current.Values()[byFieldIndex]
-			return Equal(ds.api, newVariable(v), p)
+			return Equal(ds.api, newV(v), p)
 		})
 		aggResults[i] = Reduce(group, aggInitial, f)
-		aggResultToggles[i] = Sub(ds.api, newVariable(1), IsZero(ds.api, p))
+		aggResultToggles[i] = Sub(ds.api, newV(1), IsZero(ds.api, p))
 	}
 	return newDataStream(ds.api, aggResults, aggResultToggles)
-}
-
-type ReduceFunc[T CircuitVariable] func(accumulator Variable, current T) (newAccumulator Variable)
-
-// Reduce reduces the data stream to a single circuit variable
-func (ds *DataStream[T]) Reduce(initial *Variable, reduceFunc ReduceGenericFunc[T, *Variable]) *Variable {
-	return Reduce(ds, initial, reduceFunc)
 }
 
 type MapGenericFunc[T, R CircuitVariable] func(current T) R
@@ -135,37 +147,21 @@ func Map[T, R CircuitVariable](ds *DataStream[T], mapFunc MapGenericFunc[T, R]) 
 	return newDataStream(ds.api, res, ds.toggles)
 }
 
-type ReduceGenericFunc[T, R CircuitVariable] func(accumulator R, current T) (newAccumulator R)
+type ReduceFunc[T, R CircuitVariable] func(accumulator R, current T) (newAccumulator R)
 
-func Reduce[T, R CircuitVariable](ds *DataStream[T], initial R, reduceFunc ReduceGenericFunc[T, R]) R {
+// Reduce reduces the data stream to another CircuitVariable
+func Reduce[T, R CircuitVariable](ds *DataStream[T], initial R, reduceFunc ReduceFunc[T, R]) R {
 	var acc = initial
 	for i, data := range ds.underlying {
 		newAcc := reduceFunc(acc, data)
 		oldAccVals := acc.Values()
 		values := make([]frontend.Variable, len(oldAccVals))
 		for j, newAccV := range newAcc.Values() {
-			values[j] = ds.api.Select(ds.toggles[i], newAccV, oldAccVals[j])
+			values[j] = Select(ds.api, ds.toggles[i], newV(newAccV), newV(oldAccVals[j]))
 		}
 		acc.SetValues(values...)
 	}
 	return acc
-}
-
-func Window[T CircuitVariable](ds *DataStream[T], n int) *DataStream[Tuple[T]] {
-	l := len(ds.underlying)
-	var toggles []Variable
-	var ret []Tuple[T]
-	for i := 0; i < l-n; i += n {
-		start := i
-		end := start + n
-		ret = append(ret, ds.underlying[start:end])
-		toggle := newVariable(0)
-		for _, t := range ds.toggles[start:end] {
-			toggle = And(ds.api, toggle, t)
-		}
-		toggles = append(toggles, toggle)
-	}
-	return newDataStream(ds.api, ret, toggles)
 }
 
 type FilterGenericFunc[T CircuitVariable] func(current T) Variable
@@ -174,8 +170,8 @@ func Filter[T CircuitVariable](ds *DataStream[T], filterFunc FilterGenericFunc[T
 	newToggles := make([]Variable, len(ds.underlying))
 	for i, data := range ds.underlying {
 		toggle := filterFunc(data)
-		valid := Equal(ds.api, ds.toggles[i], newVariable(1))
-		newToggles[i] = Select(ds.api, ds.api.And(toggle, valid), newVariable(1), newVariable(0))
+		valid := Equal(ds.api, ds.toggles[i], newV(1))
+		newToggles[i] = Select(ds.api, And(ds.api, toggle, valid), newV(1), newV(0))
 	}
 	return newDataStream(ds.api, ds.underlying, newToggles)
 }
@@ -188,51 +184,33 @@ type FilterFunc[T any] func(current T) Variable
 type GetValueFunc[T any] func(current T) Variable
 
 // Min finds out the minimum value of the selected field from the data stream. Uses Reduce under the hood.
-func Min(ds *DataStream[T], getValue GetValueFunc[T]) Variable {
-	maxInt := new(big.Int).Sub(ecc.BLS12_377.ScalarField(), big.NewInt(1))
-	return ds.Reduce(maxInt, func(min Variable, current T) (newMin Variable) {
+func Min(ds *DataStream[Variable], getValue GetValueFunc[Variable]) Variable {
+	return Reduce(ds, newV(MaxInt), func(min Variable, current Variable) (newMin Variable) {
 		curr := getValue(current)
-		curLtMin := ds.api.LT(curr, min)
-		return ds.api.Select(curLtMin, curr, min)
+		curLtMin := LT(ds.api, curr, min)
+		return Select(ds.api, curLtMin, curr, min)
 	})
 }
 
 // Max finds out the maximum value of the selected field from the data stream. Uses Reduce under the hood.
-func (ds *DataStream[T]) Max(getValue GetValueFunc[T]) Variable {
-	return ds.Reduce(0, func(max Variable, current T) (newMax Variable) {
-		curr := getValue(current)
-		curGtMax := ds.api.GT(curr, max)
-		return ds.api.Select(curGtMax, curr, max)
+func Max(ds *DataStream[Variable]) Variable {
+	return Reduce(ds, newV(0), func(max Variable, curr Variable) (newMax Variable) {
+		curGtMax := GT(ds.api, curr, max)
+		return Select(ds.api, curGtMax, curr, max)
 	})
 }
 
 // Sum sums values of the selected field in the data stream. Uses Reduce.
-func (ds *DataStream[T]) Sum(getValue GetValueFunc[T]) Variable {
-	return ds.Reduce(0, func(sum Variable, current T) (newSum Variable) {
-		curr := getValue(current)
-		return ds.api.Add(sum, curr)
+func Sum(ds *DataStream[Variable]) Variable {
+	return Reduce(ds, newV(0), func(sum Variable, curr Variable) (newSum Variable) {
+		return Add(ds.api, sum, curr)
 	})
 }
 
 // Mean calculates the arithmetic mean over the selected fields of the data stream. Uses Sum.
-func (ds *DataStream[T]) Mean(getValue GetValueFunc[T]) Variable {
-	sum := ds.Sum(getValue)
-	return ds.api.Div(sum, ds.Count())
-}
-
-// StdDev calculates the standard deviation over the selected fields of the data stream. Uses Mean and Sum.
-// Uses the formula: 𝛔 = sqrt(Σ(x_i - μ)^2 / N)
-func (ds *DataStream[T]) StdDev(getValue GetValueFunc[T]) Variable {
-	mu := ds.Mean(getValue)
-	n := ds.Count()
-
-	// compute k = Σ(x_i - μ)^2
-	k := ds.Reduce(0, func(acc Variable, current T) Variable {
-		x := getValue(current)
-		r := ds.api.Sub(x, mu)
-		r2 := ds.api.Mul(r, r)
-		return ds.api.Add(acc, r2)
-	})
-
-	return ds.api.Sqrt(ds.api.Div(k, n))
+// Note that
+func Mean(ds *DataStream[Variable]) Variable {
+	sum := Sum(ds)
+	quo, _ := ds.api.QuoRem(sum, Count(ds))
+	return quo
 }

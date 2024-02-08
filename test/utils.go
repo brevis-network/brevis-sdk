@@ -11,7 +11,7 @@ import (
 // ProverSucceeded checks:
 // - a proof can be generated with the application circuit/assignment and the sdk generated circuit inputs.
 // - the generated proof can be verified.
-func ProverSucceeded(t *testing.T, circuit, assign sdk.AppCircuit, in sdk.CircuitInput) {
+func ProverSucceeded(t *testing.T, circuit, assign sdk.AppCircuit, in sdk.PublicInput) {
 	host := sdk.NewHostCircuit(in.Clone(), circuit)
 	assignment := sdk.NewHostCircuit(in.Clone(), assign)
 
@@ -21,7 +21,7 @@ func ProverSucceeded(t *testing.T, circuit, assign sdk.AppCircuit, in sdk.Circui
 
 // ProverFailed checks:
 // - a proof cannot be generated with the application circuit & invalid assignment and the sdk generated circuit inputs.
-func ProverFailed(t *testing.T, circuit, assign sdk.AppCircuit, in sdk.CircuitInput) {
+func ProverFailed(t *testing.T, circuit, assign sdk.AppCircuit, in sdk.PublicInput) {
 	host := sdk.NewHostCircuit(in.Clone(), circuit)
 	assignment := sdk.NewHostCircuit(in.Clone(), assign)
 
@@ -30,7 +30,7 @@ func ProverFailed(t *testing.T, circuit, assign sdk.AppCircuit, in sdk.CircuitIn
 }
 
 // IsSolved checks if the given application circuit/assignment and the input can be solved
-func IsSolved(t *testing.T, circuit, assign sdk.AppCircuit, in sdk.CircuitInput) {
+func IsSolved(t *testing.T, circuit, assign sdk.AppCircuit, in sdk.PublicInput) {
 	host := sdk.NewHostCircuit(in.Clone(), circuit)
 	assignment := sdk.NewHostCircuit(in.Clone(), assign)
 

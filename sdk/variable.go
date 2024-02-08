@@ -22,11 +22,24 @@ type CircuitVariable interface {
 	SetValues(vs ...frontend.Variable)
 }
 
+type Selectable interface {
+	Values() []frontend.Variable
+	SetValues(vs ...frontend.Variable)
+}
+
+type Composable interface {
+	FromBinary(api *CircuitAPI, vs ...frontend.Variable) frontend.Variable
+}
+
+type Decomposable interface {
+	ToBinary(api *CircuitAPI) []frontend.Variable
+}
+
 type Variable struct {
 	Val frontend.Variable
 }
 
-func newVariable(v frontend.Variable) Variable {
+func newV(v frontend.Variable) Variable {
 	return Variable{Val: v}
 }
 
@@ -41,9 +54,9 @@ func (v Variable) SetValues(vs ...frontend.Variable) {
 	v.Val = vs[0]
 }
 
-type Tuple[T CircuitVariable] []T
+type List[T CircuitVariable] []T
 
-func (t Tuple[T]) Values() []frontend.Variable {
+func (t List[T]) Values() []frontend.Variable {
 	var ret []frontend.Variable
 	for _, data := range t {
 		ret = append(ret, data.Values())
@@ -51,7 +64,7 @@ func (t Tuple[T]) Values() []frontend.Variable {
 	return ret
 }
 
-func (t Tuple[T]) SetValues(vs ...frontend.Variable) {
+func (t List[T]) SetValues(vs ...frontend.Variable) {
 	for i, v := range vs {
 		t[i].SetValues(v)
 	}
@@ -108,7 +121,7 @@ func ParseBytes32(data []byte) Bytes32 {
 // function is not a circuit g and should only be used outside of circuit to
 // initialize constant circuit variables
 func ParseAddress(addr [20]byte) Variable {
-	return newVariable(new(big.Int).SetBytes(addr[:]))
+	return newV(new(big.Int).SetBytes(addr[:]))
 }
 
 // ParseBytes initializes a circuit Variable from a bytes type. Panics if len(b)
@@ -118,7 +131,7 @@ func ParseBytes(b []byte) Variable {
 	if len(b) > 31 {
 		panic(fmt.Errorf("byte slice of size %d cannot fit into one Variable. use ParseBytes32 instead", len(b)))
 	}
-	return newVariable(new(big.Int).SetBytes(b))
+	return newV(new(big.Int).SetBytes(b))
 }
 
 // ParseBool initializes a circuit Variable from a bool type. This function is
@@ -126,9 +139,9 @@ func ParseBytes(b []byte) Variable {
 // constant circuit variables
 func ParseBool(b bool) Variable {
 	if b {
-		return newVariable(1)
+		return newV(1)
 	}
-	return newVariable(0)
+	return newV(0)
 }
 
 // ParseEventID initializes a circuit Variable from bytes. Only the first 6 bytes
@@ -136,7 +149,7 @@ func ParseBool(b bool) Variable {
 // should only be used outside of circuit to initialize constant circuit
 // variables
 func ParseEventID(b []byte) Variable {
-	return newVariable(new(big.Int).SetBytes(b[:6]))
+	return newV(new(big.Int).SetBytes(b[:6]))
 }
 
 type BigField struct{}
