@@ -9,7 +9,15 @@ import (
 	"github.com/consensys/gnark/frontend"
 )
 
+type DataInput struct {
+	Receipts     DataPoints[Receipt]
+	StorageSlots DataPoints[StorageSlot]
+	Transactions DataPoints[Transaction]
+}
+
 type CircuitInput struct {
+	DataInput
+
 	// InputCommitments is a list of hash commitment to each value of Raw. These
 	// commitments must match sub-prover circuit's commitment to its rlp decoded
 	// values
@@ -19,10 +27,6 @@ type CircuitInput struct {
 	// developer's circuit. The output of this commitment is revealed by the
 	// developer in their application contract.
 	OutputCommitment OutputCommitment `gnark:",public"`
-
-	Receipts     DataPoints[Receipt]
-	StorageSlots DataPoints[StorageSlot]
-	Transactions DataPoints[Transaction]
 
 	dryRunOutput []byte `gnark:"-"`
 }
@@ -35,9 +39,11 @@ func (in CircuitInput) Clone() CircuitInput {
 		InputCommitments:  inputCommits,
 		TogglesCommitment: in.TogglesCommitment,
 		OutputCommitment:  in.OutputCommitment,
-		Receipts:          in.Receipts.Clone(),
-		StorageSlots:      in.StorageSlots.Clone(),
-		Transactions:      in.Transactions.Clone(),
+		DataInput: DataInput{
+			Receipts:     in.Receipts.Clone(),
+			StorageSlots: in.StorageSlots.Clone(),
+			Transactions: in.Transactions.Clone(),
+		},
 	}
 }
 

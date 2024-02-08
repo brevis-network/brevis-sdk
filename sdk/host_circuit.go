@@ -13,7 +13,7 @@ import (
 )
 
 type AppCircuit interface {
-	Define(api *CircuitAPI, in CircuitInput) error
+	Define(api *CircuitAPI, in DataInput) error
 	Allocate() (maxReceipts, maxStorage, maxTransactions int)
 }
 
@@ -38,7 +38,7 @@ func (c *HostCircuit) Define(gapi frontend.API) error {
 	if err != nil {
 		return err
 	}
-	err = c.guest.Define(api, c.Input)
+	err = c.guest.Define(api, c.Input.DataInput)
 	if err != nil {
 		return fmt.Errorf("error building user-defined circuit %s", err.Error())
 	}
