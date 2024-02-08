@@ -20,11 +20,11 @@ type AppCircuit interface {
 type HostCircuit struct {
 	api frontend.API
 
-	Input PublicInput
+	Input CircuitInput
 	guest AppCircuit `gnark:"-"`
 }
 
-func NewHostCircuit(in PublicInput, guest AppCircuit) *HostCircuit {
+func NewHostCircuit(in CircuitInput, guest AppCircuit) *HostCircuit {
 	return &HostCircuit{
 		Input: in,
 		guest: guest,
@@ -219,7 +219,7 @@ func bits2Bytes(data []frontend.Variable) []byte {
 var dryRunOutput []byte
 var dryRunOutputCommit OutputCommitment
 
-func dryRun(in PublicInput, guest AppCircuit) (OutputCommitment, []byte, error) {
+func dryRun(in CircuitInput, guest AppCircuit) (OutputCommitment, []byte, error) {
 	// resetting state
 	dryRunOutputCommit = OutputCommitment{nil, nil}
 	dryRunOutput = nil

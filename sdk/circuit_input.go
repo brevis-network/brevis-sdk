@@ -26,7 +26,7 @@ func (d DataInput) Toggles() List[Variable] {
 	return toggles
 }
 
-type PublicInput struct {
+type CircuitInput struct {
 	// InputCommitments is a list of hash commitment to each value of Raw. These
 	// commitments must match sub-prover circuit's commitment to its rlp decoded
 	// values
@@ -42,11 +42,11 @@ type PublicInput struct {
 	dryRunOutput []byte `gnark:"-"`
 }
 
-func (in PublicInput) Clone() PublicInput {
+func (in CircuitInput) Clone() CircuitInput {
 	inputCommits := make([]frontend.Variable, len(in.InputCommitments))
 	copy(inputCommits, in.InputCommitments)
 
-	return PublicInput{
+	return CircuitInput{
 		InputCommitments:  inputCommits,
 		TogglesCommitment: in.TogglesCommitment,
 		OutputCommitment:  in.OutputCommitment,
@@ -58,11 +58,11 @@ func (in PublicInput) Clone() PublicInput {
 	}
 }
 
-func (in PublicInput) Toggles() List[Variable] {
+func (in CircuitInput) Toggles() List[Variable] {
 	return in.Data.Toggles()
 }
 
-func (in PublicInput) GetAbiPackedOutput() []byte {
+func (in CircuitInput) GetAbiPackedOutput() []byte {
 	ret := make([]byte, len(dryRunOutput))
 	copy(ret, dryRunOutput)
 	return ret
