@@ -1,7 +1,7 @@
 package test
 
 import (
-	"github.com/celer-network/brevis-sdk/sdk"
+	"github.com/brevis-network/brevis-sdk/sdk"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend"
 	"github.com/consensys/gnark/test"

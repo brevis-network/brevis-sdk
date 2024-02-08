@@ -3,7 +3,7 @@ package sdk
 import (
 	"context"
 	"fmt"
-	"github.com/celer-network/brevis-sdk/sdk/proto"
+	"github.com/brevis-network/brevis-sdk/sdk/proto"
 	"google.golang.org/grpc"
 )
 

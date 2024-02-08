@@ -4,7 +4,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 
-	"github.com/celer-network/brevis-sdk/sdk"
+	"github.com/brevis-network/brevis-sdk/sdk"
 )
 
 type AppCircuit struct{}
@@ -25,7 +25,7 @@ func (c *AppCircuit) Allocate() (maxReceipts, maxSlots, maxTransactions int) {
 var slot = common.LeftPadBytes([]byte{0}, 32)
 var expectedKey = sdk.ParseBytes32(crypto.Keccak256(slot))
 
-func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.CircuitInput) error {
+func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 	slots := sdk.NewDataStream(api, in.StorageSlots)
 
 	// For educational purposes, when we added the queries to the querier, we

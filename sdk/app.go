@@ -4,7 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/celer-network/brevis-sdk/sdk/proto"
+	"hash"
+	"math/big"
+	"time"
+
+	"github.com/brevis-network/brevis-sdk/sdk/proto"
 	"github.com/celer-network/zk-utils/common/eth"
 	bls12377_fr "github.com/consensys/gnark-crypto/ecc/bls12-377/fr"
 	"github.com/consensys/gnark-crypto/ecc/bls12-377/fr/mimc"
@@ -13,45 +17,62 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
-	"hash"
-	"math/big"
-	"time"
 )
 
-type LogFieldQuery struct {
-	// The index of the log (event)
-	LogIndex int
+type ReceiptData struct {
+	BlockNum *big.Int
+	TxHash   common.Hash
+	Fields   [NumMaxLogFields]LogFieldData
+}
+
+// LogFieldData represents a single field of an event.
+type LogFieldData struct {
+	// The contract from which the event is emitted
+	Contract common.Address
+	// the index of the log in the receipt
+	LogIndex uint
+	// The event ID of the event to which the field belong (aka topics[0])
+	EventID common.Hash
 	// Whether the field is a topic (aka "indexed" as in solidity events)
 	IsTopic bool
-	// The index of the field. For example, if a field is the second topic of a log, then FieldIndex is 1; if a field is the
+	// The index of the field in either a log's topics or data. For example, if a
+	// field is the second topic of a log, then FieldIndex is 1; if a field is the
 	// third field in the RLP decoded data, then FieldIndex is 2.
-	FieldIndex int
+	FieldIndex uint
+	// The value of the field in event, aka the actual thing we care about, only
+	// 32-byte fixed length values are supported.
+	Value common.Hash
 }
 
-type ReceiptQuery struct {
-	TxHash     common.Hash
-	SubQueries [NumMaxLogFields]LogFieldQuery
-}
-
-type StorageQuery struct {
-	BlockNum int
+type StorageData struct {
+	BlockNum *big.Int
 	Address  common.Address
-	Slot     common.Hash
+	Key      common.Hash
+	Value    common.Hash
 }
 
-type TransactionQuery struct {
-	TxHash common.Hash
+type TransactionData struct {
+	Hash     common.Hash
+	ChainId  *big.Int
+	BlockNum *big.Int
+	Nonce    uint64
+	// MaxPriorityFeePerGas is always 0 for non-dynamic fee txs
+	MaxPriorityFeePerGas *big.Int
+	// GasPriceOrFeeCap means GasPrice for non-dynamic fee txs and GasFeeCap for
+	// dynamic fee txs
+	GasPriceOrFeeCap *big.Int
+	GasLimit         uint64
+	From             common.Address
+	To               common.Address
+	Value            *big.Int
 }
 
-type queries[T ReceiptQuery | StorageQuery | TransactionQuery] struct {
+type rawData[T ReceiptData | StorageData | TransactionData] struct {
 	ordered []T
 	special map[int]T
 }
 
-func (q *queries[T]) add(query T, index ...int) {
+func (q *rawData[T]) add(data T, index ...int) {
 	if len(index) > 1 {
 		panic("no more than one index should be supplied")
 	}
@@ -59,13 +80,13 @@ func (q *queries[T]) add(query T, index ...int) {
 		q.special = make(map[int]T)
 	}
 	if len(index) == 1 {
-		q.special[index[0]] = query
+		q.special[index[0]] = data
 	} else {
-		q.ordered = append(q.ordered, query)
+		q.ordered = append(q.ordered, data)
 	}
 }
 
-func (q *queries[T]) list() []T {
+func (q *rawData[T]) list() []T {
 	indexed := map[int]T{}
 	// copy the map
 	for i, v := range q.special {
@@ -90,13 +111,12 @@ func (q *queries[T]) list() []T {
 }
 
 type BrevisApp struct {
-	ec            *ethclient.Client
 	gc            *GatewayClient
 	brevisRequest *abi.ABI
 
-	receiptQueries queries[ReceiptQuery]
-	storageQueries queries[StorageQuery]
-	txQueries      queries[TransactionQuery]
+	receipts    rawData[ReceiptData]
+	storageVals rawData[StorageData]
+	txs         rawData[TransactionData]
 
 	// cache fields
 	circuitInput           CircuitInput
@@ -105,11 +125,7 @@ type BrevisApp struct {
 	srcChainId, dstChainId uint64
 }
 
-func NewBrevisApp(rpcUrl string, gatewayUrlOverride ...string) (*BrevisApp, error) {
-	ec, err := ethclient.Dial(rpcUrl)
-	if err != nil {
-		return nil, err
-	}
+func NewBrevisApp(gatewayUrlOverride ...string) (*BrevisApp, error) {
 	gc, err := NewGatewayClient(gatewayUrlOverride...)
 	if err != nil {
 		return nil, err
@@ -119,111 +135,98 @@ func NewBrevisApp(rpcUrl string, gatewayUrlOverride ...string) (*BrevisApp, erro
 		return nil, err
 	}
 	return &BrevisApp{
-		ec:             ec,
-		gc:             gc,
-		brevisRequest:  br,
-		receiptQueries: queries[ReceiptQuery]{},
-		storageQueries: queries[StorageQuery]{},
-		txQueries:      queries[TransactionQuery]{},
+		gc:            gc,
+		brevisRequest: br,
+		receipts:      rawData[ReceiptData]{},
+		storageVals:   rawData[StorageData]{},
+		txs:           rawData[TransactionData]{},
 	}, nil
 }
 
-// AddReceipt adds the ReceiptQuery to be queried. If an index is specified, the
-// query result will be assigned to the specified index of DataInput.Receipts.
-func (q *BrevisApp) AddReceipt(query ReceiptQuery, index ...int) {
-	q.receiptQueries.add(query, index...)
+// AddReceipt adds the ReceiptData to be queried. If an index is specified, the
+// data will be assigned to the specified index of DataInput.Receipts.
+func (q *BrevisApp) AddReceipt(data ReceiptData, index ...int) {
+	q.receipts.add(data, index...)
 }
 
-// AddStorage adds the StorageQuery to be queried. If an index is
-// specified, the query result will be assigned to the specified index of
+// AddStorage adds the StorageData to be queried. If an index is
+// specified, the data will be assigned to the specified index of
 // DataInput.StorageSlots.
-func (q *BrevisApp) AddStorage(query StorageQuery, index ...int) {
-	q.storageQueries.add(query, index...)
+func (q *BrevisApp) AddStorage(data StorageData, index ...int) {
+	q.storageVals.add(data, index...)
 }
 
-// AddTransaction adds the TransactionQuery to be queried. If an index is
-// specified, the query result will be assigned to the specified index of
+// AddTransaction adds the TransactionData to be queried. If an index is
+// specified, the data will be assigned to the specified index of
 // DataInput.Transactions.
-func (q *BrevisApp) AddTransaction(query TransactionQuery, index ...int) {
-	q.txQueries.add(query, index...)
+func (q *BrevisApp) AddTransaction(data TransactionData, index ...int) {
+	q.txs.add(data, index...)
 }
 
 // BuildCircuitInput executes all added queries and package the query results
 // into circuit assignment (the DataInput struct) The provided ctx is used
 // when performing network calls to the provided blockchain RPC.
-func (q *BrevisApp) BuildCircuitInput(ctx context.Context, guestCircuit AppCircuit) (in CircuitInput, err error) {
+func (q *BrevisApp) BuildCircuitInput(guestCircuit AppCircuit) (CircuitInput, error) {
 
 	// 1. call rpc to fetch data for each query type, then assign the corresponding input fields
 	// 2. mimc hash data at each position to generate and assign input commitments and toggles commitment
 	// 3. dry-run user circuit to generate output and output commitment
 
-	v := &CircuitInput{}
+	in := &CircuitInput{}
 	maxReceipts, maxSlots, maxTxs := guestCircuit.Allocate()
-	err = q.checkAllocations(guestCircuit)
+	err := q.checkAllocations(guestCircuit)
 	if err != nil {
-		return
+		return CircuitInput{}, err
 	}
 
 	// initialize
-	v.Receipts = NewDataPoints[Receipt](maxReceipts, NewReceipt)
-	v.StorageSlots = NewDataPoints[StorageSlot](maxSlots, NewStorageSlot)
-	v.Transactions = NewDataPoints[Transaction](maxTxs, NewTransaction)
-	v.OutputCommitment = OutputCommitment{0, 0}
-	v.InputCommitments = make([]frontend.Variable, NumMaxDataPoints)
-	for i := range v.InputCommitments {
-		v.InputCommitments[i] = 0
+	in.Receipts = NewDataPoints[Receipt](maxReceipts, NewReceipt)
+	in.StorageSlots = NewDataPoints[StorageSlot](maxSlots, NewStorageSlot)
+	in.Transactions = NewDataPoints[Transaction](maxTxs, NewTransaction)
+	in.OutputCommitment = OutputCommitment{0, 0}
+	in.InputCommitments = make([]frontend.Variable, NumMaxDataPoints)
+	for i := range in.InputCommitments {
+		in.InputCommitments[i] = 0
 	}
 
 	// receipt
-	ro, rs, err := q.executeReceiptQueries(ctx)
+	err = q.assignReceipts(in)
 	if err != nil {
-		return buildWitnessErr("failed to execute receipt queries", err)
-	}
-	err = q.assignReceipts(v, ro, rs)
-	if err != nil {
-		return buildWitnessErr("failed to assign in from receipt queries", err)
+		return buildCircuitInputErr("failed to assign in from receipt queries", err)
 	}
 
 	// storage
-	vo, vs, err := q.executeStorageQueries(ctx)
+	err = q.assignStorageSlots(in)
 	if err != nil {
-		return buildWitnessErr("failed to execute storage queries", err)
-	}
-	err = q.assignStorageSlots(v, vo, vs)
-	if err != nil {
-		return buildWitnessErr("failed to assign in from storage queries", err)
+		return buildCircuitInputErr("failed to assign in from storage queries", err)
 	}
 
 	// transaction
-	to, ts, err := q.executeTransactionQueries(ctx)
+	err = q.assignTransactions(in)
 	if err != nil {
-		return buildWitnessErr("failed to execute transaction queries", err)
-	}
-	err = q.assignTransactions(v, to, ts)
-	if err != nil {
-		return buildWitnessErr("failed to assign in from transaction queries", err)
+		return buildCircuitInputErr("failed to assign in from transaction queries", err)
 	}
 
 	// commitment
-	q.assignInputCommitment(v)
-	q.assignToggleCommitment(v)
+	q.assignInputCommitment(in)
+	q.assignToggleCommitment(in)
 
-	fmt.Printf("input commits: %d\n", v.InputCommitments)
+	fmt.Printf("input commits: %d\n", in.InputCommitments)
 
 	// dry run without assigning the output commitment first to compute the output commitment using the user circuit
-	outputCommit, output, err := dryRun(*v, guestCircuit)
+	outputCommit, output, err := dryRun(*in, guestCircuit)
 	if err != nil {
-		return buildWitnessErr("failed to generate output commitment", err)
+		return buildCircuitInputErr("failed to generate output commitment", err)
 	}
-	v.OutputCommitment = outputCommit
+	in.OutputCommitment = outputCommit
 	// cache dry-run output to be used in building gateway request later
-	v.dryRunOutput = output
+	in.dryRunOutput = output
 
-	q.circuitInput = *v // cache the generated circuit input for later use in building gateway request
+	q.circuitInput = *in // cache the generated circuit input for later use in building gateway request
 	q.buildInputCalled = true
 	fmt.Printf("output %x\n", output)
 
-	return *v, nil
+	return *in, nil
 }
 
 func (q *BrevisApp) PrepareRequest(
@@ -240,9 +243,9 @@ func (q *BrevisApp) PrepareRequest(
 	req := &proto.PrepareQueryRequest{
 		ChainId:           srcChainId,
 		TargetChainId:     dstChainId,
-		ReceiptInfos:      buildReceiptInfos(q.receiptQueries),
-		StorageQueryInfos: buildStorageQueryInfos(q.storageQueries),
-		TransactionInfos:  buildTxInfos(q.txQueries),
+		ReceiptInfos:      buildReceiptInfos(q.receipts),
+		StorageQueryInfos: buildStorageQueryInfos(q.storageVals),
+		TransactionInfos:  buildTxInfos(q.txs),
 		AppCircuitInfo:    buildAppCircuitInfo(q.circuitInput, vk),
 		UseAppCircuitInfo: true,
 	}
@@ -289,6 +292,7 @@ type submitProofOptions struct {
 }
 type SubmitProofOption func(option submitProofOptions)
 
+// WithFinalProofSubmittedCallback sets an async callback for final proof submission result
 func WithFinalProofSubmittedCallback(onSubmitted func(txHash common.Hash), onError func(err error)) SubmitProofOption {
 	return func(option submitProofOptions) {
 		option.onSubmitted = onSubmitted
@@ -296,6 +300,7 @@ func WithFinalProofSubmittedCallback(onSubmitted func(txHash common.Hash), onErr
 	}
 }
 
+// WithContext uses the input context as the context for waiting for final proof submission
 func WithContext(ctx context.Context) SubmitProofOption {
 	return func(option submitProofOptions) { option.ctx = ctx }
 }
@@ -376,15 +381,15 @@ func (q *BrevisApp) waitFinalProofSubmitted(cancel <-chan struct{}) (common.Hash
 func (q *BrevisApp) checkAllocations(cb AppCircuit) error {
 	maxReceipts, maxSlots, maxTxs := cb.Allocate()
 
-	numReceipts := len(q.receiptQueries.special) + len(q.receiptQueries.ordered)
+	numReceipts := len(q.receipts.special) + len(q.receipts.ordered)
 	if numReceipts > maxReceipts {
 		return allocationLenErr("receipt", numReceipts, maxReceipts)
 	}
-	numStorages := len(q.storageQueries.special) + len(q.storageQueries.ordered)
+	numStorages := len(q.storageVals.special) + len(q.storageVals.ordered)
 	if numStorages > maxSlots {
 		return allocationLenErr("storage", numStorages, maxSlots)
 	}
-	numTxs := len(q.txQueries.special) + len(q.txQueries.ordered)
+	numTxs := len(q.txs.special) + len(q.txs.ordered)
 	if numTxs > maxTxs {
 		return allocationLenErr("transaction", numTxs, maxTxs)
 	}
@@ -429,11 +434,7 @@ func doHash(hasher hash.Hash, packed []*big.Int) *big.Int {
 }
 
 func (q *BrevisApp) assignToggleCommitment(in *CircuitInput) {
-	var toggles []Variable
-	toggles = append(toggles, in.Receipts.Toggles...)
-	toggles = append(toggles, in.StorageSlots.Toggles...)
-	toggles = append(toggles, in.Transactions.Toggles...)
-
+	var toggles = in.Toggles()
 	var toggleBits []uint
 	for _, t := range toggles {
 		toggleBits = append(toggleBits, uint(var2BigInt(t).Uint64()))
@@ -446,112 +447,25 @@ func (q *BrevisApp) assignToggleCommitment(in *CircuitInput) {
 	in.TogglesCommitment = new(big.Int).SetBytes(hasher.Sum(nil))
 }
 
-func (q *BrevisApp) executeReceiptQueries(ctx context.Context) ([]*types.Receipt, map[int]*types.Receipt, error) {
-	var ordered []*types.Receipt
-	special := make(map[int]*types.Receipt)
-	// TODO: parallelize this
-	for _, query := range q.receiptQueries.ordered {
-		receipt, err := q.ec.TransactionReceipt(ctx, query.TxHash)
-		if err != nil {
-			return nil, nil, err
-		}
-		ordered = append(ordered, receipt)
-	}
-	for i, query := range q.receiptQueries.special {
-		receipt, err := q.ec.TransactionReceipt(ctx, query.TxHash)
-		if err != nil {
-			return nil, nil, err
-		}
-		special[i] = receipt
-	}
-	return ordered, special, nil
-}
-
-func (q *BrevisApp) executeStorageQueries(ctx context.Context) ([][]byte, map[int][]byte, error) {
-	var ordered [][]byte
-	special := make(map[int][]byte)
-	for _, query := range q.storageQueries.ordered {
-		val, err := q.ec.StorageAt(ctx, query.Address, query.Slot, big.NewInt(int64(query.BlockNum)))
-		if err != nil {
-			return nil, nil, err
-		}
-		ordered = append(ordered, val)
-	}
-	for i, query := range q.storageQueries.special {
-		val, err := q.ec.StorageAt(ctx, query.Address, query.Slot, big.NewInt(int64(query.BlockNum)))
-		if err != nil {
-			return nil, nil, err
-		}
-		special[i] = val
-	}
-	return ordered, special, nil
-}
-
-type txResult struct {
-	*types.Transaction
-	blockNum *big.Int
-}
-
-func (q *BrevisApp) executeTransactionQueries(ctx context.Context) ([]*txResult, map[int]*txResult, error) {
-	var ordered []*txResult
-	special := make(map[int]*txResult)
-
-	// TODO: parallelize this
-	for _, query := range q.txQueries.ordered {
-		res, err := q.getTx(ctx, query.TxHash)
-		if err != nil {
-			return nil, nil, err
-		}
-		ordered = append(ordered, res)
-	}
-
-	for i, query := range q.txQueries.special {
-		var err error
-		special[i], err = q.getTx(ctx, query.TxHash)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-	return ordered, special, nil
-}
-
-func (q *BrevisApp) getTx(ctx context.Context, txHash common.Hash) (*txResult, error) {
-	tx, pending, err := q.ec.TransactionByHash(ctx, txHash)
-	if err != nil {
-		return nil, err
-	}
-	if pending {
-		return nil, fmt.Errorf("tx %s is pending", txHash)
-	}
-	r, err := q.ec.TransactionReceipt(ctx, txHash)
-	if err != nil {
-		return nil, err
-	}
-	return &txResult{
-		Transaction: tx,
-		blockNum:    r.BlockNumber,
-	}, nil
-}
-
-func (q *BrevisApp) assignReceipts(in *CircuitInput, ordered []*types.Receipt, special map[int]*types.Receipt) error {
+func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
 	// assigning user appointed receipts at specific indices
-	for i, receipt := range special {
+	for i, receipt := range q.receipts.special {
 		in.Receipts.Raw[i] = Receipt{
-			BlockNum: newV(receipt.BlockNumber),
-			Fields:   buildLogFields(receipt, q.receiptQueries.special[i]),
+			BlockNum: newV(receipt.BlockNum),
+			Fields:   buildLogFields(receipt.Fields),
 		}
 		in.Receipts.Toggles[i] = newV(1)
 	}
 
 	// distribute other receipts in order to the rest of the unassigned spaces
 	j := 0
-	for i, receipt := range ordered {
+	for _, receipt := range q.receipts.ordered {
 		for in.Receipts.Toggles[j].Val == 1 {
 			j++
 		}
 		in.Receipts.Raw[j] = Receipt{
-			BlockNum: newV(receipt.BlockNumber),
-			Fields:   buildLogFields(receipt, q.receiptQueries.ordered[i]),
+			BlockNum: newV(receipt.BlockNum),
+			Fields:   buildLogFields(receipt.Fields),
 		}
 		in.Receipts.Toggles[j] = newV(1)
 		j++
@@ -559,116 +473,84 @@ func (q *BrevisApp) assignReceipts(in *CircuitInput, ordered []*types.Receipt, s
 	return nil
 }
 
-func buildLogFields(receipt *types.Receipt, query ReceiptQuery) (fields [NumMaxLogFields]LogField) {
-	for j, subQuery := range query.SubQueries {
-		log := receipt.Logs[subQuery.LogIndex]
-
-		var value Bytes32
-		if subQuery.IsTopic {
-			value = ParseBytes32(log.Topics[subQuery.FieldIndex][:])
-		} else {
-			value = ParseBytes32(log.Data[subQuery.FieldIndex*32 : subQuery.FieldIndex*32+32])
-		}
-
+func buildLogFields(fs [NumMaxLogFields]LogFieldData) (fields [NumMaxLogFields]LogField) {
+	for j, f := range fs {
 		fields[j] = LogField{
-			Contract: ParseAddress(log.Address),
+			Contract: ParseAddress(f.Contract),
 			// we only constrain the first 6 bytes of EventID in circuit for performance reasons
 			// 6 bytes give us 1/2^48 chance of two logs of different IDs clashing per contract.
-			EventID: ParseBytes(log.Topics[0][:6]),
-			IsTopic: ParseBool(subQuery.IsTopic),
-			Index:   newV(subQuery.FieldIndex),
-			Value:   value,
+			EventID: ParseBytes(f.EventID[:6]),
+			IsTopic: ParseBool(f.IsTopic),
+			Index:   newV(f.FieldIndex),
+			Value:   ParseBytes32(f.Value[:]),
 		}
 	}
 	return
 }
 
-func (q *BrevisApp) assignStorageSlots(in *CircuitInput, ordered [][]byte, special map[int][]byte) (err error) {
+func (q *BrevisApp) assignStorageSlots(in *CircuitInput) (err error) {
 	// assigning user appointed data at specific indices
-	for i, val := range special {
-		query := q.storageQueries.special[i]
-		in.StorageSlots.Raw[i], err = buildStorageSlot(val, query)
-		if err != nil {
-			return
-		}
+	for i, val := range q.storageVals.special {
+		in.StorageSlots.Raw[i] = buildStorageSlot(val)
 		in.StorageSlots.Toggles[i] = newV(1)
 	}
 
 	// distribute other data in order to the rest of the unassigned spaces
 	j := 0
-	for i, val := range ordered {
+	for i, val := range q.storageVals.ordered {
 		for in.StorageSlots.Toggles[j].Val == 1 {
 			j++
 		}
-		query := q.storageQueries.ordered[i]
-		in.StorageSlots.Raw[i], err = buildStorageSlot(val, query)
-		if err != nil {
-			return
-		}
+		in.StorageSlots.Raw[i] = buildStorageSlot(val)
 		in.StorageSlots.Toggles[i] = newV(1)
 		j++
 	}
 	return nil
 }
 
-func buildStorageSlot(val []byte, query StorageQuery) (StorageSlot, error) {
-	if len(val) > 32 {
-		return StorageSlot{}, fmt.Errorf("value of address %s slot key %s is %d bytes. only values less than 32 bytes are supported",
-			query.Address, query.Slot, len(val))
-	}
-	slotMptKey := crypto.Keccak256(query.Slot[:])
+func buildStorageSlot(s StorageData) StorageSlot {
 	return StorageSlot{
-		BlockNum: newV(query.BlockNum),
-		Contract: ParseAddress(query.Address),
-		Key:      ParseBytes32(slotMptKey),
-		Value:    ParseBytes32(val),
-	}, nil
+		BlockNum: newV(s.BlockNum),
+		Contract: ParseAddress(s.Address),
+		Key:      ParseBytes32(s.Key[:]),
+		Value:    ParseBytes32(s.Value[:]),
+	}
 }
 
-func (q *BrevisApp) assignTransactions(in *CircuitInput, ordered []*txResult, special map[int]*txResult) (err error) {
+func (q *BrevisApp) assignTransactions(in *CircuitInput) (err error) {
 	// assigning user appointed data at specific indices
-	for i, t := range special {
-		in.Transactions.Raw[i], err = buildTx(t)
-		if err != nil {
-			return
-		}
+	for i, t := range q.txs.special {
+		in.Transactions.Raw[i] = buildTx(t)
 		in.Transactions.Toggles[i] = newV(1)
 	}
 
 	j := 0
-	for i, t := range ordered {
+	for i, t := range q.txs.ordered {
 		for in.Transactions.Toggles[j].Val == newV(1) {
 			j++
 		}
-		in.Transactions.Raw[i], err = buildTx(t)
-		if err != nil {
-			return
-		}
+		in.Transactions.Raw[i] = buildTx(t)
 		in.Transactions.Toggles[i] = newV(1)
 		j++
 	}
 	return nil
 }
 
-func buildTx(t *txResult) (Transaction, error) {
-	from, err := types.Sender(types.NewLondonSigner(t.ChainId()), t.Transaction)
-	if err != nil {
-		return Transaction{}, err
-	}
+func buildTx(t TransactionData) Transaction {
 	return Transaction{
-		ChainId:              newV(t.ChainId()),
-		BlockNum:             newV(t.blockNum),
-		Nonce:                newV(t.Nonce()),
-		MaxPriorityFeePerGas: newV(t.GasTipCap()),
-		MaxFeePerGas:         newV(t.GasFeeCap()),
-		GasLimit:             newV(t.Gas()),
-		From:                 ParseAddress(from),
-		To:                   ParseAddress(*t.To()),
-		Value:                ParseBytes32(t.Value().Bytes()),
-	}, nil
+		ChainId:              newV(t.ChainId),
+		BlockNum:             newV(t.BlockNum),
+		Nonce:                newV(t.Nonce),
+		MaxPriorityFeePerGas: newV(t.MaxPriorityFeePerGas),
+		GasPriceOrFeeCap:     newV(t.GasPriceOrFeeCap),
+		GasLimit:             newV(t.GasLimit),
+		From:                 ParseAddress(t.From),
+		To:                   ParseAddress(t.To),
+		Value:                ParseBytes32(t.Value.Bytes()),
+	}
 }
 
-func buildWitnessErr(m string, err error) (CircuitInput, error) {
+func buildCircuitInputErr(m string, err error) (CircuitInput, error) {
 	return CircuitInput{}, fmt.Errorf("%s: %s", m, err.Error())
 }
 

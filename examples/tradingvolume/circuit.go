@@ -1,7 +1,7 @@
 package tradingvolume
 
 import (
-	"github.com/celer-network/brevis-sdk/sdk"
+	"github.com/brevis-network/brevis-sdk/sdk"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
@@ -50,7 +50,7 @@ func (c *AppCircuit) Allocate() (maxReceipts, maxSlots, maxTransactions int) {
 	return 5, 0, 0
 }
 
-func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.CircuitInput) error {
+func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 	// In order to use the nice methods such as .Map() and .Reduce(), raw data needs
 	// to be wrapped in a DataStream. You could also use the raw data directly if you
 	// are familiar with writing gnark circuits.

@@ -172,7 +172,7 @@ func TestTransactionPack(t *testing.T) {
 		BlockNum:             1234567,
 		Nonce:                123,
 		MaxPriorityFeePerGas: 1234567890,
-		MaxFeePerGas:         1876543212,
+		GasPriceOrFeeCap:     1876543212,
 		GasLimit:             123456,
 		From:                 ParseAddress(common.HexToAddress("0x58b529F9084D7eAA598EB3477Fe36064C5B7bbC1")),
 		To:                   ParseAddress(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),

@@ -9,7 +9,6 @@ type DataStream[T CircuitVariable] struct {
 	api        *CircuitAPI
 	underlying []T
 	toggles    []Variable
-	max        int
 }
 
 func NewDataStream[T CircuitVariable](api *CircuitAPI, in DataPoints[T]) *DataStream[T] {

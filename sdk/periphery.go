@@ -2,8 +2,8 @@ package sdk
 
 import (
 	"fmt"
-	"github.com/celer-network/brevis-sdk/common/utils"
-	"github.com/celer-network/brevis-sdk/sdk/srs"
+	"github.com/brevis-network/brevis-sdk/common/utils"
+	"github.com/brevis-network/brevis-sdk/sdk/srs"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/plonk"
 	"github.com/consensys/gnark/backend/witness"

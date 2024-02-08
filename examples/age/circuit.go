@@ -1,7 +1,7 @@
 package age
 
 import (
-	"github.com/celer-network/brevis-sdk/sdk"
+	"github.com/brevis-network/brevis-sdk/sdk"
 )
 
 type AppCircuit struct{}
@@ -15,7 +15,7 @@ func (c *AppCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions int) {
 	return 0, 0, 1
 }
 
-func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.CircuitInput) error {
+func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 	txs := sdk.NewDataStream(api, in.Transactions)
 
 	tx := txs.Get(0)

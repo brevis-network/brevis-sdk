@@ -1,9 +1,10 @@
 package sdk
 
 import (
+	"math/big"
+
 	bls12377_fr "github.com/consensys/gnark-crypto/ecc/bls12-377/fr"
 	"github.com/ethereum/go-ethereum/common"
-	"math/big"
 
 	"github.com/consensys/gnark/frontend"
 )
@@ -27,6 +28,8 @@ func (d DataInput) Toggles() List[Variable] {
 }
 
 type CircuitInput struct {
+	DataInput
+
 	// InputCommitments is a list of hash commitment to each value of Raw. These
 	// commitments must match sub-prover circuit's commitment to its rlp decoded
 	// values
@@ -36,8 +39,6 @@ type CircuitInput struct {
 	// developer's circuit. The output of this commitment is revealed by the
 	// developer in their application contract.
 	OutputCommitment OutputCommitment `gnark:",public"`
-
-	Data DataInput
 
 	dryRunOutput []byte `gnark:"-"`
 }
@@ -50,10 +51,10 @@ func (in CircuitInput) Clone() CircuitInput {
 		InputCommitments:  inputCommits,
 		TogglesCommitment: in.TogglesCommitment,
 		OutputCommitment:  in.OutputCommitment,
-		Data: DataInput{
-			Receipts:     in.Data.Receipts.Clone(),
-			StorageSlots: in.Data.StorageSlots.Clone(),
-			Transactions: in.Data.Transactions.Clone(),
+		DataInput: DataInput{
+			Receipts:     in.Receipts.Clone(),
+			StorageSlots: in.StorageSlots.Clone(),
+			Transactions: in.Transactions.Clone(),
 		},
 	}
 }
@@ -81,7 +82,7 @@ func (c OutputCommitment) Hash() common.Hash {
 }
 
 type DataPoints[T any] struct {
-	// Raw is the structured input data (receiptQueries, txs, and slots).
+	// Raw is the structured input data (receipts, txs, and slots).
 	Raw []T
 	// Toggles is a bitmap that toggles the effectiveness of each position of Raw.
 	// len(Toggles) must equal len(Raw)
@@ -116,7 +117,7 @@ func (dp DataPoints[T]) Clone() DataPoints[T] {
 // NumMaxDataPoints is the max amount of data points this circuit can handle at
 // once. This couples tightly to the batch size of the aggregation circuit on
 // Brevis' side
-const NumMaxDataPoints = 100
+const NumMaxDataPoints = 512
 
 // NumMaxLogFields is the max amount of log fields each Receipt can have. This
 // couples tightly to the decoding capacity of the receipt decoder circuit on
@@ -254,15 +255,17 @@ func (s StorageSlot) goPack() []*big.Int {
 }
 
 type Transaction struct {
-	ChainId              Variable
-	BlockNum             Variable
-	Nonce                Variable
+	ChainId  Variable
+	BlockNum Variable
+	Nonce    Variable
+	// MaxPriorityFeePerGas is always 0 for non-dynamic fee txs
 	MaxPriorityFeePerGas Variable
-	MaxFeePerGas         Variable
-	GasLimit             Variable
-	From                 Variable
-	To                   Variable
-	Value                Bytes32
+	// GasPriceOrFeeCap means GasPrice for non-dynamic fee txs and GasFeeCap for dynamic fee txs
+	GasPriceOrFeeCap Variable
+	GasLimit         Variable
+	From             Variable
+	To               Variable
+	Value            Bytes32
 }
 
 func NewTransaction() Transaction {
@@ -271,7 +274,7 @@ func NewTransaction() Transaction {
 		BlockNum:             newV(0),
 		Nonce:                newV(0),
 		MaxPriorityFeePerGas: newV(0),
-		MaxFeePerGas:         newV(0),
+		GasPriceOrFeeCap:     newV(0),
 		GasLimit:             newV(0),
 		From:                 newV(0),
 		To:                   newV(0),
@@ -294,7 +297,7 @@ func (t Transaction) pack(api frontend.API) []frontend.Variable {
 	bits = append(bits, api.ToBinary(t.ChainId, 8*4)...)
 	bits = append(bits, api.ToBinary(t.Nonce, 8*4)...)
 	bits = append(bits, api.ToBinary(t.MaxPriorityFeePerGas, 8*8)...)
-	bits = append(bits, api.ToBinary(t.MaxFeePerGas, 8*8)...)
+	bits = append(bits, api.ToBinary(t.GasPriceOrFeeCap, 8*8)...)
 	bits = append(bits, api.ToBinary(t.GasLimit, 8*4)...)
 	bits = append(bits, api.ToBinary(t.From, 8*20)...)
 	bits = append(bits, api.ToBinary(t.To, 8*20)...)
@@ -308,7 +311,7 @@ func (t Transaction) goPack() []*big.Int {
 	bits = append(bits, decomposeBits(var2BigInt(t.ChainId), 8*4)...)
 	bits = append(bits, decomposeBits(var2BigInt(t.Nonce), 8*4)...)
 	bits = append(bits, decomposeBits(var2BigInt(t.MaxPriorityFeePerGas), 8*8)...)
-	bits = append(bits, decomposeBits(var2BigInt(t.MaxFeePerGas), 8*8)...)
+	bits = append(bits, decomposeBits(var2BigInt(t.GasPriceOrFeeCap), 8*8)...)
 	bits = append(bits, decomposeBits(var2BigInt(t.GasLimit), 8*4)...)
 	bits = append(bits, decomposeBits(var2BigInt(t.From), 8*20)...)
 	bits = append(bits, decomposeBits(var2BigInt(t.To), 8*20)...)

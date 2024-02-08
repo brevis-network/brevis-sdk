@@ -2,9 +2,7 @@ package sdk
 
 import (
 	"fmt"
-	"github.com/consensys/gnark/std/multicommit"
-
-	"github.com/celer-network/brevis-sdk/common/utils"
+	"github.com/brevis-network/brevis-sdk/common/utils"
 	"github.com/celer-network/zk-utils/circuits/gadgets/keccak"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"
@@ -38,7 +36,7 @@ func (c *HostCircuit) Define(gapi frontend.API) error {
 	if err != nil {
 		return err
 	}
-	err = c.guest.Define(api, c.Input.Data)
+	err = c.guest.Define(api, c.Input.DataInput)
 	if err != nil {
 		return fmt.Errorf("error building user-defined circuit %s", err.Error())
 	}
@@ -99,41 +97,46 @@ func (c *HostCircuit) commitInput() error {
 	togglesCommit := hasher.Sum()
 	c.api.AssertIsEqual(togglesCommit, c.Input.TogglesCommitment)
 
-	//assertInputUniqueness(c.g, c.Input.InputCommitments)
+	assertUnique(c.g, c.Input.InputCommitments)
 
 	return nil
 }
 
 // Asserts that in the sorted list of inputs, each element is different from its
 // next element. Zeros are not checked.
-func assertInputUniqueness(api frontend.API, in []frontend.Variable) {
+func assertUnique(api frontend.API, in []frontend.Variable) {
 	if len(in) < 2 {
 		return // no need to check uniqueness
 	}
-	multicommit.WithCommitment(api, func(api frontend.API, gamma frontend.Variable) error {
-		sorted, err := api.Compiler().NewHint(SortHint, len(in), in...)
-		if err != nil {
-			panic(err)
-		}
-		// Grand product check. Asserts the following equation holds:
-		// Σ_{a \in in} a+ɣ = Σ_{b \in sorted} b+ɣ
-		var lhs, rhs frontend.Variable = 0, 0
-		for i := 0; i < len(sorted); i++ {
-			lhs = api.Mul(lhs, api.Add(in[i], gamma))
-			rhs = api.Mul(rhs, api.Add(sorted[i], gamma))
-		}
-		api.AssertIsEqual(lhs, rhs)
 
-		for i := 0; i < len(sorted)-1; i++ {
-			a, b := sorted[i], sorted[i+1]
-			// are both a and b zero? if yes, then it's valid; if not, then they must be different
-			bothZero := api.Select(api.IsZero(a), api.IsZero(b), 0)
-			isDifferent := api.Sub(1, api.IsZero(api.Sub(a, b)))
-			isValid := api.Select(bothZero, 1, isDifferent)
-			api.AssertIsEqual(isValid, 1)
-		}
-		return nil
-	}, in...)
+	hasher, err := mimc.NewMiMC(api)
+	if err != nil {
+		panic(err)
+	}
+	hasher.Write(in...)
+	gamma := hasher.Sum()
+
+	sorted, err := api.Compiler().NewHint(SortHint, len(in), in...)
+	if err != nil {
+		panic(err)
+	}
+	// Grand product check. Asserts the following equation holds:
+	// Σ_{a \in in} a+ɣ = Σ_{b \in sorted} b+ɣ
+	var lhs, rhs Variable = 0, 0
+	for i := 0; i < len(sorted); i++ {
+		lhs = api.Mul(lhs, api.Add(in[i], gamma))
+		rhs = api.Mul(rhs, api.Add(sorted[i], gamma))
+	}
+	api.AssertIsEqual(lhs, rhs)
+
+	for i := 0; i < len(sorted)-1; i++ {
+		a, b := sorted[i], sorted[i+1]
+		// are both a and b zero? if yes, then it's valid; if not, then they must be different
+		bothZero := api.Select(api.IsZero(a), api.IsZero(b), 0)
+		isDifferent := api.Sub(1, api.IsZero(api.Sub(a, b)))
+		isValid := api.Select(bothZero, 1, isDifferent)
+		api.AssertIsEqual(isValid, 1)
+	}
 }
 
 func (c *HostCircuit) dataLen() int {
