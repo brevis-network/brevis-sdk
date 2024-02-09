@@ -451,10 +451,10 @@ func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
 	// assigning user appointed receipts at specific indices
 	for i, receipt := range q.receipts.special {
 		in.Receipts.Raw[i] = Receipt{
-			BlockNum: newV(receipt.BlockNum),
+			BlockNum: newU248(receipt.BlockNum),
 			Fields:   buildLogFields(receipt.Fields),
 		}
-		in.Receipts.Toggles[i] = newV(1)
+		in.Receipts.Toggles[i] = newU248(1)
 	}
 
 	// distribute other receipts in order to the rest of the unassigned spaces
@@ -464,10 +464,10 @@ func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
 			j++
 		}
 		in.Receipts.Raw[j] = Receipt{
-			BlockNum: newV(receipt.BlockNum),
+			BlockNum: newU248(receipt.BlockNum),
 			Fields:   buildLogFields(receipt.Fields),
 		}
-		in.Receipts.Toggles[j] = newV(1)
+		in.Receipts.Toggles[j] = newU248(1)
 		j++
 	}
 	return nil
@@ -481,7 +481,7 @@ func buildLogFields(fs [NumMaxLogFields]LogFieldData) (fields [NumMaxLogFields]L
 			// 6 bytes give us 1/2^48 chance of two logs of different IDs clashing per contract.
 			EventID: ParseBytes(f.EventID[:6]),
 			IsTopic: ParseBool(f.IsTopic),
-			Index:   newV(f.FieldIndex),
+			Index:   newU248(f.FieldIndex),
 			Value:   ParseBytes32(f.Value[:]),
 		}
 	}
@@ -492,7 +492,7 @@ func (q *BrevisApp) assignStorageSlots(in *CircuitInput) (err error) {
 	// assigning user appointed data at specific indices
 	for i, val := range q.storageVals.special {
 		in.StorageSlots.Raw[i] = buildStorageSlot(val)
-		in.StorageSlots.Toggles[i] = newV(1)
+		in.StorageSlots.Toggles[i] = newU248(1)
 	}
 
 	// distribute other data in order to the rest of the unassigned spaces
@@ -502,7 +502,7 @@ func (q *BrevisApp) assignStorageSlots(in *CircuitInput) (err error) {
 			j++
 		}
 		in.StorageSlots.Raw[i] = buildStorageSlot(val)
-		in.StorageSlots.Toggles[i] = newV(1)
+		in.StorageSlots.Toggles[i] = newU248(1)
 		j++
 	}
 	return nil
@@ -510,7 +510,7 @@ func (q *BrevisApp) assignStorageSlots(in *CircuitInput) (err error) {
 
 func buildStorageSlot(s StorageData) StorageSlot {
 	return StorageSlot{
-		BlockNum: newV(s.BlockNum),
+		BlockNum: newU248(s.BlockNum),
 		Contract: ParseAddress(s.Address),
 		Key:      ParseBytes32(s.Key[:]),
 		Value:    ParseBytes32(s.Value[:]),
@@ -521,16 +521,16 @@ func (q *BrevisApp) assignTransactions(in *CircuitInput) (err error) {
 	// assigning user appointed data at specific indices
 	for i, t := range q.txs.special {
 		in.Transactions.Raw[i] = buildTx(t)
-		in.Transactions.Toggles[i] = newV(1)
+		in.Transactions.Toggles[i] = newU248(1)
 	}
 
 	j := 0
 	for i, t := range q.txs.ordered {
-		for in.Transactions.Toggles[j].Val == newV(1) {
+		for in.Transactions.Toggles[j].Val == newU248(1) {
 			j++
 		}
 		in.Transactions.Raw[i] = buildTx(t)
-		in.Transactions.Toggles[i] = newV(1)
+		in.Transactions.Toggles[i] = newU248(1)
 		j++
 	}
 	return nil
@@ -538,12 +538,12 @@ func (q *BrevisApp) assignTransactions(in *CircuitInput) (err error) {
 
 func buildTx(t TransactionData) Transaction {
 	return Transaction{
-		ChainId:              newV(t.ChainId),
-		BlockNum:             newV(t.BlockNum),
-		Nonce:                newV(t.Nonce),
-		MaxPriorityFeePerGas: newV(t.MaxPriorityFeePerGas),
-		GasPriceOrFeeCap:     newV(t.GasPriceOrFeeCap),
-		GasLimit:             newV(t.GasLimit),
+		ChainId:              newU248(t.ChainId),
+		BlockNum:             newU248(t.BlockNum),
+		Nonce:                newU248(t.Nonce),
+		MaxPriorityFeePerGas: newU248(t.MaxPriorityFeePerGas),
+		GasPriceOrFeeCap:     newU248(t.GasPriceOrFeeCap),
+		GasLimit:             newU248(t.GasLimit),
 		From:                 ParseAddress(t.From),
 		To:                   ParseAddress(t.To),
 		Value:                ParseBytes32(t.Value.Bytes()),

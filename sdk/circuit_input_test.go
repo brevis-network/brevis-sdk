@@ -16,8 +16,8 @@ import (
 )
 
 type TestPackBitsToFrCircuit struct {
-	Bits         []Variable
-	ExpectPacked []Variable
+	Bits         []Uint248
+	ExpectPacked []Uint248
 }
 
 func (c *TestPackBitsToFrCircuit) Define(api frontend.API) error {
@@ -48,9 +48,9 @@ func TestPackBitsToFr(t *testing.T) {
 }
 
 type TestReceiptPackCircuit struct {
-	Receipt      Receipt    `gnark:",public"`
-	ExpectPacked []Variable `gnark:",public"`
-	ExpectHash   Variable   `gnark:",public"`
+	Receipt      Receipt   `gnark:",public"`
+	ExpectPacked []Uint248 `gnark:",public"`
+	ExpectHash   Uint248   `gnark:",public"`
 }
 
 func (c *TestReceiptPackCircuit) Define(api frontend.API) error {
@@ -116,7 +116,7 @@ func TestReceiptPack(t *testing.T) {
 
 type TestStoragePackCircuit struct {
 	Slot   StorageSlot `gnark:",public"`
-	Packed []Variable  `gnark:",public"`
+	Packed []Uint248   `gnark:",public"`
 }
 
 func (c *TestStoragePackCircuit) Define(api frontend.API) error {
@@ -153,7 +153,7 @@ func TestStoragePack(t *testing.T) {
 
 type TestTransactionPackCircuit struct {
 	Transaction Transaction `gnark:",public"`
-	Packed      []Variable  `gnark:",public"`
+	Packed      []Uint248   `gnark:",public"`
 }
 
 func (c *TestTransactionPackCircuit) Define(api frontend.API) error {

@@ -15,14 +15,14 @@ type DataInput struct {
 	Transactions DataPoints[Transaction]
 }
 
-func (d DataInput) Toggles() List[Variable] {
-	var toggles []Variable
+func (d DataInput) Toggles() List[Uint248] {
+	var toggles []Uint248
 	toggles = append(toggles, d.Receipts.Toggles...)
 	toggles = append(toggles, d.StorageSlots.Toggles...)
 	toggles = append(toggles, d.Transactions.Toggles...)
 	// pad the reset (the dummy part) with off toggles
 	for i := len(toggles); i < NumMaxDataPoints; i++ {
-		toggles = append(toggles, newV(0))
+		toggles = append(toggles, newU248(0))
 	}
 	return toggles
 }
@@ -82,17 +82,17 @@ type DataPoints[T any] struct {
 	Raw []T
 	// Toggles is a bitmap that toggles the effectiveness of each position of Raw.
 	// len(Toggles) must equal len(Raw)
-	Toggles List[Variable]
+	Toggles List[Uint248]
 }
 
 func NewDataPoints[T any](maxCount int, newEmpty func() T) DataPoints[T] {
 	dp := DataPoints[T]{
 		Raw:     make([]T, maxCount),
-		Toggles: make([]Variable, maxCount),
+		Toggles: make([]Uint248, maxCount),
 	}
 	for i := range dp.Raw {
 		dp.Raw[i] = newEmpty()
-		dp.Toggles[i] = newV(0)
+		dp.Toggles[i] = newU248(0)
 	}
 	return dp
 }
@@ -101,7 +101,7 @@ func (dp DataPoints[T]) Clone() DataPoints[T] {
 	raw := make([]T, len(dp.Raw))
 	copy(raw, dp.Raw)
 
-	toggles := make([]Variable, len(dp.Toggles))
+	toggles := make([]Uint248, len(dp.Toggles))
 	copy(toggles, dp.Toggles)
 
 	return DataPoints[T]{
@@ -122,13 +122,13 @@ const NumMaxLogFields = 3
 
 // Receipt is a collection of LogField.
 type Receipt struct {
-	BlockNum Variable
+	BlockNum Uint248
 	Fields   [NumMaxLogFields]LogField
 }
 
 func NewReceipt() Receipt {
 	return Receipt{
-		BlockNum: newV(0),
+		BlockNum: newU248(0),
 		Fields:   [3]LogField{NewLogField(), NewLogField(), NewLogField()},
 	}
 }
@@ -136,24 +136,24 @@ func NewReceipt() Receipt {
 // LogField represents a single field of an event.
 type LogField struct {
 	// The contract from which the event is emitted
-	Contract Variable
+	Contract Uint248
 	// The event ID of the event to which the field belong (aka topics[0])
-	EventID Variable
+	EventID Uint248
 	// Whether the field is a topic (aka "indexed" as in solidity events)
-	IsTopic Variable
+	IsTopic Uint248
 	// The index of the field. For example, if a field is the second topic of a log, then Index is 1; if a field is the
 	// third field in the RLP decoded data, then Index is 2.
-	Index Variable
+	Index Uint248
 	// The value of the field in event, aka the actual thing we care about, only 32-byte fixed length values are supported.
 	Value Bytes32
 }
 
 func NewLogField() LogField {
 	return LogField{
-		Contract: newV(0),
-		EventID:  newV(0),
-		IsTopic:  newV(0),
-		Index:    newV(0),
+		Contract: newU248(0),
+		EventID:  newU248(0),
+		IsTopic:  newU248(0),
+		Index:    newU248(0),
 		Value:    ParseBytes32([]byte{}),
 	}
 }
@@ -209,9 +209,9 @@ func packBitsToFr(api frontend.API, bits []frontend.Variable) []frontend.Variabl
 }
 
 type StorageSlot struct {
-	BlockNum Variable
+	BlockNum Uint248
 	// The contract to which the storage slot belong
-	Contract Variable
+	Contract Uint248
 	// The key of the slot
 	Key Bytes32
 	// The storage slot value
@@ -220,8 +220,8 @@ type StorageSlot struct {
 
 func NewStorageSlot() StorageSlot {
 	return StorageSlot{
-		BlockNum: newV(0),
-		Contract: newV(0),
+		BlockNum: newU248(0),
+		Contract: newU248(0),
 		Key:      ParseBytes32([]byte{}),
 		Value:    ParseBytes32([]byte{}),
 	}
@@ -251,29 +251,29 @@ func (s StorageSlot) goPack() []*big.Int {
 }
 
 type Transaction struct {
-	ChainId  Variable
-	BlockNum Variable
-	Nonce    Variable
+	ChainId  Uint248
+	BlockNum Uint248
+	Nonce    Uint248
 	// MaxPriorityFeePerGas is always 0 for non-dynamic fee txs
-	MaxPriorityFeePerGas Variable
+	MaxPriorityFeePerGas Uint248
 	// GasPriceOrFeeCap means GasPrice for non-dynamic fee txs and GasFeeCap for dynamic fee txs
-	GasPriceOrFeeCap Variable
-	GasLimit         Variable
-	From             Variable
-	To               Variable
+	GasPriceOrFeeCap Uint248
+	GasLimit         Uint248
+	From             Uint248
+	To               Uint248
 	Value            Bytes32
 }
 
 func NewTransaction() Transaction {
 	return Transaction{
-		ChainId:              newV(0),
-		BlockNum:             newV(0),
-		Nonce:                newV(0),
-		MaxPriorityFeePerGas: newV(0),
-		GasPriceOrFeeCap:     newV(0),
-		GasLimit:             newV(0),
-		From:                 newV(0),
-		To:                   newV(0),
+		ChainId:              newU248(0),
+		BlockNum:             newU248(0),
+		Nonce:                newU248(0),
+		MaxPriorityFeePerGas: newU248(0),
+		GasPriceOrFeeCap:     newU248(0),
+		GasLimit:             newU248(0),
+		From:                 newU248(0),
+		To:                   newU248(0),
 		Value:                ParseBytes32([]byte{}),
 	}
 }

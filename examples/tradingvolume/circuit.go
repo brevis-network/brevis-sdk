@@ -16,7 +16,7 @@ import (
 type AppCircuit struct {
 	// You can define your own custom circuit inputs here, but note that they cannot
 	// have the `gnark:",public"` tag.
-	UserAddr sdk.Variable
+	UserAddr sdk.Uint248
 }
 
 // Your guest circuit must implement the sdk.AppCircuit interface
@@ -58,7 +58,7 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 
 	// Main application logic: Run the assert function on each receipt. The function
 	// should return 1 if assertion successes and 0 otherwise
-	receipts.AssertEach(func(l sdk.Receipt) sdk.Variable {
+	receipts.AssertEach(func(l sdk.Receipt) sdk.Uint248 {
 		// If the recipient field of the Swap event is uniswap router, it means the user
 		// requested native token out. We need to instead check the user's address in the
 		// Transfer event emitted by USDC contract
@@ -93,10 +93,10 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 
 	// Find out the minimum block number. This enables us to find out over what range
 	// the user has a specific trading volume
-	minBlockNum := receipts.Min(func(l sdk.Receipt) sdk.Variable { return l.BlockNum })
+	minBlockNum := receipts.Min(func(l sdk.Receipt) sdk.Uint248 { return l.BlockNum })
 
 	// Sum up the volume of each trade
-	sumVolume := receipts.Sum(func(l sdk.Receipt) sdk.Variable {
+	sumVolume := receipts.Sum(func(l sdk.Receipt) sdk.Uint248 {
 		return api.ToVariable(l.Fields[0].Value)
 	})
 

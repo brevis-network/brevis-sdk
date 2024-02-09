@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"
-	"github.com/consensys/gnark/std/math/emulated"
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 )
@@ -35,25 +34,6 @@ type Decomposable interface {
 	ToBinary(api *CircuitAPI) []frontend.Variable
 }
 
-type Variable struct {
-	Val frontend.Variable
-}
-
-func newV(v frontend.Variable) Variable {
-	return Variable{Val: v}
-}
-
-func (v Variable) Values() []frontend.Variable {
-	return []frontend.Variable{v.Val}
-}
-
-func (v Variable) SetValues(vs ...frontend.Variable) {
-	if len(vs) != 1 {
-		panic("Variables.SetValues only takes len 1 slice")
-	}
-	v.Val = vs[0]
-}
-
 type List[T CircuitVariable] []T
 
 func (t List[T]) Values() []frontend.Variable {
@@ -75,7 +55,7 @@ type Bytes32 struct {
 	Val [2]frontend.Variable
 }
 
-var MaxBytes32 = ParseBigVariable(common.Hex2Bytes("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"))
+var MaxBytes32 = ParseBigBytes(common.Hex2Bytes("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"))
 
 // toBinaryVars defines the circuit that decomposes the Variables into little endian bits
 func (b32 Bytes32) toBinaryVars(api frontend.API) []frontend.Variable {
@@ -115,74 +95,4 @@ func ParseBytes32(data []byte) Bytes32 {
 	hi := recompose(bits[numBitsPerVar:], 1)
 
 	return Bytes32{[2]frontend.Variable{lo, hi}}
-}
-
-// ParseAddress initializes a circuit Variable from an address type. This
-// function is not a circuit g and should only be used outside of circuit to
-// initialize constant circuit variables
-func ParseAddress(addr [20]byte) Variable {
-	return newV(new(big.Int).SetBytes(addr[:]))
-}
-
-// ParseBytes initializes a circuit Variable from a bytes type. Panics if len(b)
-// > 31. This function is not a circuit g and should only be used outside of
-// circuit to initialize constant circuit variables
-func ParseBytes(b []byte) Variable {
-	if len(b) > 31 {
-		panic(fmt.Errorf("byte slice of size %d cannot fit into one Variable. use ParseBytes32 instead", len(b)))
-	}
-	return newV(new(big.Int).SetBytes(b))
-}
-
-// ParseBool initializes a circuit Variable from a bool type. This function is
-// not a circuit g and should only be used outside of circuit to initialize
-// constant circuit variables
-func ParseBool(b bool) Variable {
-	if b {
-		return newV(1)
-	}
-	return newV(0)
-}
-
-// ParseEventID initializes a circuit Variable from bytes. Only the first 6 bytes
-// of the event id is used to save space. This function is not a circuit g and
-// should only be used outside of circuit to initialize constant circuit
-// variables
-func ParseEventID(b []byte) Variable {
-	return newV(new(big.Int).SetBytes(b[:6]))
-}
-
-type BigField struct{}
-
-func (f BigField) NbLimbs() uint     { return 6 }
-func (f BigField) BitsPerLimb() uint { return 96 }
-func (f BigField) IsPrime() bool     { return true }
-func (f BigField) Modulus() *big.Int {
-	mod := big.NewInt(1)
-	mod.Lsh(mod, 521).Sub(mod, big.NewInt(1))
-	return mod
-}
-
-type BigVariable struct {
-	*emulated.Element[BigField]
-}
-
-func (b *BigVariable) Values() []frontend.Variable {
-	return b.Limbs
-}
-
-func (b *BigVariable) SetValues(vs []frontend.Variable) {
-
-}
-
-func newBigVariable(el *emulated.Element[BigField]) *BigVariable {
-	return &BigVariable{el}
-}
-
-func ParseBigVariable(data []byte) *BigVariable {
-	if len(data) > 64 {
-		panic(fmt.Errorf("ParseBigVariable called with data of length %d", len(data)))
-	}
-	el := emulated.ValueOf[BigField](data)
-	return newBigVariable(&el)
 }

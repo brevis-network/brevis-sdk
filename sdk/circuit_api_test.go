@@ -18,16 +18,16 @@ func TestCasting(t *testing.T) {
 	uint256Max.Lsh(big.NewInt(1), 248).Sub(uint256Max, big.NewInt(1))
 	circuit := &TestCastingCircuit{
 		A: 1,
-		B: Bytes32{Val: [2]Variable{1, 0}},
+		B: Bytes32{Val: [2]Uint248{1, 0}},
 		C: ParseBigVariable([]byte{1}),
-		D: Bytes32{Val: [2]Variable{uint248Max, 255}},
+		D: Bytes32{Val: [2]Uint248{uint248Max, 255}},
 		E: ParseBigVariable(uint256Max.Bytes()),
 	}
 	assignment := &TestCastingCircuit{
 		A: 1,
-		B: Bytes32{Val: [2]Variable{1, 0}},
+		B: Bytes32{Val: [2]Uint248{1, 0}},
 		C: ParseBigVariable([]byte{1}),
-		D: Bytes32{Val: [2]Variable{uint248Max, 255}},
+		D: Bytes32{Val: [2]Uint248{uint248Max, 255}},
 		E: ParseBigVariable(uint256Max.Bytes()),
 	}
 	//
@@ -51,11 +51,11 @@ func TestCasting(t *testing.T) {
 }
 
 type TestCastingCircuit struct {
-	A Variable
+	A Uint248
 	B Bytes32
-	C *BigVariable
+	C *Uint521
 	D Bytes32
-	E *BigVariable
+	E *Uint521
 }
 
 func (c *TestCastingCircuit) Define(gapi frontend.API) error {

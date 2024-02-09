@@ -78,7 +78,7 @@ func var2BigInt(input interface{}) *big.Int {
 	in := input.(interface{})
 	var r big.Int
 	switch v := in.(type) {
-	case Variable:
+	case Uint248:
 		r.Set(var2BigInt(v.Val))
 	case big.Int:
 		r.Set(&v)
