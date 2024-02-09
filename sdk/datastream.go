@@ -9,7 +9,6 @@ type DataStream[T any] struct {
 	api        *CircuitAPI
 	underlying []T
 	toggles    []Variable
-	max        int
 }
 
 func NewDataStream[T any](api *CircuitAPI, in DataPoints[T]) *DataStream[T] {
@@ -17,16 +16,14 @@ func NewDataStream[T any](api *CircuitAPI, in DataPoints[T]) *DataStream[T] {
 		api:        api,
 		underlying: in.Raw,
 		toggles:    in.Toggles,
-		max:        NumMaxDataPoints, // TODO allow developer to customize max
 	}
 }
 
-func newDataStream[T any](api *CircuitAPI, in []T, toggles []Variable, max int) *DataStream[T] {
+func newDataStream[T any](api *CircuitAPI, in []T, toggles []Variable) *DataStream[T] {
 	return &DataStream[T]{
 		api:        api,
 		underlying: in,
 		toggles:    toggles,
-		max:        max,
 	}
 }
 
@@ -41,29 +38,29 @@ func (ds *DataStream[T]) Get(index int) T {
 
 // Range selects a range of the data stream. Performed on the underlying data directly.
 func (ds *DataStream[T]) Range(start, end int) *DataStream[T] {
-	return newDataStream(ds.api, ds.underlying[start:end], ds.toggles[start:end], end-start)
+	return newDataStream(ds.api, ds.underlying[start:end], ds.toggles[start:end])
 }
 
 type MapFunc[T any] func(current T) Variable
 
 // Map calls the input mapFunc on every valid element in the stream
 func (ds *DataStream[T]) Map(mapFunc MapFunc[T]) *DataStream[Variable] {
-	res := make([]Variable, ds.max)
+	res := make([]Variable, len(ds.underlying))
 	for i, data := range ds.underlying {
 		res[i] = mapFunc(data)
 	}
-	return newDataStream(ds.api, res, ds.toggles, ds.max)
+	return newDataStream(ds.api, res, ds.toggles)
 }
 
 type Map2Func[T any] func(current T) [2]Variable
 
 // Map2 is like Map but maps every element to two variables
 func (ds *DataStream[T]) Map2(mapFunc Map2Func[T]) *DataStream[[2]Variable] {
-	res := make([][2]Variable, ds.max)
+	res := make([][2]Variable, len(ds.underlying))
 	for i, data := range ds.underlying {
 		res[i] = mapFunc(data)
 	}
-	return newDataStream(ds.api, res, ds.toggles, ds.max)
+	return newDataStream(ds.api, res, ds.toggles)
 }
 
 type AssertFunc[T any] func(current T) Variable
@@ -97,7 +94,7 @@ func (ds *DataStream[T]) IsSorted(getValue GetValueFunc[T], sortFunc SortFunc) V
 	prev := getValue(ds.underlying[0])
 	prevValid := ds.toggles[0]
 
-	for i := 1; i < ds.max; i++ {
+	for i := 1; i < len(ds.underlying); i++ {
 		curr := getValue(ds.underlying[i])
 		currValid := ds.toggles[i]
 
@@ -155,13 +152,13 @@ type FilterFunc[T any] func(current T) Variable
 // Filter filters the data stream with a user-supplied filterFunc
 // Internally it toggles off the elements that does not meet the filter criteria
 func (ds *DataStream[T]) Filter(filterFunc FilterFunc[T]) *DataStream[T] {
-	newToggles := make([]Variable, ds.max)
+	newToggles := make([]Variable, len(ds.underlying))
 	for i, data := range ds.underlying {
 		toggle := filterFunc(data)
 		valid := ds.api.Equal(ds.toggles[i], 1)
 		newToggles[i] = ds.api.API.Select(ds.api.API.And(toggle, valid), 1, 0)
 	}
-	return newDataStream(ds.api, ds.underlying, newToggles, ds.max)
+	return newDataStream(ds.api, ds.underlying, newToggles)
 }
 
 type GetValueFunc[T any] func(current T) Variable
@@ -194,24 +191,9 @@ func (ds *DataStream[T]) Sum(getValue GetValueFunc[T]) Variable {
 }
 
 // Mean calculates the arithmetic mean over the selected fields of the data stream. Uses Sum.
+// The division step in calculating the mean is an integer division. The result is truncated.
 func (ds *DataStream[T]) Mean(getValue GetValueFunc[T]) Variable {
 	sum := ds.Sum(getValue)
-	return ds.api.Div(sum, ds.Count())
-}
-
-// StdDev calculates the standard deviation over the selected fields of the data stream. Uses Mean and Sum.
-// Uses the formula: 𝛔 = sqrt(Σ(x_i - μ)^2 / N)
-func (ds *DataStream[T]) StdDev(getValue GetValueFunc[T]) Variable {
-	mu := ds.Mean(getValue)
-	n := ds.Count()
-
-	// compute k = Σ(x_i - μ)^2
-	k := ds.Reduce(0, func(acc Variable, current T) Variable {
-		x := getValue(current)
-		r := ds.api.Sub(x, mu)
-		r2 := ds.api.Mul(r, r)
-		return ds.api.Add(acc, r2)
-	})
-
-	return ds.api.Sqrt(ds.api.Div(k, n))
+	q, _ := ds.api.QuoRem(sum, ds.Count())
+	return q
 }

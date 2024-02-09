@@ -50,15 +50,16 @@ func SqrtHint(field *big.Int, in, out []*big.Int) error {
 
 // SortHint sorts the input in descending order
 func SortHint(_ *big.Int, in, out []*big.Int) error {
-	inCopy := make([]*big.Int, len(in))
-	copy(inCopy, in)
+	l := make([]*big.Int, len(in))
+	for i, b := range in {
+		l[i] = new(big.Int).Set(b)
+	}
 
-	sort.Slice(in, func(i, j int) bool {
-		return in[i].Cmp(in[j]) == 1
+	sort.Slice(l, func(i, j int) bool {
+		return l[i].Cmp(l[j]) == 1
 	})
 
-	copy(out, inCopy)
-
+	copy(out, l)
 	return nil
 }
 

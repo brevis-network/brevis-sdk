@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/celer-network/brevis-sdk/sdk/srs"
+	"github.com/brevis-network/brevis-sdk/sdk/srs"
 )
 
 func main() {

@@ -4,8 +4,8 @@ This SDK aims to provide developers with a framework to implement custom data an
 
 ## Packages
 
-- `github.com/celer-network/brevis-sdk/sdk` Houses all things needed for writing custom circuits, compiling, proving, and interacting with brevis systems.
-- `github.com/celer-network/brevis-sdk/test` Contains testing utilities.
+- `github.com/brevis-network/brevis-sdk/sdk` Houses all things needed for writing custom circuits, compiling, proving, and interacting with brevis systems.
+- `github.com/brevis-network/brevis-sdk/test` Contains testing utilities.
 
 ## Creating a Brevis App
 

@@ -1,14 +1,14 @@
 package slot
 
 import (
-	"context"
 	"fmt"
-	"github.com/celer-network/brevis-sdk/examples/age"
-	"github.com/celer-network/brevis-sdk/test"
+	"github.com/brevis-network/brevis-sdk/test"
+	"github.com/ethereum/go-ethereum/crypto"
+	"math/big"
 	"path/filepath"
 	"testing"
 
-	"github.com/celer-network/brevis-sdk/sdk"
+	"github.com/brevis-network/brevis-sdk/sdk"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -17,14 +17,13 @@ func TestCircuit(t *testing.T) {
 	check(err)
 
 	account := common.HexToAddress("0x5427FEFA711Eff984124bFBB1AB6fbf5E3DA1820")
-	blockNum := 18233760
-	// By specifying the optional parameter index = 1, the querier will give the
-	// result of this storage slot query a fixed spot in the CircuitInput. This allows us
-	// to later directly access this "special" data in circuit.
-	app.AddStorage(sdk.StorageQuery{
-		BlockNum: blockNum,
+	// By specifying the optional parameter index = 1, the app will pin the stroage
+	// data at a fixed spot in the CircuitInput. This allows us to later directly
+	// access this "special" data in circuit.
+	app.AddStorage(sdk.StorageData{
+		BlockNum: big.NewInt(18233760),
 		Address:  account,
-		Slot:     common.BytesToHash(slot),
+		Key:      common.BytesToHash(crypto.Keccak256(slot)),
 	}, 1)
 	// More slots can be added to be batch proven, but in this example we use only
 	// one to keep it simple
@@ -35,7 +34,7 @@ func TestCircuit(t *testing.T) {
 	appCircuit := &AppCircuit{}
 	appCircuitAssignment := &AppCircuit{}
 
-	in, err := app.BuildCircuitInput(context.Background(), appCircuit)
+	in, err := app.BuildCircuitInput(appCircuit)
 	check(err)
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -107,30 +106,4 @@ func check(err error) {
 	if err != nil {
 		panic(err)
 	}
-}
-
-func TestHostCircuit_dryRun(t *testing.T) {
-	q, err := sdk.NewBrevisApp("https://eth-mainnet.nodereal.io/v1/0af795b55d124a61b86836461ece1dee") // TODO use your eth rpc
-	check(err)
-
-	txHash := common.HexToHash(
-		"8b805e46758497c6b32d0bf3cad3b3b435afeb0adb649857f24e424f75b79e46")
-
-	q.AddTransaction(sdk.TransactionQuery{TxHash: txHash})
-	// More slots can be added to be batch proven, but in this example we use only
-	// one to keep it simple
-	// q.AddStorage(...)
-	// q.AddStorage(...)
-	// q.AddStorage(...)
-
-	guest := &age.AppCircuit{}
-	guest2 := &age.AppCircuit{}
-
-	in, err := q.BuildCircuitInput(context.Background(), guest)
-	check(err)
-	fmt.Printf("first time: commit %v\n", in.OutputCommitment)
-
-	in2, err := q.BuildCircuitInput(context.Background(), guest2)
-	check(err)
-	fmt.Printf("second time: commit %v\n", in2.OutputCommitment)
 }

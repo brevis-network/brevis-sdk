@@ -33,6 +33,6 @@ type TestInputUniqueness struct {
 }
 
 func (c *TestInputUniqueness) Define(api frontend.API) error {
-	assertInputUniqueness(api, c.In)
+	assertUnique(api, c.In)
 	return nil
 }
