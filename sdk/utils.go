@@ -10,32 +10,48 @@ import (
 )
 
 // returns little endian bits of data
-func decomposeBits(data *big.Int, length int) []uint {
+func decomposeBits(data *big.Int, length uint) []uint {
 	return decompose[uint](data, 1, length)
 }
 
 func recompose[T uint | byte](data []T, bitSize int) *big.Int {
+	d := make([]*big.Int, len(data))
+	for i := 0; i < len(data); i++ {
+		d[i] = big.NewInt(int64(data[i]))
+	}
+	return recomposeBig(d, bitSize)
+}
+
+func recomposeBig(data []*big.Int, bitSize int) *big.Int {
 	r := big.NewInt(0)
 	for i := 0; i < len(data); i++ {
-		d := big.NewInt(int64(data[i]))
-		r.Add(r, new(big.Int).Lsh(d, uint(i*bitSize)))
+		r.Add(r, new(big.Int).Lsh(data[i], uint(i*bitSize)))
 		r.Mod(r, ecc.BLS12_377.ScalarField())
 	}
 	return r
 }
 
-func decompose[T uint | byte](data *big.Int, bitSize uint, length int) []T {
-	if data.BitLen() > length*int(bitSize) {
+func decompose[T uint | byte](data *big.Int, bitSize uint, length uint) []T {
+	res := decomposeBig(data, bitSize, length)
+	ret := make([]T, length)
+	for i, limb := range res {
+		ret[i] = T(limb.Uint64())
+	}
+	return ret
+}
+
+func decomposeBig(data *big.Int, bitSize, length uint) []*big.Int {
+	if uint(data.BitLen()) > length*bitSize {
 		panic(fmt.Errorf("decomposed integer (bit len %d) does not fit into output (bit len %d, length %d)",
 			data.BitLen(), bitSize, length))
 	}
-	decomposed := make([]T, length)
+	decomposed := make([]*big.Int, length)
 	base := new(big.Int).Lsh(big.NewInt(1), bitSize)
 	d := new(big.Int).Set(data)
-	for i := 0; i < length; i++ {
+	for i := 0; i < int(length); i++ {
 		rem := new(big.Int)
 		d.DivMod(d, base, rem)
-		decomposed[i] = T(rem.Uint64())
+		decomposed[i] = rem
 	}
 	return decomposed
 }

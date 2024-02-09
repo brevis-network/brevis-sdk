@@ -4,61 +4,51 @@ import (
 	"fmt"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"
+	"github.com/consensys/gnark/frontend/cs/r1cs"
 	"github.com/consensys/gnark/test"
 	"math/big"
 	"testing"
 )
 
-func TestCasting(t *testing.T) {
+func TestBigVariable(t *testing.T) {
 	//assert := test.NewAssert(t)
 
 	uint248Max := new(big.Int)
 	uint248Max.Lsh(big.NewInt(1), 248).Sub(uint248Max, big.NewInt(1))
-	uint256Max := new(big.Int)
-	uint256Max.Lsh(big.NewInt(1), 248).Sub(uint256Max, big.NewInt(1))
-	circuit := &TestCastingCircuit{
+	circuit := &TestBigVariableCircuit{
 		A: 1,
 		B: Bytes32{Val: [2]Uint248{1, 0}},
 		C: ParseBigVariable([]byte{1}),
 		D: Bytes32{Val: [2]Uint248{uint248Max, 255}},
 		E: ParseBigVariable(uint256Max.Bytes()),
 	}
-	assignment := &TestCastingCircuit{
+	assignment := &TestBigVariableCircuit{
 		A: 1,
 		B: Bytes32{Val: [2]Uint248{1, 0}},
 		C: ParseBigVariable([]byte{1}),
 		D: Bytes32{Val: [2]Uint248{uint248Max, 255}},
 		E: ParseBigVariable(uint256Max.Bytes()),
 	}
-	//
-	//ccs, err := frontend.Compile(ecc.BLS12_377.ScalarField(), r1cs.NewBuilder, circuit)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Println("constraints", ccs.GetNbConstraints())
 
-	err := test.IsSolved(circuit, assignment, ecc.BLS12_377.ScalarField())
+	ccs, err := frontend.Compile(ecc.BLS12_377.ScalarField(), r1cs.NewBuilder, circuit)
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println("constraints", ccs.GetNbConstraints())
 
-	//assert.CheckCircuit(
-	//	circuit,
-	//	test.WithValidAssignment(assignment),
-	//	//test.WithCurves(ecc.BLS12_377),
-	//	//test.WithBackends(backend.PLONK),
-	//)
+	err = test.IsSolved(circuit, assignment, ecc.BLS12_377.ScalarField())
+	if err != nil {
+		panic(err)
+	}
 }
 
-type TestCastingCircuit struct {
-	A Uint248
+type TestBigVariableCircuit struct {
+	A Variable
 	B Bytes32
-	C *Uint521
-	D Bytes32
-	E *Uint521
+	C *BigVariable
 }
 
-func (c *TestCastingCircuit) Define(gapi frontend.API) error {
+func (c *TestBigVariableCircuit) Define(gapi frontend.API) error {
 	api := NewCircuitAPI(gapi)
 
 	api.AssertIsEqualBytes32(api.ToBytes32(c.A), c.B)
@@ -70,10 +60,36 @@ func (c *TestCastingCircuit) Define(gapi frontend.API) error {
 	api.AssertIsEqualBig(api.ToBigVariable(c.A), c.C)
 	api.AssertIsEqualBig(api.ToBigVariable(c.B), c.C)
 
-	uint256 := api.ToBigVariable(c.D)
-	uint512 := api.AddBig(uint256, uint256)
-	fmt.Println("1111")
-	api.AssertIsEqualBig(uint512, c.E)
+	one := ParseBigVariable(1)
+	_u256Max := new(big.Int)
+	_u256Max.Lsh(big.NewInt(1), 256).Sub(_u256Max, big.NewInt(1))
+	u256Max := ParseBigVariable(_u256Max)
+
+	sum := api.AddBig(u256Max, u256Max)
+	_sum := new(big.Int).Add(_u256Max, _u256Max)
+	api.AssertIsEqualBig(sum, ParseBigVariable(_sum))
+
+	diff := api.SubBig(u256Max, api.SubBig(u256Max, one))
+	api.AssertIsEqualBig(diff, one)
+
+	product := api.MulBig(u256Max, u256Max)
+	_product := new(big.Int).Mul(_u256Max, _u256Max)
+	api.AssertIsEqualBig(product, ParseBigVariable(_product))
+
+	inv := api.DivBig(product, u256Max)
+	api.AssertIsEqualBig(inv, u256Max)
+
+	b := api.SubBig(u256Max, one)
+	inv = api.DivBig(u256Max, b)
+	api.AssertIsEqualBig(api.MulBig(inv, b), u256Max)
+
+	q, r := api.QuoRemBig(ParseBigVariable(4), ParseBigVariable(3))
+	api.AssertIsEqualBig(q, one)
+	api.AssertIsEqualBig(r, ParseBigVariable(1))
+
+	q, r = api.QuoRemBig(u256Max, b)
+	api.AssertIsEqualBig(q, one)
+	api.AssertIsEqualBig(r, one)
 
 	return nil
 }

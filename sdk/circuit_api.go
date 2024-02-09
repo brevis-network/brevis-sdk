@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/consensys/gnark/frontend"
+	"github.com/consensys/gnark/std/math/emulated"
 )
 
 // CircuitAPI contains a set of APIs that can only be used in circuit to perform
@@ -111,8 +112,8 @@ func ToBytes32(api *CircuitAPI, i interface{}) Bytes32 {
 func (api *CircuitAPI) ToBytes32(i interface{}) Bytes32 {
 	switch v := i.(type) {
 	case *Uint521:
-		api.bigField.AssertIsLessOrEqual(v.Element, MaxBytes32.Element)
 		r := api.bigField.Reduce(v.Element)
+		api.bigField.AssertIsLessOrEqual(r, MaxBytes32.Element)
 		bits := api.bigField.ToBits(r)
 		lo := api.FromBinary(bits[:numBitsPerVar]...)
 		hi := api.FromBinary(bits[numBitsPerVar:256]...)
@@ -139,7 +140,7 @@ func (api *CircuitAPI) ToBigVariable(i interface{}) *Uint521 {
 		el := api.bigField.NewElement(limbs)
 		return newBigVariable(el)
 	case Uint248:
-		el := api.bigField.NewElement(v)
+		el := api.bigField.NewElement([]frontend.Variable{v, 0, 0, 0, 0, 0})
 		return newBigVariable(el)
 	}
 	panic(fmt.Errorf("unsupported casting from %T to *Uint521", i))
@@ -154,10 +155,11 @@ func (api *CircuitAPI) ToVariable(i interface{}) Uint248 {
 		api.AssertIsEqual(v.Val[1], 0)
 		return v.Val[0]
 	case *Uint521:
-		reduced := api.bigField.Reduce(v.Element)
-		api.AssertIsEqual(reduced.Limbs[1], 0)
-		api.AssertIsEqual(reduced.Limbs[2], 0)
-		return v.Limbs[0]
+		r := api.bigField.Reduce(v.Element)
+		max248 := emulated.ValueOf[BigField](MaxUint248)
+		api.bigField.AssertIsLessOrEqual(r, &max248)
+		bits := api.bigField.ToBits(r)
+		return api.FromBinary(bits[:numBitsPerVar]...)
 	}
 	panic(fmt.Errorf("unsupported casting from %T to Uint248", i))
 }
