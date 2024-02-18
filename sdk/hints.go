@@ -20,7 +20,7 @@ func registerHints() {
 }
 
 func GetHints() []solver.Hint {
-	return []solver.Hint{QuoRemHint, SqrtHint, SortHint}
+	return []solver.Hint{QuoRemHint, SqrtHint, SortHint, GroupValuesHint}
 }
 
 func QuoRemHint(_ *big.Int, in, out []*big.Int) error {

@@ -15,14 +15,14 @@ type DataInput struct {
 	Transactions DataPoints[Transaction]
 }
 
-func (d DataInput) Toggles() List[Uint248] {
-	var toggles []Uint248
+func (d DataInput) Toggles() []frontend.Variable {
+	var toggles []frontend.Variable
 	toggles = append(toggles, d.Receipts.Toggles...)
 	toggles = append(toggles, d.StorageSlots.Toggles...)
 	toggles = append(toggles, d.Transactions.Toggles...)
 	// pad the reset (the dummy part) with off toggles
 	for i := len(toggles); i < NumMaxDataPoints; i++ {
-		toggles = append(toggles, newU248(0))
+		toggles = append(toggles, 0)
 	}
 	return toggles
 }
@@ -82,13 +82,13 @@ type DataPoints[T any] struct {
 	Raw []T
 	// Toggles is a bitmap that toggles the effectiveness of each position of Raw.
 	// len(Toggles) must equal len(Raw)
-	Toggles List[Uint248]
+	Toggles []frontend.Variable
 }
 
 func NewDataPoints[T any](maxCount int, newEmpty func() T) DataPoints[T] {
 	dp := DataPoints[T]{
 		Raw:     make([]T, maxCount),
-		Toggles: make([]Uint248, maxCount),
+		Toggles: make([]frontend.Variable, maxCount),
 	}
 	for i := range dp.Raw {
 		dp.Raw[i] = newEmpty()
@@ -101,7 +101,7 @@ func (dp DataPoints[T]) Clone() DataPoints[T] {
 	raw := make([]T, len(dp.Raw))
 	copy(raw, dp.Raw)
 
-	toggles := make([]Uint248, len(dp.Toggles))
+	toggles := make([]frontend.Variable, len(dp.Toggles))
 	copy(toggles, dp.Toggles)
 
 	return DataPoints[T]{
@@ -154,7 +154,7 @@ func NewLogField() LogField {
 		EventID:  newU248(0),
 		IsTopic:  newU248(0),
 		Index:    newU248(0),
-		Value:    ParseBytes32([]byte{}),
+		Value:    ConstBytes32([]byte{}),
 	}
 }
 
@@ -169,13 +169,13 @@ func NewLogField() LogField {
 //   - 32 bytes for value
 func (r Receipt) pack(api frontend.API) []frontend.Variable {
 	var bits []frontend.Variable
-	bits = append(bits, api.ToBinary(r.BlockNum, 8*4)...)
+	bits = append(bits, api.ToBinary(r.BlockNum.Val, 8*4)...)
 
 	for _, field := range r.Fields {
-		bits = append(bits, api.ToBinary(field.Contract, 8*20)...)
-		bits = append(bits, api.ToBinary(field.EventID, 8*6)...)
-		bits = append(bits, api.ToBinary(field.IsTopic, 1)...)
-		bits = append(bits, api.ToBinary(field.Index, 7)...)
+		bits = append(bits, api.ToBinary(field.Contract.Val, 8*20)...)
+		bits = append(bits, api.ToBinary(field.EventID.Val, 8*6)...)
+		bits = append(bits, api.ToBinary(field.IsTopic.Val, 1)...)
+		bits = append(bits, api.ToBinary(field.Index.Val, 7)...)
 		bits = append(bits, field.Value.toBinaryVars(api)...)
 	}
 	return packBitsToFr(api, bits)
@@ -183,12 +183,12 @@ func (r Receipt) pack(api frontend.API) []frontend.Variable {
 
 func (r Receipt) goPack() []*big.Int {
 	var bits []uint
-	bits = append(bits, decomposeBits(var2BigInt(r.BlockNum), 8*4)...)
+	bits = append(bits, decomposeBits(fromInterface(r.BlockNum), 8*4)...)
 	for _, field := range r.Fields {
-		bits = append(bits, decomposeBits(var2BigInt(field.Contract), 8*20)...)
-		bits = append(bits, decomposeBits(var2BigInt(field.EventID), 8*6)...)
-		bits = append(bits, decomposeBits(var2BigInt(field.IsTopic), 1)...)
-		bits = append(bits, decomposeBits(var2BigInt(field.Index), 7)...)
+		bits = append(bits, decomposeBits(fromInterface(field.Contract), 8*20)...)
+		bits = append(bits, decomposeBits(fromInterface(field.EventID), 8*6)...)
+		bits = append(bits, decomposeBits(fromInterface(field.IsTopic), 1)...)
+		bits = append(bits, decomposeBits(fromInterface(field.Index), 7)...)
 		bits = append(bits, field.Value.toBinary()...)
 	}
 	return packBitsToInt(bits, bls12377_fr.Bits-1) // pack to ints of bit size of BLS12377Fr - 1, which is 252 bits
@@ -222,8 +222,8 @@ func NewStorageSlot() StorageSlot {
 	return StorageSlot{
 		BlockNum: newU248(0),
 		Contract: newU248(0),
-		Key:      ParseBytes32([]byte{}),
-		Value:    ParseBytes32([]byte{}),
+		Key:      ConstBytes32([]byte{}),
+		Value:    ConstBytes32([]byte{}),
 	}
 }
 
@@ -234,8 +234,8 @@ func NewStorageSlot() StorageSlot {
 // - 32 bytes for slot value
 func (s StorageSlot) pack(api frontend.API) []frontend.Variable {
 	var bits []frontend.Variable
-	bits = append(bits, api.ToBinary(s.BlockNum, 8*4)...)
-	bits = append(bits, api.ToBinary(s.Contract, 8*20)...)
+	bits = append(bits, api.ToBinary(s.BlockNum.Val, 8*4)...)
+	bits = append(bits, api.ToBinary(s.Contract.Val, 8*20)...)
 	bits = append(bits, s.Key.toBinaryVars(api)...)
 	bits = append(bits, s.Value.toBinaryVars(api)...)
 	return packBitsToFr(api, bits)
@@ -243,8 +243,8 @@ func (s StorageSlot) pack(api frontend.API) []frontend.Variable {
 
 func (s StorageSlot) goPack() []*big.Int {
 	var bits []uint
-	bits = append(bits, decomposeBits(var2BigInt(s.BlockNum), 8*4)...)
-	bits = append(bits, decomposeBits(var2BigInt(s.Contract), 8*20)...)
+	bits = append(bits, decomposeBits(fromInterface(s.BlockNum), 8*4)...)
+	bits = append(bits, decomposeBits(fromInterface(s.Contract), 8*20)...)
 	bits = append(bits, s.Key.toBinary()...)
 	bits = append(bits, s.Value.toBinary()...)
 	return packBitsToInt(bits, bls12377_fr.Bits-1)
@@ -274,7 +274,7 @@ func NewTransaction() Transaction {
 		GasLimit:             newU248(0),
 		From:                 newU248(0),
 		To:                   newU248(0),
-		Value:                ParseBytes32([]byte{}),
+		Value:                ConstBytes32([]byte{}),
 	}
 }
 
@@ -289,28 +289,28 @@ func NewTransaction() Transaction {
 // value - 32 bytes
 func (t Transaction) pack(api frontend.API) []frontend.Variable {
 	var bits []frontend.Variable
-	bits = append(bits, api.ToBinary(t.BlockNum, 8*4)...)
-	bits = append(bits, api.ToBinary(t.ChainId, 8*4)...)
-	bits = append(bits, api.ToBinary(t.Nonce, 8*4)...)
-	bits = append(bits, api.ToBinary(t.MaxPriorityFeePerGas, 8*8)...)
-	bits = append(bits, api.ToBinary(t.GasPriceOrFeeCap, 8*8)...)
-	bits = append(bits, api.ToBinary(t.GasLimit, 8*4)...)
-	bits = append(bits, api.ToBinary(t.From, 8*20)...)
-	bits = append(bits, api.ToBinary(t.To, 8*20)...)
+	bits = append(bits, api.ToBinary(t.BlockNum.Val, 8*4)...)
+	bits = append(bits, api.ToBinary(t.ChainId.Val, 8*4)...)
+	bits = append(bits, api.ToBinary(t.Nonce.Val, 8*4)...)
+	bits = append(bits, api.ToBinary(t.MaxPriorityFeePerGas.Val, 8*8)...)
+	bits = append(bits, api.ToBinary(t.GasPriceOrFeeCap.Val, 8*8)...)
+	bits = append(bits, api.ToBinary(t.GasLimit.Val, 8*4)...)
+	bits = append(bits, api.ToBinary(t.From.Val, 8*20)...)
+	bits = append(bits, api.ToBinary(t.To.Val, 8*20)...)
 	bits = append(bits, t.Value.toBinaryVars(api)...)
 	return packBitsToFr(api, bits)
 }
 
 func (t Transaction) goPack() []*big.Int {
 	var bits []uint
-	bits = append(bits, decomposeBits(var2BigInt(t.BlockNum), 8*4)...)
-	bits = append(bits, decomposeBits(var2BigInt(t.ChainId), 8*4)...)
-	bits = append(bits, decomposeBits(var2BigInt(t.Nonce), 8*4)...)
-	bits = append(bits, decomposeBits(var2BigInt(t.MaxPriorityFeePerGas), 8*8)...)
-	bits = append(bits, decomposeBits(var2BigInt(t.GasPriceOrFeeCap), 8*8)...)
-	bits = append(bits, decomposeBits(var2BigInt(t.GasLimit), 8*4)...)
-	bits = append(bits, decomposeBits(var2BigInt(t.From), 8*20)...)
-	bits = append(bits, decomposeBits(var2BigInt(t.To), 8*20)...)
+	bits = append(bits, decomposeBits(fromInterface(t.BlockNum), 8*4)...)
+	bits = append(bits, decomposeBits(fromInterface(t.ChainId), 8*4)...)
+	bits = append(bits, decomposeBits(fromInterface(t.Nonce), 8*4)...)
+	bits = append(bits, decomposeBits(fromInterface(t.MaxPriorityFeePerGas), 8*8)...)
+	bits = append(bits, decomposeBits(fromInterface(t.GasPriceOrFeeCap), 8*8)...)
+	bits = append(bits, decomposeBits(fromInterface(t.GasLimit), 8*4)...)
+	bits = append(bits, decomposeBits(fromInterface(t.From), 8*20)...)
+	bits = append(bits, decomposeBits(fromInterface(t.To), 8*20)...)
 	bits = append(bits, t.Value.toBinary()...)
 	return packBitsToInt(bits, bls12377_fr.Bits-1)
 }

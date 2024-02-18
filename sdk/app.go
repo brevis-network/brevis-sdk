@@ -405,19 +405,19 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 	// assign 0 to input commit for dummy slots and actual data hash for non-dummies
 	j := 0
 	for i, receipt := range w.Receipts.Raw {
-		if var2BigInt(w.Receipts.Toggles[i]).Sign() != 0 {
+		if fromInterface(w.Receipts.Toggles[i]).Sign() != 0 {
 			w.InputCommitments[j] = doHash(hasher, receipt.goPack())
 		}
 		j++
 	}
 	for i, slot := range w.StorageSlots.Raw {
-		if var2BigInt(w.StorageSlots.Toggles[i]).Sign() != 0 {
+		if fromInterface(w.StorageSlots.Toggles[i]).Sign() != 0 {
 			w.InputCommitments[j] = doHash(hasher, slot.goPack())
 		}
 		j++
 	}
 	for i, tx := range w.Transactions.Raw {
-		if var2BigInt(w.Transactions.Toggles[i]).Sign() != 0 {
+		if fromInterface(w.Transactions.Toggles[i]).Sign() != 0 {
 			w.InputCommitments[j] = doHash(hasher, tx.goPack())
 		}
 		j++
@@ -437,7 +437,7 @@ func (q *BrevisApp) assignToggleCommitment(in *CircuitInput) {
 	var toggles = in.Toggles()
 	var toggleBits []uint
 	for _, t := range toggles {
-		toggleBits = append(toggleBits, uint(var2BigInt(t).Uint64()))
+		toggleBits = append(toggleBits, uint(fromInterface(t).Uint64()))
 	}
 	packed := packBitsToInt(toggleBits, bls12377_fr.Bits-1)
 	hasher := mimc.NewMiMC()
@@ -460,7 +460,7 @@ func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
 	// distribute other receipts in order to the rest of the unassigned spaces
 	j := 0
 	for _, receipt := range q.receipts.ordered {
-		for in.Receipts.Toggles[j].Val == 1 {
+		for in.Receipts.Toggles[j] == 1 {
 			j++
 		}
 		in.Receipts.Raw[j] = Receipt{
@@ -476,13 +476,13 @@ func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
 func buildLogFields(fs [NumMaxLogFields]LogFieldData) (fields [NumMaxLogFields]LogField) {
 	for j, f := range fs {
 		fields[j] = LogField{
-			Contract: ParseAddress(f.Contract),
+			Contract: ConstUint248(f.Contract),
 			// we only constrain the first 6 bytes of EventID in circuit for performance reasons
 			// 6 bytes give us 1/2^48 chance of two logs of different IDs clashing per contract.
-			EventID: ParseBytes(f.EventID[:6]),
-			IsTopic: ParseBool(f.IsTopic),
-			Index:   newU248(f.FieldIndex),
-			Value:   ParseBytes32(f.Value[:]),
+			EventID: ConstUint248(f.EventID[:6]),
+			IsTopic: ConstUint248(f.IsTopic),
+			Index:   ConstUint248(f.FieldIndex),
+			Value:   ConstBytes32(f.Value[:]),
 		}
 	}
 	return
@@ -498,7 +498,7 @@ func (q *BrevisApp) assignStorageSlots(in *CircuitInput) (err error) {
 	// distribute other data in order to the rest of the unassigned spaces
 	j := 0
 	for i, val := range q.storageVals.ordered {
-		for in.StorageSlots.Toggles[j].Val == 1 {
+		for in.StorageSlots.Toggles[j] == 1 {
 			j++
 		}
 		in.StorageSlots.Raw[i] = buildStorageSlot(val)
@@ -511,9 +511,9 @@ func (q *BrevisApp) assignStorageSlots(in *CircuitInput) (err error) {
 func buildStorageSlot(s StorageData) StorageSlot {
 	return StorageSlot{
 		BlockNum: newU248(s.BlockNum),
-		Contract: ParseAddress(s.Address),
-		Key:      ParseBytes32(s.Key[:]),
-		Value:    ParseBytes32(s.Value[:]),
+		Contract: ConstUint248(s.Address),
+		Key:      ConstBytes32(s.Key[:]),
+		Value:    ConstBytes32(s.Value[:]),
 	}
 }
 
@@ -526,7 +526,7 @@ func (q *BrevisApp) assignTransactions(in *CircuitInput) (err error) {
 
 	j := 0
 	for i, t := range q.txs.ordered {
-		for in.Transactions.Toggles[j].Val == newU248(1) {
+		for in.Transactions.Toggles[j] == newU248(1) {
 			j++
 		}
 		in.Transactions.Raw[i] = buildTx(t)
@@ -538,15 +538,15 @@ func (q *BrevisApp) assignTransactions(in *CircuitInput) (err error) {
 
 func buildTx(t TransactionData) Transaction {
 	return Transaction{
-		ChainId:              newU248(t.ChainId),
-		BlockNum:             newU248(t.BlockNum),
-		Nonce:                newU248(t.Nonce),
-		MaxPriorityFeePerGas: newU248(t.MaxPriorityFeePerGas),
-		GasPriceOrFeeCap:     newU248(t.GasPriceOrFeeCap),
-		GasLimit:             newU248(t.GasLimit),
-		From:                 ParseAddress(t.From),
-		To:                   ParseAddress(t.To),
-		Value:                ParseBytes32(t.Value.Bytes()),
+		ChainId:              ConstUint248(t.ChainId),
+		BlockNum:             ConstUint248(t.BlockNum),
+		Nonce:                ConstUint248(t.Nonce),
+		MaxPriorityFeePerGas: ConstUint248(t.MaxPriorityFeePerGas),
+		GasPriceOrFeeCap:     ConstUint248(t.GasPriceOrFeeCap),
+		GasLimit:             ConstUint248(t.GasLimit),
+		From:                 ConstUint248(t.From),
+		To:                   ConstUint248(t.To),
+		Value:                ConstBytes32(t.Value.Bytes()),
 	}
 }
 

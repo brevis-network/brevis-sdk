@@ -5,7 +5,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/celer-network/zk-utils/circuits/gadgets/utils"
 	"github.com/consensys/gnark-crypto/ecc"
 	mimc_native "github.com/consensys/gnark-crypto/ecc/bls12-377/fr/mimc"
 	"github.com/consensys/gnark/frontend"
@@ -16,8 +15,8 @@ import (
 )
 
 type TestPackBitsToFrCircuit struct {
-	Bits         []Uint248
-	ExpectPacked []Uint248
+	Bits         []frontend.Variable
+	ExpectPacked []frontend.Variable
 }
 
 func (c *TestPackBitsToFrCircuit) Define(api frontend.API) error {
@@ -34,12 +33,12 @@ func TestPackBitsToFr(t *testing.T) {
 	packed := packBitsToInt(bits, 252)
 	fmt.Printf("go packed %v\n", packed)
 	c := &TestPackBitsToFrCircuit{
-		Bits:         utils.Slice2FVs(bits),
-		ExpectPacked: utils.Slice2FVs(packed),
+		Bits:         newVars(bits),
+		ExpectPacked: newVars(packed),
 	}
 	w := &TestPackBitsToFrCircuit{
-		Bits:         utils.Slice2FVs(bits),
-		ExpectPacked: utils.Slice2FVs(packed),
+		Bits:         newVars(bits),
+		ExpectPacked: newVars(packed),
 	}
 	err := test.IsSolved(c, w, ecc.BLS12_377.ScalarField())
 	if err != nil {
@@ -48,9 +47,9 @@ func TestPackBitsToFr(t *testing.T) {
 }
 
 type TestReceiptPackCircuit struct {
-	Receipt      Receipt   `gnark:",public"`
-	ExpectPacked []Uint248 `gnark:",public"`
-	ExpectHash   Uint248   `gnark:",public"`
+	Receipt      Receipt             `gnark:",public"`
+	ExpectPacked []frontend.Variable `gnark:",public"`
+	ExpectHash   frontend.Variable   `gnark:",public"`
 }
 
 func (c *TestReceiptPackCircuit) Define(api frontend.API) error {
@@ -69,21 +68,21 @@ func (c *TestReceiptPackCircuit) Define(api frontend.API) error {
 
 func TestReceiptPack(t *testing.T) {
 	r := Receipt{
-		BlockNum: 1234567,
+		BlockNum: ConstUint248(1234567),
 		Fields: [3]LogField{
 			{
-				Contract: ParseAddress(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
+				Contract: ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
 				EventID:  ParseEventID(hexutil.MustDecode("0xDEF171Fe48CF")),
-				IsTopic:  ParseBool(true),
-				Index:    0,
-				Value:    ParseBytes32(hexutil.MustDecode("0x1234")),
+				IsTopic:  ConstUint248(true),
+				Index:    ConstUint248(0),
+				Value:    ConstBytes32(hexutil.MustDecode("0x1234")),
 			},
 			{
-				Contract: ParseAddress(common.HexToAddress("0xDEF171Fe18CF0115B1d80b88dc8eAB59176FEe57")),
+				Contract: ConstUint248(common.HexToAddress("0xDEF171Fe18CF0115B1d80b88dc8eAB59176FEe57")),
 				EventID:  ParseEventID(hexutil.MustDecode("0xDEF171F148CF")),
-				IsTopic:  ParseBool(false),
-				Index:    0,
-				Value:    ParseBytes32(hexutil.MustDecode("0x1234")),
+				IsTopic:  ConstUint248(false),
+				Index:    ConstUint248(0),
+				Value:    ConstBytes32(hexutil.MustDecode("0x1234")),
 			},
 			NewLogField(),
 		},
@@ -99,12 +98,12 @@ func TestReceiptPack(t *testing.T) {
 
 	c := &TestReceiptPackCircuit{
 		Receipt:      r,
-		ExpectPacked: utils.Slice2FVs(r.goPack()),
+		ExpectPacked: newVars(r.goPack()),
 		ExpectHash:   h,
 	}
 	a := &TestReceiptPackCircuit{
 		Receipt:      r,
-		ExpectPacked: utils.Slice2FVs(r.goPack()),
+		ExpectPacked: newVars(r.goPack()),
 		ExpectHash:   h,
 	}
 
@@ -115,8 +114,8 @@ func TestReceiptPack(t *testing.T) {
 }
 
 type TestStoragePackCircuit struct {
-	Slot   StorageSlot `gnark:",public"`
-	Packed []Uint248   `gnark:",public"`
+	Slot   StorageSlot         `gnark:",public"`
+	Packed []frontend.Variable `gnark:",public"`
 }
 
 func (c *TestStoragePackCircuit) Define(api frontend.API) error {
@@ -131,18 +130,18 @@ func (c *TestStoragePackCircuit) Define(api frontend.API) error {
 
 func TestStoragePack(t *testing.T) {
 	s := StorageSlot{
-		BlockNum: 1234567,
-		Contract: ParseAddress(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
-		Key:      ParseBytes32(hexutil.MustDecode("0x9c2d3d42dcdafb0cb8c10089d02447b96c5fce87f298e50f88f2e188a6afcc41")),
-		Value:    ParseBytes32(hexutil.MustDecode("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
+		BlockNum: ConstUint248(1234567),
+		Contract: ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
+		Key:      ConstBytes32(hexutil.MustDecode("0x9c2d3d42dcdafb0cb8c10089d02447b96c5fce87f298e50f88f2e188a6afcc41")),
+		Value:    ConstBytes32(hexutil.MustDecode("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
 	}
 	c := &TestStoragePackCircuit{
 		Slot:   s,
-		Packed: utils.Slice2FVs(s.goPack()),
+		Packed: newVars(s.goPack()),
 	}
 	a := &TestStoragePackCircuit{
 		Slot:   s,
-		Packed: utils.Slice2FVs(s.goPack()),
+		Packed: newVars(s.goPack()),
 	}
 
 	err := test.IsSolved(c, a, ecc.BLS12_377.ScalarField())
@@ -152,8 +151,8 @@ func TestStoragePack(t *testing.T) {
 }
 
 type TestTransactionPackCircuit struct {
-	Transaction Transaction `gnark:",public"`
-	Packed      []Uint248   `gnark:",public"`
+	Transaction Transaction         `gnark:",public"`
+	Packed      []frontend.Variable `gnark:",public"`
 }
 
 func (c *TestTransactionPackCircuit) Define(api frontend.API) error {
@@ -168,23 +167,23 @@ func (c *TestTransactionPackCircuit) Define(api frontend.API) error {
 
 func TestTransactionPack(t *testing.T) {
 	tx := Transaction{
-		ChainId:              1,
-		BlockNum:             1234567,
-		Nonce:                123,
-		MaxPriorityFeePerGas: 1234567890,
-		GasPriceOrFeeCap:     1876543212,
-		GasLimit:             123456,
-		From:                 ParseAddress(common.HexToAddress("0x58b529F9084D7eAA598EB3477Fe36064C5B7bbC1")),
-		To:                   ParseAddress(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
-		Value:                ParseBytes32(hexutil.MustDecode("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
+		ChainId:              ConstUint248(1),
+		BlockNum:             ConstUint248(1234567),
+		Nonce:                ConstUint248(123),
+		MaxPriorityFeePerGas: ConstUint248(1234567890),
+		GasPriceOrFeeCap:     ConstUint248(1876543212),
+		GasLimit:             ConstUint248(123456),
+		From:                 ConstUint248(common.HexToAddress("0x58b529F9084D7eAA598EB3477Fe36064C5B7bbC1")),
+		To:                   ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
+		Value:                ConstBytes32(hexutil.MustDecode("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
 	}
 	c := &TestTransactionPackCircuit{
 		Transaction: tx,
-		Packed:      utils.Slice2FVs(tx.goPack()),
+		Packed:      newVars(tx.goPack()),
 	}
 	a := &TestTransactionPackCircuit{
 		Transaction: tx,
-		Packed:      utils.Slice2FVs(tx.goPack()),
+		Packed:      newVars(tx.goPack()),
 	}
 
 	err := test.IsSolved(c, a, ecc.BLS12_377.ScalarField())

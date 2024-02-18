@@ -68,17 +68,17 @@ func (c *HostCircuit) commitInput() error {
 	receipts := c.Input.Receipts
 	for i, receipt := range receipts.Raw {
 		packed := receipt.pack(c.api)
-		inputCommits = append(inputCommits, hashOrZero(receipts.Toggles[i].Val, packed))
+		inputCommits = append(inputCommits, hashOrZero(receipts.Toggles[i], packed))
 	}
 	storage := c.Input.StorageSlots
 	for i, slot := range storage.Raw {
 		packed := slot.pack(c.api)
-		inputCommits = append(inputCommits, hashOrZero(storage.Toggles[i].Val, packed))
+		inputCommits = append(inputCommits, hashOrZero(storage.Toggles[i], packed))
 	}
 	txs := c.Input.Transactions
 	for i, tx := range txs.Raw {
 		packed := tx.pack(c.api)
-		inputCommits = append(inputCommits, hashOrZero(txs.Toggles[i].Val, packed))
+		inputCommits = append(inputCommits, hashOrZero(txs.Toggles[i], packed))
 	}
 
 	// adding constraint for input commitments (both effective commitments and dummies)
@@ -92,7 +92,7 @@ func (c *HostCircuit) commitInput() error {
 		panic(fmt.Errorf("toggles len %d != NumMaxDataPoints %d", len(toggles), NumMaxDataPoints))
 	}
 
-	packed := packBitsToFr(c.api, toggles.Values())
+	packed := packBitsToFr(c.api, toggles)
 	hasher.Write(packed...)
 	togglesCommit := hasher.Sum()
 	c.api.AssertIsEqual(togglesCommit, c.Input.TogglesCommitment)
@@ -206,7 +206,7 @@ func (c *HostCircuit) commitOutput(bits []frontend.Variable) OutputCommitment {
 func bits2Bytes(data []frontend.Variable) []byte {
 	var bits []uint
 	for _, b := range data {
-		bits = append(bits, uint(var2BigInt(b).Int64()))
+		bits = append(bits, uint(fromInterface(b).Int64()))
 	}
 
 	bytes := make([]byte, len(bits)/8)

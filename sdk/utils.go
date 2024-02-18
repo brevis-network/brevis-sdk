@@ -3,6 +3,8 @@ package sdk
 import (
 	"bytes"
 	"fmt"
+	"github.com/consensys/gnark/frontend"
+	"github.com/ethereum/go-ethereum/common"
 	"io"
 	"math/big"
 
@@ -84,10 +86,18 @@ func flipByGroups[T any](in []T, groupSize int) []T {
 	return res
 }
 
+func newVars[T any](vs []T) []frontend.Variable {
+	ret := make([]frontend.Variable, len(vs))
+	for i, v := range vs {
+		ret[i] = v
+	}
+	return ret
+}
+
 // copied from
 // https://github.com/Consensys/gnark/blob/5711c4ae475535ce2a0febdeade86ff98914a378/internal/utils/convert.go#L39C1-L39C1
 // with minor changes
-func var2BigInt(input interface{}) *big.Int {
+func fromInterface(input interface{}) *big.Int {
 	if input == nil {
 		return big.NewInt(0)
 	}
@@ -95,7 +105,7 @@ func var2BigInt(input interface{}) *big.Int {
 	var r big.Int
 	switch v := in.(type) {
 	case Uint248:
-		r.Set(var2BigInt(v.Val))
+		r.Set(fromInterface(v.Val))
 	case big.Int:
 		r.Set(&v)
 	case *big.Int:
@@ -120,10 +130,18 @@ func var2BigInt(input interface{}) *big.Int {
 		r.SetInt64(v)
 	case int:
 		r.SetInt64(int64(v))
+	case bool:
+		var b uint64
+		if v {
+			b = 1
+		}
+		r.SetUint64(b)
 	case string:
 		if _, ok := r.SetString(v, 0); !ok {
 			panic("unable to set big.Int from string " + v)
 		}
+	case common.Address:
+		r.SetBytes(v[:])
 	case []byte:
 		r.SetBytes(v)
 	}

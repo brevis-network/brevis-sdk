@@ -14,31 +14,16 @@ func newU248(v frontend.Variable) Uint248 {
 	return Uint248{Val: v}
 }
 
-// ParseAddress initializes a circuit Uint248 from an address type. This
-// function is not a circuit g and should only be used outside of circuit to
-// initialize constant circuit variables
-func ParseAddress(addr [20]byte) Uint248 {
-	return newU248(new(big.Int).SetBytes(addr[:]))
+func newU248s(vs ...frontend.Variable) List[Uint248] {
+	ret := make([]Uint248, len(vs))
+	for i, v := range vs {
+		ret[i] = newU248(v)
+	}
+	return ret
 }
 
-// ParseBytes initializes a circuit Uint248 from a bytes type. Panics if len(b)
-// > 31. This function is not a circuit g and should only be used outside of
-// circuit to initialize constant circuit variables
-func ParseBytes(b []byte) Uint248 {
-	if len(b) > 31 {
-		panic(fmt.Errorf("byte slice of size %d cannot fit into one Uint248. use ParseBytes32 instead", len(b)))
-	}
-	return newU248(new(big.Int).SetBytes(b))
-}
-
-// ParseBool initializes a circuit Uint248 from a bool type. This function is
-// not a circuit g and should only be used outside of circuit to initialize
-// constant circuit variables
-func ParseBool(b bool) Uint248 {
-	if b {
-		return newU248(1)
-	}
-	return newU248(0)
+func ConstUint248(i interface{}) Uint248 {
+	return newU248(fromInterface(i))
 }
 
 // ParseEventID initializes a circuit Uint248 from bytes. Only the first 6 bytes
@@ -61,11 +46,28 @@ func (v Uint248) SetValues(vs ...frontend.Variable) {
 }
 
 type Uint248API struct {
-	*CircuitAPI
+	g frontend.API
 }
 
-func NewUint248API(api *CircuitAPI) Uint248API {
-	return Uint248API{api}
+func NewUint248API(api frontend.API) *Uint248API {
+	return &Uint248API{api}
+}
+
+func (api *Uint248API) FromBinary(vs ...Uint248) Uint248 {
+	vars := make([]frontend.Variable, len(vs))
+	for i, v := range vs {
+		vars[i] = v
+	}
+	return newU248(api.g.FromBinary(vars...))
+}
+
+func (api *Uint248API) ToBinary(v Uint248, n int) []Uint248 {
+	b := api.g.ToBinary(v.Val, n)
+	ret := make([]Uint248, n)
+	for i, bit := range b {
+		ret[i] = newU248(bit)
+	}
+	return ret
 }
 
 func (api *Uint248API) Add(a, b Uint248, other ...Uint248) Uint248 {
@@ -106,8 +108,8 @@ func (api *Uint248API) Sqrt(a Uint248) Uint248 {
 	return newU248(out[0])
 }
 
-// Equal returns 1 if a == b, and 0 otherwise
-func (api *Uint248API) Equal(a, b Uint248) Uint248 {
+// IsEqual returns 1 if a == b, and 0 otherwise
+func (api *Uint248API) IsEqual(a, b Uint248) Uint248 {
 	return api.IsZero(api.Sub(a, b))
 }
 

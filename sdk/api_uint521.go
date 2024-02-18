@@ -34,6 +34,11 @@ func newU521(el *emulated.Element[Uint521Field]) Uint521 {
 	return Uint521{el}
 }
 
+func ConstUint521(i interface{}) Uint521 {
+	// TODO
+	return Uint521{}
+}
+
 func ParseBigBytes(data []byte) Uint521 {
 	if len(data) > 64 {
 		panic(fmt.Errorf("ParseBigBytes called with data of length %d", len(data)))
@@ -43,21 +48,34 @@ func ParseBigBytes(data []byte) Uint521 {
 }
 
 type Uint521API struct {
-	*CircuitAPI
+	g frontend.API
 	f *emulated.Field[Uint521Field]
 }
 
-func NewUint521API(api *CircuitAPI) Uint521API {
-	f, err := emulated.NewField[Uint521Field](api.g)
+func NewUint521API(api frontend.API) *Uint521API {
+	f, err := emulated.NewField[Uint521Field](api)
 	if err != nil {
 		panic(err)
 	}
-	return Uint521API{CircuitAPI: api, f: f}
+	return &Uint521API{g: api, f: f}
 }
 
-func (api *Uint521API) FromUin248(v Uint248) Uint521 {
-	el := api.f.NewElement(v.Val)
-	return newU521(el)
+func (api *Uint521API) FromBinary(vs ...Uint248) Uint521 {
+	vars := make([]frontend.Variable, len(vs))
+	for i, v := range vs {
+		vars[i] = v
+	}
+	return newU521(api.f.FromBits(vars))
+}
+
+func (api *Uint521API) ToBinary(v Uint521, n int) []Uint248 {
+	reduced := api.f.Reduce(v.Element)
+	bits := api.f.ToBits(reduced)
+	ret := make([]Uint248, n)
+	for i := 0; i < n; i++ {
+		ret[i] = newU248(bits[i])
+	}
+	return ret
 }
 
 func (api *Uint521API) Add(a, b Uint521) Uint521 {
@@ -72,6 +90,8 @@ func (api *Uint521API) Mul(a, b Uint521) Uint521 {
 	return newU521(api.f.Mul(a.Element, b.Element))
 }
 
+// Div computes the standard unsigned integer division a / b and
+// its remainder. Uses QuoRemBigHint.
 func (api *Uint521API) Div(a, b Uint521) (quotient, remainder Uint521) {
 	aEl := api.f.Reduce(a.Element)
 	bEl := api.f.Reduce(b.Element)
@@ -90,15 +110,21 @@ func (api *Uint521API) Div(a, b Uint521) (quotient, remainder Uint521) {
 	return newU521(q), newU521(r)
 }
 
+func (api *Uint521API) Select(s Uint248, a, b Uint521) Uint521 {
+	el := api.f.Select(s, a.Element, b.Element)
+	return newU521(el)
+}
+
+func (api *Uint521API) Equal(a, b Uint521) Uint248 {
+	return newU248(api.f.IsZero(api.f.Sub(a.Element, b.Element)))
+}
+
 func (api *Uint521API) AssertIsEqual(a, b Uint521) {
 	api.f.AssertIsEqual(a.Element, b.Element)
 }
 
-func (api *Uint521API) SelectBig(s Variable, a, b *BigVariable) *BigVariable {
-	el := api.bigField.Select(s, a.Element, b.Element)
-	return newBigVariable(el)
-}
-
-func (api *Uint521API) EqualBig(a, b *BigVariable) Variable {
-	return api.bigField.IsZero(api.bigField.Sub(a.Element, b.Element))
+func (api *Uint521API) AssertIsLessOrEqual(a, b Uint521) {
+	_a := api.f.Reduce(a.Element)
+	_b := api.f.Reduce(b.Element)
+	api.f.AssertIsLessOrEqual(_a, _b)
 }
