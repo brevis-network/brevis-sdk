@@ -149,10 +149,22 @@ func fromInterface(input interface{}) *big.Int {
 }
 
 func mustWriteToBytes(w io.WriterTo) []byte {
-	bytes := bytes.NewBuffer([]byte{})
-	_, err := w.WriteTo(bytes)
+	b := bytes.NewBuffer([]byte{})
+	_, err := w.WriteTo(b)
 	if err != nil {
 		panic(fmt.Errorf("failed to write vk to bytes stream %s", err.Error()))
 	}
-	return bytes.Bytes()
+	return b.Bytes()
+}
+
+func parseBitStr(s string) []frontend.Variable {
+	ret := make([]frontend.Variable, len(s))
+	for i, c := range s {
+		if c == '0' {
+			ret[i] = 0
+		} else {
+			ret[i] = 1
+		}
+	}
+	return ret
 }

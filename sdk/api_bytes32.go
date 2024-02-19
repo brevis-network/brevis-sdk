@@ -71,8 +71,8 @@ func (api *Bytes32API) ToBinary(v Bytes32) []Uint248 {
 
 func (api *Bytes32API) IsEqual(a, b Bytes32) Uint248 {
 	eq := api.g.And(
-		api.g.IsZero(api.g.Sub(api.g, a.Val[0], b.Val[0])),
-		api.g.IsZero(api.g.Sub(api.g, a.Val[1], b.Val[1])),
+		api.g.IsZero(api.g.Sub(a.Val[0], b.Val[0])),
+		api.g.IsZero(api.g.Sub(a.Val[1], b.Val[1])),
 	)
 	return newU248(eq)
 }
@@ -91,4 +91,9 @@ func (api *Bytes32API) IsZero(a Bytes32) Uint248 {
 func (api *Bytes32API) AssertIsEqual(a, b Bytes32) {
 	api.g.AssertIsEqual(a.Val[0], b.Val[0])
 	api.g.AssertIsEqual(a.Val[1], b.Val[1])
+}
+
+func (api *Bytes32API) AssertIsDifferent(a, b Bytes32) {
+	eq := api.IsEqual(a, b)
+	api.g.AssertIsEqual(eq.Val, 0)
 }
