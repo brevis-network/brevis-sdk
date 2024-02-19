@@ -94,8 +94,6 @@ func (c *TestUint248APICircuit) testComparisons() {
 	// IsEqual
 	c.g.AssertIsEqual(c.u248.IsEqual(testU248, testU248).Val, 1)
 	c.g.AssertIsEqual(c.u248.IsEqual(testU248, testU248_2).Val, 0)
-	// Cmp
-	c.g.AssertIsEqual(c.u248.Cmp(testU248, testU248_2).Val, -1)
 	// LT
 	c.g.AssertIsEqual(c.u248.LT(testU248, testU248_2).Val, 1)
 	// GT

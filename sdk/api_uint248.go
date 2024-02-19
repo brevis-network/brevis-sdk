@@ -117,18 +117,18 @@ func (api *Uint248API) IsEqual(a, b Uint248) Uint248 {
 	return api.IsZero(api.Sub(a, b))
 }
 
-func (api *Uint248API) Cmp(a, b Uint248) Uint248 {
+func (api *Uint248API) cmp(a, b Uint248) Uint248 {
 	return newU248(api.g.Cmp(a.Val, b.Val))
 }
 
 // LT returns 1 if a < b, and 0 otherwise
 func (api *Uint248API) LT(a, b Uint248) Uint248 {
-	return api.IsZero(api.Add(api.Cmp(a, b), newU248(1)))
+	return api.IsZero(api.Add(api.cmp(a, b), newU248(1)))
 }
 
 // GT returns 1 if a > b, and 0 otherwise
 func (api *Uint248API) GT(a, b Uint248) Uint248 {
-	return api.IsZero(api.Sub(api.Cmp(a, b), newU248(1)))
+	return api.IsZero(api.Sub(api.cmp(a, b), newU248(1)))
 }
 
 // And returns 1 if a && b [&& other[0] [&& other[1]...]] is true, and 0 otherwise
