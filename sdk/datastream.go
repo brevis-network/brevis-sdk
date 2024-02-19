@@ -239,13 +239,13 @@ func MaxGeneric[T CircuitVariable](ds *DataStream[T], initialMax T, gt SortFunc[
 
 func Min(ds *DataStream[Uint248]) Uint248 {
 	return MinGeneric(ds, newU248(0), func(a, b Uint248) Uint248 {
-		return ds.api.Uint248.LT(a, b)
+		return ds.api.Uint248.IsLessThan(a, b)
 	})
 }
 
 func Max(ds *DataStream[Uint248]) Uint248 {
 	return MaxGeneric(ds, newU248(MaxUint248), func(a, b Uint248) Uint248 {
-		return ds.api.Uint248.GT(a, b)
+		return ds.api.Uint248.IsGreaterThan(a, b)
 	})
 }
 

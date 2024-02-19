@@ -94,10 +94,10 @@ func (c *TestUint248APICircuit) testComparisons() {
 	// IsEqual
 	c.g.AssertIsEqual(c.u248.IsEqual(testU248, testU248).Val, 1)
 	c.g.AssertIsEqual(c.u248.IsEqual(testU248, testU248_2).Val, 0)
-	// LT
-	c.g.AssertIsEqual(c.u248.LT(testU248, testU248_2).Val, 1)
-	// GT
-	c.g.AssertIsEqual(c.u248.GT(testU248, testU248_2).Val, 0)
+	// IsLessThan
+	c.g.AssertIsEqual(c.u248.IsLessThan(testU248, testU248_2).Val, 1)
+	// IsGreaterThan
+	c.g.AssertIsEqual(c.u248.IsGreaterThan(testU248, testU248_2).Val, 0)
 }
 
 func (c *TestUint248APICircuit) testLogical() {

@@ -40,7 +40,7 @@ func (c *TestDataStreamCircuit) Define(gapi frontend.API) error {
 	u248.AssertIsEqual(a[1], newU248(25))
 
 	b := Map(in, func(current Uint248) Uint248 { return u248.Add(current, newU248(1)) }) // 2,3,4,5,6
-	b = Filter(b, func(v Uint248) Uint248 { return u248.LT(v, newU248(5)) })             // 2,3,4
+	b = Filter(b, func(v Uint248) Uint248 { return u248.IsLessThan(v, newU248(5)) })     // 2,3,4
 
 	sum := Sum(b)
 	u248.AssertIsEqual(sum, newU248(9))
@@ -59,7 +59,7 @@ func (c *TestDataStreamCircuit) Define(gapi frontend.API) error {
 	u248.AssertIsEqual(mean, newU248(4))
 
 	AssertEach(b, func(v Uint248) Uint248 {
-		return u248.And(u248.GT(v, newU248(2)), u248.LT(v, newU248(5)))
+		return u248.And(u248.IsGreaterThan(v, newU248(2)), u248.IsLessThan(v, newU248(5)))
 	})
 
 	AssertSorted(b, func(a, b Uint248) Uint248 { return u248.IsEqual(u248.Sub(b, a), newU248(1)) })

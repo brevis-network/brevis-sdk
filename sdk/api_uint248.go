@@ -121,13 +121,13 @@ func (api *Uint248API) cmp(a, b Uint248) Uint248 {
 	return newU248(api.g.Cmp(a.Val, b.Val))
 }
 
-// LT returns 1 if a < b, and 0 otherwise
-func (api *Uint248API) LT(a, b Uint248) Uint248 {
+// IsLessThan returns 1 if a < b, and 0 otherwise
+func (api *Uint248API) IsLessThan(a, b Uint248) Uint248 {
 	return api.IsZero(api.Add(api.cmp(a, b), newU248(1)))
 }
 
-// GT returns 1 if a > b, and 0 otherwise
-func (api *Uint248API) GT(a, b Uint248) Uint248 {
+// IsGreaterThan returns 1 if a > b, and 0 otherwise
+func (api *Uint248API) IsGreaterThan(a, b Uint248) Uint248 {
 	return api.IsZero(api.Sub(api.cmp(a, b), newU248(1)))
 }
 
