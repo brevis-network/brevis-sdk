@@ -56,7 +56,7 @@ func NewUint248API(api frontend.API) *Uint248API {
 func (api *Uint248API) FromBinary(vs ...Uint248) Uint248 {
 	vars := make([]frontend.Variable, len(vs))
 	for i, v := range vs {
-		vars[i] = v
+		vars[i] = v.Val
 	}
 	return newU248(api.g.FromBinary(vars...))
 }
@@ -89,23 +89,27 @@ func (api *Uint248API) Mul(a, b Uint248) Uint248 {
 // Div computes the standard unsigned integer division a / b and
 // its remainder. Uses QuoRemHint.
 func (api *Uint248API) Div(a, b Uint248) (quotient, remainder Uint248) {
-	out, err := api.g.Compiler().NewHint(QuoRemHint, 2, a, b)
+	out, err := api.g.Compiler().NewHint(QuoRemHint, 2, a.Val, b.Val)
 	if err != nil {
 		panic(fmt.Errorf("failed to initialize Div hint instance: %s", err.Error()))
 	}
 	q, r := out[0], out[1]
-	orig := api.g.Add(api.g.Mul(q, b), r)
-	api.g.AssertIsEqual(orig, a)
+	orig := api.g.Add(api.g.Mul(q, b.Val), r)
+	api.g.AssertIsEqual(orig, a.Val)
 	return newU248(q), newU248(r)
 }
 
 // Sqrt returns √a. Uses SqrtHint
 func (api *Uint248API) Sqrt(a Uint248) Uint248 {
-	out, err := api.g.Compiler().NewHint(SqrtHint, 1, a)
+	out, err := api.g.Compiler().NewHint(SqrtHint, 1, a.Val)
 	if err != nil {
 		panic(fmt.Errorf("failed to initialize SqrtHint instance: %s", err.Error()))
 	}
 	return newU248(out[0])
+}
+
+func (api *Uint248API) IsZero(a Uint248) Uint248 {
+	return newU248(api.g.IsZero(a.Val))
 }
 
 // IsEqual returns 1 if a == b, and 0 otherwise
@@ -124,14 +128,14 @@ func (api *Uint248API) LT(a, b Uint248) Uint248 {
 
 // GT returns 1 if a > b, and 0 otherwise
 func (api *Uint248API) GT(a, b Uint248) Uint248 {
-	return api.IsZero(api.Sub(newU248(api.Cmp(a, b)), newU248(1)))
+	return api.IsZero(api.Sub(api.Cmp(a, b), newU248(1)))
 }
 
 // And returns 1 if a && b [&& other[0] [&& other[1]...]] is true, and 0 otherwise
 func (api *Uint248API) And(a, b Uint248, other ...Uint248) Uint248 {
 	res := api.g.And(a.Val, b.Val)
 	for _, v := range other {
-		api.g.And(res, v)
+		res = api.g.And(res, v.Val)
 	}
 	return newU248(res)
 }
@@ -140,7 +144,7 @@ func (api *Uint248API) And(a, b Uint248, other ...Uint248) Uint248 {
 func (api *Uint248API) Or(a, b Uint248, other ...Uint248) Uint248 {
 	res := api.g.Or(a.Val, b.Val)
 	for _, v := range other {
-		api.g.Or(res, v.Val)
+		res = api.g.Or(res, v.Val)
 	}
 	return newU248(res)
 }
@@ -155,10 +159,10 @@ func (api *Uint248API) Select(s Uint248, a, b Uint248) Uint248 {
 	return newU248(api.g.Select(s.Val, a.Val, b.Val))
 }
 
-func (api *Uint248API) IsZero(a Uint248) Uint248 {
-	return newU248(api.g.IsZero(a.Val))
-}
-
 func (api *Uint248API) AssertIsEqual(a, b Uint248) {
 	api.g.AssertIsEqual(a.Val, b.Val)
+}
+
+func (api *Uint248API) AssertIsDifferent(a, b Uint248) {
+	api.g.AssertIsDifferent(a.Val, b.Val)
 }

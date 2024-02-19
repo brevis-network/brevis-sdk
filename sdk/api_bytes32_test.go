@@ -26,6 +26,7 @@ func (c *TestBytes32APICircuit) Define(g frontend.API) error {
 	c.testToBinary()
 	c.testEqual()
 	c.testSelect()
+	c.testIsZero()
 
 	return nil
 }

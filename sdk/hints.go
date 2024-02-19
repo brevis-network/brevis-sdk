@@ -36,7 +36,7 @@ func QuoRemHint(_ *big.Int, in, out []*big.Int) error {
 	return nil
 }
 
-func SqrtHint(field *big.Int, in, out []*big.Int) error {
+func SqrtHint(_ *big.Int, in, out []*big.Int) error {
 	if len(in) != 1 {
 		return fmt.Errorf("SqrtHint: input len must be 1")
 	}
@@ -44,7 +44,7 @@ func SqrtHint(field *big.Int, in, out []*big.Int) error {
 		return fmt.Errorf("SqrtHint: output len must be 1")
 	}
 	out[0] = new(big.Int)
-	out[0].ModSqrt(in[0], field)
+	out[0].Sqrt(in[0])
 	return nil
 }
 
