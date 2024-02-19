@@ -19,7 +19,7 @@ type HostCircuit struct {
 	api frontend.API
 
 	Input CircuitInput
-	guest AppCircuit `gnark:"-"`
+	guest AppCircuit
 }
 
 func NewHostCircuit(in CircuitInput, guest AppCircuit) *HostCircuit {
