@@ -12,27 +12,39 @@ type Bytes32 struct {
 	Val [2]frontend.Variable
 }
 
+func (v Bytes32) Values() []frontend.Variable {
+	return v.Val[:]
+}
+
+func (v Bytes32) SetValues(vs ...frontend.Variable) {
+	if len(vs) != 2 {
+		panic("Bytes32.SetValues takes 2 param")
+	}
+	v.Val[0] = vs[0]
+	v.Val[1] = vs[1]
+}
+
 var MaxBytes32 = ConstUint521(common.Hex2Bytes("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"))
 
 // toBinaryVars defines the circuit that decomposes the Variables into little endian bits
-func (b32 Bytes32) toBinaryVars(api frontend.API) []frontend.Variable {
+func (v Bytes32) toBinaryVars(api frontend.API) []frontend.Variable {
 	var bits []frontend.Variable
-	bits = append(bits, api.ToBinary(b32.Val[0], numBitsPerVar)...)
-	bits = append(bits, api.ToBinary(b32.Val[1], 32*8-numBitsPerVar)...)
+	bits = append(bits, api.ToBinary(v.Val[0], numBitsPerVar)...)
+	bits = append(bits, api.ToBinary(v.Val[1], 32*8-numBitsPerVar)...)
 	return bits
 }
 
 // toBinary decomposes the Variables into little endian bits
-func (b32 Bytes32) toBinary() []uint {
+func (v Bytes32) toBinary() []uint {
 	var bits []uint
-	bits = append(bits, decomposeBits(fromInterface(b32.Val[0]), uint(numBitsPerVar))...)
-	bits = append(bits, decomposeBits(fromInterface(b32.Val[1]), uint(32*8-numBitsPerVar))...)
+	bits = append(bits, decomposeBits(fromInterface(v.Val[0]), uint(numBitsPerVar))...)
+	bits = append(bits, decomposeBits(fromInterface(v.Val[1]), uint(32*8-numBitsPerVar))...)
 	return bits
 }
 
-func (b32 Bytes32) String() string {
-	left := common.LeftPadBytes(fromInterface(b32.Val[1]).Bytes(), 1)
-	right := common.LeftPadBytes(fromInterface(b32.Val[0]).Bytes(), 31)
+func (v Bytes32) String() string {
+	left := common.LeftPadBytes(fromInterface(v.Val[1]).Bytes(), 1)
+	right := common.LeftPadBytes(fromInterface(v.Val[0]).Bytes(), 31)
 	return fmt.Sprintf("%x%x", left, right)
 }
 

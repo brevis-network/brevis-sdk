@@ -2,7 +2,6 @@ package sdk
 
 import (
 	"fmt"
-
 	"github.com/consensys/gnark/frontend"
 )
 
@@ -154,6 +153,26 @@ func (api *CircuitAPI) ToUint248(i interface{}) Uint248 {
 		return api.Uint248.FromBinary(bits[:numBitsPerVar]...)
 	}
 	panic(fmt.Errorf("unsupported casting from %T to Uint248", i))
+}
+
+func (api *CircuitAPI) ToInt248(i interface{}) Int248 {
+	switch v := i.(type) {
+	case Bytes32:
+		// hi limb should be zero after removing the sign bit
+		hi := v.Val[1]
+		hiBits := api.g.ToBinary(hi, 8)
+		signBit := hiBits[7]
+		isAll0s := api.g.IsZero(hi)
+		isAll1s := api.isEqual(hi, 255)
+		// if sign bit is 0 then require it is all 0s, if sign bit is 1 then require it
+		// is all 1s. This is because if the bytes32 var is actually an int256 that does
+		// not overflow int248, its leftmost bits are always either 00000000 for positive
+		// numbers or 11111111 for negative numbers.
+		ok := api.g.Select(signBit, isAll1s, isAll0s)
+		api.g.AssertIsEqual(ok, 1)
+		return newI248(v.Val[0])
+	}
+	panic(fmt.Errorf("unsupported casting from %T to Int248", i))
 }
 
 func (api *CircuitAPI) isEqual(a, b frontend.Variable) frontend.Variable {

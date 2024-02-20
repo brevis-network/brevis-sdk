@@ -40,7 +40,7 @@ func (v Uint248) Values() []frontend.Variable {
 
 func (v Uint248) SetValues(vs ...frontend.Variable) {
 	if len(vs) != 1 {
-		panic("Uint248.SetValues only takes len 1 slice")
+		panic("Uint248.SetValues only takes 1 param")
 	}
 	v.Val = vs[0]
 }

@@ -13,7 +13,7 @@ import (
 )
 
 func TestCircuit(t *testing.T) {
-	app, err := sdk.NewBrevisApp("https://eth-mainnet.nodereal.io/v1/0af795b55d124a61b86836461ece1dee") // TODO use your eth rpc
+	app, err := sdk.NewBrevisApp() // TODO use your eth rpc
 	check(err)
 
 	account := common.HexToAddress("0x5427FEFA711Eff984124bFBB1AB6fbf5E3DA1820")
