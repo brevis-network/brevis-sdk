@@ -23,7 +23,7 @@ func (c *AppCircuit) Allocate() (maxReceipts, maxSlots, maxTransactions int) {
 //
 // [solidity doc]: https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html
 var slot = common.LeftPadBytes([]byte{0}, 32)
-var expectedKey = sdk.ParseBytes32(crypto.Keccak256(slot))
+var expectedKey = sdk.ConstBytes32(crypto.Keccak256(slot))
 
 func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 	slots := sdk.NewDataStream(api, in.StorageSlots)
@@ -34,7 +34,7 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 	s := slots.Get(1)
 	api.AssertIsEqualBytes32(s.Key, expectedKey)
 
-	owner := api.ToVariable(s.Value)
+	owner := api.ToUint248(s.Value)
 	// Output will be reflected in our contract in the form of
 	// abi.encodePacked(address,address,uint64)
 	api.OutputAddress(s.Contract)

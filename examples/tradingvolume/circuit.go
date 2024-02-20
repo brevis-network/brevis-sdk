@@ -37,7 +37,7 @@ var UsdcPoolAddress = sdk.ParseAddress(
 	common.HexToAddress("0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640"))
 var UsdcAddress = sdk.ParseAddress(
 	common.HexToAddress("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"))
-var Salt = sdk.ParseBytes32(
+var Salt = sdk.ConstBytes32(
 	hexutil.MustDecode("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"))
 
 func (c *AppCircuit) Allocate() (maxReceipts, maxSlots, maxTransactions int) {
@@ -62,11 +62,11 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 		// If the recipient field of the Swap event is uniswap router, it means the user
 		// requested native token out. We need to instead check the user's address in the
 		// Transfer event emitted by USDC contract
-		recipientIsRouter := api.Equal(api.ToVariable(l.Fields[1].Value), RouterAddress)
+		recipientIsRouter := api.Equal(api.ToUint248(l.Fields[1].Value), RouterAddress)
 		// the following line translates to "if recipient is router, then use `from` as
 		// userAddr, else use `recipient`"
 		userAddr := api.Select(
-			recipientIsRouter, api.ToVariable(l.Fields[2].Value), api.ToVariable(l.Fields[1].Value))
+			recipientIsRouter, api.ToUint248(l.Fields[2].Value), api.ToUint248(l.Fields[1].Value))
 		// asserts that the following equality checks each results in 1
 		assertionPassed := api.And(
 			// 1. Check that the user address related to the swaps is consistent across all
@@ -97,7 +97,7 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 
 	// Sum up the volume of each trade
 	sumVolume := receipts.Sum(func(l sdk.Receipt) sdk.Uint248 {
-		return api.ToVariable(l.Fields[0].Value)
+		return api.ToUint248(l.Fields[0].Value)
 	})
 
 	// Output will be reflected in app contract's callback in the form of
