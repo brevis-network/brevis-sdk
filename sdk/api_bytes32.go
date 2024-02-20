@@ -12,7 +12,7 @@ type Bytes32 struct {
 	Val [2]frontend.Variable
 }
 
-var MaxBytes32 = ParseBigBytes(common.Hex2Bytes("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"))
+var MaxBytes32 = ConstUint521(common.Hex2Bytes("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"))
 
 // toBinaryVars defines the circuit that decomposes the Variables into little endian bits
 func (b32 Bytes32) toBinaryVars(api frontend.API) []frontend.Variable {

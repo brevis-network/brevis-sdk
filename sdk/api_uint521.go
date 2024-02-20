@@ -1,7 +1,6 @@
 package sdk
 
 import (
-	"fmt"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/math/emulated"
 	"math/big"
@@ -23,7 +22,7 @@ type Uint521 struct {
 }
 
 func (b *Uint521) Values() []frontend.Variable {
-	return b.Limbs // TODO might be problematic if the element isn't reduced first
+	return b.Limbs // might be problematic if the element isn't reduced first
 }
 
 func (b *Uint521) SetValues(vs []frontend.Variable) {
@@ -35,15 +34,8 @@ func newU521(el *emulated.Element[Uint521Field]) Uint521 {
 }
 
 func ConstUint521(i interface{}) Uint521 {
-	// TODO
-	return Uint521{}
-}
-
-func ParseBigBytes(data []byte) Uint521 {
-	if len(data) > 64 {
-		panic(fmt.Errorf("ParseBigBytes called with data of length %d", len(data)))
-	}
-	el := emulated.ValueOf[Uint521Field](data)
+	v := fromInterface(i)
+	el := emulated.ValueOf[Uint521Field](v)
 	return newU521(&el)
 }
 

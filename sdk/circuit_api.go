@@ -133,15 +133,15 @@ func (api *CircuitAPI) ToUint521(i interface{}) Uint521 {
 		el := api.Uint521.f.NewElement(limbs)
 		return newU521(el)
 	case Uint248:
-		el := api.Uint521.f.NewElement([]frontend.Variable{v, 0, 0, 0, 0, 0})
+		el := api.Uint521.f.NewElement([]frontend.Variable{v.Val, 0, 0, 0, 0, 0})
 		return newU521(el)
 	}
 	panic(fmt.Errorf("unsupported casting from %T to *Uint521", i))
 }
 
-// ToUint248 casts a Uint521 or a Bytes32 type to a Uint248 type. It
-// requires the variable being cast does not overflow the circuit's scalar field
-// max
+// ToUint248 casts a Uint521 or a Bytes32 type to a Uint248 type. It adds
+// constraints for checking that the variable being cast does not overflow
+// uint248
 func (api *CircuitAPI) ToUint248(i interface{}) Uint248 {
 	switch v := i.(type) {
 	case Bytes32:
