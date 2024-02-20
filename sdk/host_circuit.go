@@ -19,13 +19,13 @@ type HostCircuit struct {
 	api frontend.API
 
 	Input CircuitInput
-	guest AppCircuit
+	Guest AppCircuit
 }
 
 func NewHostCircuit(in CircuitInput, guest AppCircuit) *HostCircuit {
 	return &HostCircuit{
 		Input: in,
-		guest: guest,
+		Guest: guest,
 	}
 }
 
@@ -36,7 +36,7 @@ func (c *HostCircuit) Define(gapi frontend.API) error {
 	if err != nil {
 		return err
 	}
-	err = c.guest.Define(api, c.Input.DataInput)
+	err = c.Guest.Define(api, c.Input.DataInput)
 	if err != nil {
 		return fmt.Errorf("error building user-defined circuit %s", err.Error())
 	}
@@ -146,7 +146,7 @@ func (c *HostCircuit) validateInput() error {
 	if inputLen > NumMaxDataPoints {
 		return fmt.Errorf("input len must be less than %d", NumMaxDataPoints)
 	}
-	maxReceipts, maxSlots, maxTransactions := c.guest.Allocate()
+	maxReceipts, maxSlots, maxTransactions := c.Guest.Allocate()
 	if len(w.Receipts.Raw) != len(w.Receipts.Toggles) || len(w.Receipts.Raw) != maxReceipts {
 		return fmt.Errorf("receipt input/toggle len mismatch: %d vs %d",
 			len(w.Receipts.Raw), len(w.Receipts.Toggles))
@@ -223,8 +223,8 @@ func dryRun(in CircuitInput, guest AppCircuit) (OutputCommitment, []byte, error)
 	dryRunOutputCommit = OutputCommitment{nil, nil}
 	dryRunOutput = nil
 
-	circuit := &HostCircuit{Input: in, guest: guest}
-	assignment := &HostCircuit{Input: in, guest: guest}
+	circuit := &HostCircuit{Input: in, Guest: guest}
+	assignment := &HostCircuit{Input: in, Guest: guest}
 
 	err := test.IsSolved(circuit, assignment, ecc.BLS12_377.ScalarField())
 	if err != nil {
