@@ -34,10 +34,13 @@ func (c *TestDataStreamCircuit) Define(gapi frontend.API) error {
 
 	// Reduce to two variables
 	a := Reduce(in, newU248s(0, 0), func(acc List[Uint248], curr Uint248) (newAcc List[Uint248]) {
-		return newU248s(u248.Add(acc[0], u248.Add(curr, newU248(1))))
+		return []Uint248{
+			u248.Add(acc[0], curr),
+			u248.Add(acc[1], u248.Add(curr, newU248(1))),
+		}
 	})
-	u248.AssertIsEqual(a[0], newU248(20))
-	u248.AssertIsEqual(a[1], newU248(25))
+	u248.AssertIsEqual(a[0], newU248(15))
+	u248.AssertIsEqual(a[1], newU248(20))
 
 	b := Map(in, func(current Uint248) Uint248 { return u248.Add(current, newU248(1)) }) // 2,3,4,5,6
 	b = Filter(b, func(v Uint248) Uint248 { return u248.IsLessThan(v, newU248(5)) })     // 2,3,4
@@ -59,7 +62,7 @@ func (c *TestDataStreamCircuit) Define(gapi frontend.API) error {
 	u248.AssertIsEqual(mean, newU248(4))
 
 	AssertEach(b, func(v Uint248) Uint248 {
-		return u248.And(u248.IsGreaterThan(v, newU248(2)), u248.IsLessThan(v, newU248(5)))
+		return u248.And(u248.IsGreaterThan(v, newU248(2)), u248.IsLessThan(v, newU248(6)))
 	})
 
 	AssertSorted(b, func(a, b Uint248) Uint248 { return u248.IsEqual(u248.Sub(b, a), newU248(1)) })

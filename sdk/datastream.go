@@ -200,7 +200,7 @@ func Reduce[T, R CircuitVariable](ds *DataStream[T], initial R, reduceFunc Reduc
 		oldAccVals := acc.Values()
 		values := make([]frontend.Variable, len(oldAccVals))
 		for j, newAccV := range newAcc.Values() {
-			values[j] = Select(ds.api, newU248(ds.toggles[i]), newU248(newAccV), newU248(oldAccVals[j]))
+			values[j] = ds.api.g.Select(ds.toggles[i], newAccV, oldAccVals[j])
 		}
 		acc = acc.FromValues(values...).(R)
 	}
@@ -232,21 +232,17 @@ func MinGeneric[T CircuitVariable](ds *DataStream[T], initialMin T, lt SortFunc[
 // MaxGeneric finds out the maximum value of the selected field from the data stream. Uses Reduce under the hood.
 func MaxGeneric[T CircuitVariable](ds *DataStream[T], initialMax T, gt SortFunc[T]) T {
 	return Reduce(ds, initialMax, func(max, current T) (newMax T) {
-		curLtMin := gt(current, max)
-		return Select(ds.api, curLtMin, current, max)
+		curGtMax := gt(current, max)
+		return Select(ds.api, curGtMax, current, max)
 	})
 }
 
 func Min(ds *DataStream[Uint248]) Uint248 {
-	return MinGeneric(ds, newU248(0), func(a, b Uint248) Uint248 {
-		return ds.api.Uint248.IsLessThan(a, b)
-	})
+	return MinGeneric(ds, newU248(MaxUint248), ds.api.Uint248.IsLessThan)
 }
 
 func Max(ds *DataStream[Uint248]) Uint248 {
-	return MaxGeneric(ds, newU248(MaxUint248), func(a, b Uint248) Uint248 {
-		return ds.api.Uint248.IsGreaterThan(a, b)
-	})
+	return MaxGeneric(ds, newU248(0), ds.api.Uint248.IsGreaterThan)
 }
 
 // Sum sums values of the selected field in the data stream. Uses Reduce.

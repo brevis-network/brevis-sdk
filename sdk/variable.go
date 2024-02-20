@@ -23,14 +23,14 @@ type List[T CircuitVariable] []T
 func (t List[T]) Values() []frontend.Variable {
 	var ret []frontend.Variable
 	for _, data := range t {
-		ret = append(ret, data.Values())
+		ret = append(ret, data.Values()...)
 	}
 	return ret
 }
 
 func (t List[T]) FromValues(vs ...frontend.Variable) CircuitVariable {
 	for i, v := range vs {
-		t[i].FromValues(v)
+		t[i] = t[i].FromValues(v).(T)
 	}
 	return t
 }
