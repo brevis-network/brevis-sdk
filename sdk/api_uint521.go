@@ -21,12 +21,15 @@ type Uint521 struct {
 	*emulated.Element[Uint521Field]
 }
 
-func (b *Uint521) Values() []frontend.Variable {
-	return b.Limbs // might be problematic if the element isn't reduced first
+var _ CircuitVariable = Uint521{}
+
+func (v Uint521) Values() []frontend.Variable {
+	return v.Limbs // might be problematic if the element isn't reduced first
 }
 
-func (b *Uint521) SetValues(vs []frontend.Variable) {
-	b.Limbs = vs
+func (v Uint521) FromValues(vs ...frontend.Variable) CircuitVariable {
+	v.Limbs = vs
+	return v
 }
 
 func newU521(el *emulated.Element[Uint521Field]) Uint521 {

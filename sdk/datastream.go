@@ -202,7 +202,7 @@ func Reduce[T, R CircuitVariable](ds *DataStream[T], initial R, reduceFunc Reduc
 		for j, newAccV := range newAcc.Values() {
 			values[j] = Select(ds.api, newU248(ds.toggles[i]), newU248(newAccV), newU248(oldAccVals[j]))
 		}
-		acc.SetValues(values...)
+		acc = acc.FromValues(values...).(R)
 	}
 	return acc
 }

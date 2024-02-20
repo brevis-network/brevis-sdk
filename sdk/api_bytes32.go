@@ -12,16 +12,19 @@ type Bytes32 struct {
 	Val [2]frontend.Variable
 }
 
+var _ CircuitVariable = Bytes32{}
+
 func (v Bytes32) Values() []frontend.Variable {
 	return v.Val[:]
 }
 
-func (v Bytes32) SetValues(vs ...frontend.Variable) {
+func (v Bytes32) FromValues(vs ...frontend.Variable) CircuitVariable {
 	if len(vs) != 2 {
-		panic("Bytes32.SetValues takes 2 param")
+		panic("Bytes32.FromValues takes 2 param")
 	}
 	v.Val[0] = vs[0]
 	v.Val[1] = vs[1]
+	return v
 }
 
 var MaxBytes32 = ConstUint521(common.Hex2Bytes("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"))

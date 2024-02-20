@@ -30,15 +30,18 @@ func ConstInt248(i interface{}) Int248 {
 	return newI248(fromInterface(v.Bytes()), signBit)
 }
 
+var _ CircuitVariable = Int248{}
+
 func (v Int248) Values() []frontend.Variable {
 	return []frontend.Variable{v.Val}
 }
 
-func (v Int248) SetValues(vs ...frontend.Variable) {
+func (v Int248) FromValues(vs ...frontend.Variable) CircuitVariable {
 	if len(vs) != 1 {
-		panic("Int248.SetValues only takes 1 param")
+		panic("Int248.FromValues only takes 1 param")
 	}
 	v.Val = vs[0]
+	return v
 }
 
 type Int248API struct {
@@ -51,7 +54,7 @@ func NewInt248API(api frontend.API) *Int248API {
 
 // IsEqual returns 1 if a == b, and 0 otherwise
 func (api *Int248API) IsEqual(a, b Int248) Uint248 {
-	eq := api.g.IsZero(api.g.Sub(a, b))
+	eq := api.g.IsZero(api.g.Sub(a.Val, b.Val))
 	return newU248(eq)
 }
 

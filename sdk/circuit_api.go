@@ -98,8 +98,7 @@ func Select[T CircuitVariable](api *CircuitAPI, s Uint248, a, b T) T {
 		res[i] = api.g.Select(s, aVals[i], bVals[i])
 	}
 	t := *new(T)
-	t.SetValues(res)
-	return t
+	return t.FromValues(res).(T)
 }
 
 func (api *CircuitAPI) ToBytes32(i interface{}) Bytes32 {

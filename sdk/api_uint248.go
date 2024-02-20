@@ -10,6 +10,8 @@ type Uint248 struct {
 	Val frontend.Variable
 }
 
+var _ CircuitVariable = Uint248{}
+
 func newU248(v frontend.Variable) Uint248 {
 	return Uint248{Val: v}
 }
@@ -38,11 +40,12 @@ func (v Uint248) Values() []frontend.Variable {
 	return []frontend.Variable{v.Val}
 }
 
-func (v Uint248) SetValues(vs ...frontend.Variable) {
+func (v Uint248) FromValues(vs ...frontend.Variable) CircuitVariable {
 	if len(vs) != 1 {
-		panic("Uint248.SetValues only takes 1 param")
+		panic("Uint248.FromValues only takes 1 param")
 	}
 	v.Val = vs[0]
+	return v
 }
 
 type Uint248API struct {

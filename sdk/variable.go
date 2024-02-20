@@ -15,7 +15,7 @@ var numBitsPerVar = 248
 
 type CircuitVariable interface {
 	Values() []frontend.Variable
-	SetValues(vs ...frontend.Variable)
+	FromValues(vs ...frontend.Variable) CircuitVariable
 }
 
 type List[T CircuitVariable] []T
@@ -28,8 +28,9 @@ func (t List[T]) Values() []frontend.Variable {
 	return ret
 }
 
-func (t List[T]) SetValues(vs ...frontend.Variable) {
+func (t List[T]) FromValues(vs ...frontend.Variable) CircuitVariable {
 	for i, v := range vs {
-		t[i].SetValues(v)
+		t[i].FromValues(v)
 	}
+	return t
 }
