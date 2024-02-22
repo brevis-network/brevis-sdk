@@ -103,6 +103,8 @@ func Select[T CircuitVariable](api *CircuitAPI, s Uint248, a, b T) T {
 
 func (api *CircuitAPI) ToBytes32(i interface{}) Bytes32 {
 	switch v := i.(type) {
+	case Bytes32:
+		return v
 	case Uint521:
 		api.Uint521.AssertIsLessOrEqual(v, MaxBytes32)
 		bits := api.Uint521.ToBinary(v, 32*8)
@@ -118,6 +120,8 @@ func (api *CircuitAPI) ToBytes32(i interface{}) Bytes32 {
 // ToUint521 casts a Bytes32 or a Uint248 type to a Uint521 type
 func (api *CircuitAPI) ToUint521(i interface{}) Uint521 {
 	switch v := i.(type) {
+	case Uint521:
+		return v
 	case Bytes32:
 		// Recompose the Bytes32 into BigField.NbLimbs limbs
 		bits := v.toBinaryVars(api.g)
@@ -142,6 +146,8 @@ func (api *CircuitAPI) ToUint521(i interface{}) Uint521 {
 // uint248
 func (api *CircuitAPI) ToUint248(i interface{}) Uint248 {
 	switch v := i.(type) {
+	case Uint248:
+		return v
 	case Bytes32:
 		api.g.AssertIsEqual(v.Val[1], 0)
 		return newU248(v.Val[0])
@@ -156,6 +162,10 @@ func (api *CircuitAPI) ToUint248(i interface{}) Uint248 {
 
 func (api *CircuitAPI) ToInt248(i interface{}) Int248 {
 	switch v := i.(type) {
+	case Int248:
+		return v
+	case Uint248:
+		return newI248(v.Val)
 	case Bytes32:
 		// hi limb should be zero after removing the sign bit
 		hi := v.Val[1]

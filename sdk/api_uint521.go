@@ -6,6 +6,8 @@ import (
 	"math/big"
 )
 
+var u521Field *emulated.Field[Uint521Field]
+
 type Uint521Field struct{}
 
 func (f Uint521Field) NbLimbs() uint     { return 6 }
@@ -24,13 +26,17 @@ type Uint521 struct {
 var _ CircuitVariable = Uint521{}
 
 func (v Uint521) Values() []frontend.Variable {
-	return v.Limbs // might be problematic if the element isn't reduced first
+	u521Field.Reduce(v.Element)
+	return v.Limbs
 }
 
 func (v Uint521) FromValues(vs ...frontend.Variable) CircuitVariable {
-	v.Limbs = vs
-	return v
+	n := emulated.ValueOf[Uint521Field](0)
+	n.Limbs = vs
+	return newU521(&n)
 }
+
+func (v Uint521) NumVars() uint32 { return 6 }
 
 func newU521(el *emulated.Element[Uint521Field]) Uint521 {
 	return Uint521{el}
@@ -52,6 +58,7 @@ func NewUint521API(api frontend.API) *Uint521API {
 	if err != nil {
 		panic(err)
 	}
+	u521Field = f
 	return &Uint521API{g: api, f: f}
 }
 
@@ -63,7 +70,7 @@ func (api *Uint521API) FromBinary(vs ...Uint248) Uint521 {
 	return newU521(api.f.FromBits(vars))
 }
 
-func (api *Uint521API) ToBinary(v Uint521, n int) []Uint248 {
+func (api *Uint521API) ToBinary(v Uint521, n int) List[Uint248] {
 	reduced := api.f.Reduce(v.Element)
 	bits := api.f.ToBits(reduced)
 	ret := make([]Uint248, n)

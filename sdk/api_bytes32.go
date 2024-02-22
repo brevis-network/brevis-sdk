@@ -27,6 +27,8 @@ func (v Bytes32) FromValues(vs ...frontend.Variable) CircuitVariable {
 	return v
 }
 
+func (v Bytes32) NumVars() uint32 { return 2 }
+
 var MaxBytes32 = ConstUint521(common.Hex2Bytes("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"))
 
 // toBinaryVars defines the circuit that decomposes the Variables into little endian bits

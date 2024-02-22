@@ -48,6 +48,8 @@ func (v Uint248) FromValues(vs ...frontend.Variable) CircuitVariable {
 	return v
 }
 
+func (v Uint248) NumVars() uint32 { return 1 }
+
 type Uint248API struct {
 	g frontend.API
 }

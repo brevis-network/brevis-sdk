@@ -53,11 +53,11 @@ func WindowUnderlying[T CircuitVariable](ds *DataStream[T], size int) *DataStrea
 	}
 	var toggles []frontend.Variable
 	var ret []List[T]
-	for i := 0; i < l-size; i += size {
+	for i := 0; i <= l-size; i += size {
 		start := i
 		end := start + size
 		ret = append(ret, ds.underlying[start:end])
-		var toggle frontend.Variable = 0
+		var toggle frontend.Variable = 1
 		for _, t := range ds.toggles[start:end] {
 			toggle = ds.api.g.And(toggle, t)
 		}
@@ -123,25 +123,48 @@ func Count[T CircuitVariable](ds *DataStream[T]) Uint248 {
 
 type GetValueFunc[T any] func(current T) Uint248
 
-func GroupBy[T, R CircuitVariable](ds *DataStream[T], f ReduceFunc[T, R], reduceInit R, getValue GetValueFunc[T]) (*DataStream[R], error) {
+func GroupBy[T, R CircuitVariable](
+	ds *DataStream[T],
+	reducer ReduceFunc[T, R],
+	reducerInit R,
+	field GetValueFunc[T],
+	maxUniqueGroupValuesOptional ...int,
+) (*DataStream[R], error) {
+	if len(maxUniqueGroupValuesOptional) > 1 {
+		panic("invalid amount of optional params")
+	}
 	g := ds.api.g
 	values := make([]frontend.Variable, len(ds.underlying))
 	for i, v := range ds.underlying {
-		values[i] = getValue(v)
+		values[i] = field(v).Val
 	}
 	groupValues, err := computeGroupValuesHint(g, values, ds.toggles)
 	if err != nil {
 		return nil, err
 	}
-	aggResults := make([]R, len(groupValues))
-	aggResultToggles := make([]frontend.Variable, len(aggResults))
-	for i, p := range groupValues {
+	maxGroupValues := len(values)
+	if len(maxUniqueGroupValuesOptional) == 1 {
+		maxGroupValues = maxUniqueGroupValuesOptional[0]
+	}
+	aggResults := make([]R, maxGroupValues)
+	aggResultToggles := make([]frontend.Variable, maxGroupValues)
+	// Filter on each groupValue, then reduce using the user supplied function. Note
+	// that the groupValues are computed using hints. This is ok because the
+	// groupValues are used as predicates in the filter step. Assuming the
+	// outside-of-circuit-computed groupValues are all malicious (does not exist in
+	// the input data stream), then the filter step would result in empty data
+	// streams, and the reduce results would be all toggled off. This decision is
+	// made based on the premise of which it is accepted that we can't prove what's
+	// NOT provided to the circuit as inputs.
+	for i := 0; i < maxGroupValues; i++ {
+		vs := groupValues[i]
 		group := Filter(ds, func(current T) Uint248 {
-			v := getValue(current)
-			return newU248(g.IsZero(g.Sub(v, p)))
+			v := field(current)
+			return newU248(g.IsZero(g.Sub(v.Val, vs)))
 		})
-		aggResults[i] = Reduce(group, reduceInit, f)
-		aggResultToggles[i] = g.Sub(1, g.IsZero(p))
+		aggResults[i] = Reduce(group, reducerInit, reducer)
+		// only turn on toggles for agg result if the filtered group has at least 1 item
+		aggResultToggles[i] = g.Sub(1, g.IsZero(Count(group).Val))
 	}
 	return newDataStream(ds.api, aggResults, aggResultToggles), nil
 }
@@ -165,8 +188,9 @@ func GroupValuesHint(_ *big.Int, inputs []*big.Int, outputs []*big.Int) error {
 		}
 		found := false
 		for _, uv := range uniqueValues {
-			if uv.Cmp(v) == 1 {
+			if uv.Cmp(v) == 0 {
 				found = true
+				break
 			}
 		}
 		if !found {
@@ -194,7 +218,10 @@ type ReduceFunc[T, R CircuitVariable] func(accumulator R, current T) (newAccumul
 
 // Reduce reduces the data stream to another CircuitVariable
 func Reduce[T, R CircuitVariable](ds *DataStream[T], initial R, reduceFunc ReduceFunc[T, R]) R {
-	var acc = initial
+	acc := initial
+	//var acc R
+	//// Pitfall warning: assigning acc := initial would make acc the same signal as initial. This causes the subsequent as
+	//acc = acc.FromValues(initial.Values()...).(R)
 	for i, data := range ds.underlying {
 		newAcc := reduceFunc(acc, data)
 		oldAccVals := acc.Values()
