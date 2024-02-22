@@ -2,9 +2,12 @@ package sdk
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
+
 	"github.com/brevis-network/brevis-sdk/sdk/proto"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 type GatewayClient struct {
@@ -15,11 +18,11 @@ func NewGatewayClient(url ...string) (*GatewayClient, error) {
 	if len(url) > 1 {
 		panic("must supply at most one url")
 	}
-	gatewayUrl := "100.21.75.26:11080"
+	gatewayUrl := "appsdk.brevis.network:11080"
 	if len(url) > 0 {
 		gatewayUrl = url[0]
 	}
-	opts := []grpc.DialOption{grpc.WithInsecure()}
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{}))}
 	conn, err := grpc.Dial(gatewayUrl, opts...)
 	if err != nil {
 		return nil, err
