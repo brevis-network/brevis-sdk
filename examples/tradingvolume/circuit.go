@@ -2,6 +2,7 @@ package tradingvolume
 
 import (
 	"github.com/brevis-network/brevis-sdk/sdk"
+	"github.com/consensys/gnark/frontend"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
@@ -97,7 +98,7 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 
 	// Sum up the volume of each trade
 	sumVolume := receipts.Sum(func(l sdk.Receipt) sdk.Uint248 {
-		return api.ToUint248(l.Fields[0].Value)
+		return abs(api, api.ToUint248(l.Fields[0].Value))
 	})
 
 	// Output will be reflected in app contract's callback in the form of
@@ -109,4 +110,19 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 	api.OutputAddress(c.UserAddr)
 
 	return nil
+}
+
+func abs(api *sdk.CircuitAPI, orig frontend.Variable) frontend.Variable {
+	bs := api.ToBinary(orig, 248)
+	signBit := bs[247] // ToBinary returns little-endian bits, the last bit is sign
+	absWhenOrigIsNeg := api.Add(1, api.FromBinary(flipBits(api, bs)...))
+	return api.Select(signBit, absWhenOrigIsNeg, orig)
+}
+
+func flipBits(api *sdk.CircuitAPI, vs []frontend.Variable) (ret []frontend.Variable) {
+	ret = make([]frontend.Variable, len(vs))
+	for i, v := range vs {
+		ret[i] = api.IsZero(v)
+	}
+	return
 }

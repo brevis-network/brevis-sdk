@@ -1,6 +1,8 @@
 # Brevis SDK
 
-This SDK aims to provide developers with a framework to implement custom data analysis computations and to interoperate with Brevis' provers.
+Please refer to [https://docs.brevis.network]() for the full documentation. 
+
+This SDK aims to provide developers with a framework to implement custom data analysis computations and to interoperate with Brevis' provers.  
 
 ## Packages
 
@@ -12,7 +14,7 @@ This SDK aims to provide developers with a framework to implement custom data an
 `BrevisApp` is the entry point for most of the operations. To create a new app, use
 
 ```go
-app := sdk.NewBrevisApp("https://<eth-rpc-url>")
+app := sdk.NewBrevisApp()
 ```
 
 ### Adding Data
@@ -20,9 +22,9 @@ app := sdk.NewBrevisApp("https://<eth-rpc-url>")
 The data that your circuit uses must be fed into the app before we can generate proofs.
 
 ```go
-app.AddReceipt(sdk.ReceiptQuery{/*...*/})
-app.AddStorage(sdk.StorageQuery{/*...*/})
-app.AddTransaction(sdk.TransactionQuery{/*...*/})
+app.AddReceipt(sdk.ReceiptData{/*...*/})
+app.AddStorage(sdk.StorageData{/*...*/})
+app.AddTransaction(sdk.TransactionData{/*...*/})
 ```
 
 ### Defining Your Custom Circuit
@@ -113,14 +115,15 @@ witness, publicWitness, err := sdk.NewFullWitness(appCircuitAssignment, circuitI
 proof, err := sdk.Prove(ccs, pk, witness)
 ```
 
-### Verifying
+### Submitting Proof to Brevis
 
-Verifying isn't really needed when using Brevis SDK. This utility function only exists to help developers get a sense of how a proof is verified.
+To submit your proof to Brevis, you first need to acquire a requestId and the fee amount using from Brevis using app.PrepareRequest, then submit the proof using app.SubmitProof.
 
 ```go
-// returns error if verification fails
-err := sdk.Verify(vk, publicWitness, proof)
+calldata, requestId, feeValue, err := app.PrepareRequest( vk, srcChainId, dstChainId, refundee, appContract)
+err = app.SubmitProof(proof)
 ```
+
 ## Circuit API
 
 The circuit API is a collection of math and logic operations that can be used when writing circuits. It also has a set of output methods that allows the user to output computation results to be used later in verifier. 
