@@ -20,51 +20,51 @@ import (
 )
 
 type ReceiptData struct {
-	BlockNum *big.Int
-	TxHash   common.Hash
-	Fields   [NumMaxLogFields]LogFieldData
+	BlockNum *big.Int                      `json:"block_num,omitempty"`
+	TxHash   common.Hash                   `json:"tx_hash,omitempty"`
+	Fields   [NumMaxLogFields]LogFieldData `json:"fields,omitempty"`
 }
 
 // LogFieldData represents a single field of an event.
 type LogFieldData struct {
 	// The contract from which the event is emitted
-	Contract common.Address
+	Contract common.Address `json:"contract,omitempty"`
 	// the index of the log in the receipt
-	LogIndex uint
+	LogIndex uint `json:"log_index,omitempty"`
 	// The event ID of the event to which the field belong (aka topics[0])
-	EventID common.Hash
+	EventID common.Hash `json:"event_id,omitempty"`
 	// Whether the field is a topic (aka "indexed" as in solidity events)
-	IsTopic bool
+	IsTopic bool `json:"is_topic,omitempty"`
 	// The index of the field in either a log's topics or data. For example, if a
 	// field is the second topic of a log, then FieldIndex is 1; if a field is the
 	// third field in the RLP decoded data, then FieldIndex is 2.
-	FieldIndex uint
+	FieldIndex uint `json:"field_index,omitempty"`
 	// The value of the field in event, aka the actual thing we care about, only
 	// 32-byte fixed length values are supported.
-	Value common.Hash
+	Value common.Hash `json:"value,omitempty"`
 }
 
 type StorageData struct {
-	BlockNum *big.Int
-	Address  common.Address
-	Key      common.Hash
-	Value    common.Hash
+	BlockNum *big.Int       `json:"block_num,omitempty"`
+	Address  common.Address `json:"address,omitempty"`
+	Key      common.Hash    `json:"key,omitempty"`
+	Value    common.Hash    `json:"value,omitempty"`
 }
 
 type TransactionData struct {
-	Hash     common.Hash
-	ChainId  *big.Int
-	BlockNum *big.Int
-	Nonce    uint64
+	Hash     common.Hash `json:"hash,omitempty"`
+	ChainId  *big.Int    `json:"chain_id,omitempty"`
+	BlockNum *big.Int    `json:"block_num,omitempty"`
+	Nonce    uint64      `json:"nonce,omitempty"`
 	// MaxPriorityFeePerGas is always 0 for non-dynamic fee txs
-	MaxPriorityFeePerGas *big.Int
+	MaxPriorityFeePerGas *big.Int `json:"max_priority_fee_per_gas,omitempty"`
 	// GasPriceOrFeeCap means GasPrice for non-dynamic fee txs and GasFeeCap for
 	// dynamic fee txs
-	GasPriceOrFeeCap *big.Int
-	GasLimit         uint64
-	From             common.Address
-	To               common.Address
-	Value            *big.Int
+	GasPriceOrFeeCap *big.Int       `json:"gas_price_or_fee_cap,omitempty"`
+	GasLimit         uint64         `json:"gas_limit,omitempty"`
+	From             common.Address `json:"from,omitempty"`
+	To               common.Address `json:"to,omitempty"`
+	Value            *big.Int       `json:"value,omitempty"`
 }
 
 type rawData[T ReceiptData | StorageData | TransactionData] struct {
