@@ -133,6 +133,38 @@ func NewReceipt() Receipt {
 	}
 }
 
+var _ CircuitVariable = Receipt{}
+
+func (r Receipt) Values() []frontend.Variable {
+	var ret []frontend.Variable
+	ret = append(ret, r.BlockNum.Values()...)
+	for _, field := range r.Fields {
+		ret = append(ret, field.Values()...)
+	}
+	return ret
+}
+
+func (r Receipt) FromValues(vs ...frontend.Variable) CircuitVariable {
+	nr := Receipt{}
+
+	start, end := uint32(0), r.BlockNum.NumVars()
+	nr.BlockNum = r.BlockNum.FromValues(vs[start:end]...).(Uint248)
+
+	for i, f := range r.Fields {
+		start, end := end, end+f.NumVars()
+		nr.Fields[i] = f.FromValues(vs[start:end]...).(LogField)
+	}
+	return nr
+}
+
+func (r Receipt) NumVars() uint32 {
+	sum := r.BlockNum.NumVars()
+	for _, field := range r.Fields {
+		sum += field.NumVars()
+	}
+	return sum
+}
+
 // LogField represents a single field of an event.
 type LogField struct {
 	// The contract from which the event is emitted
@@ -156,6 +188,44 @@ func NewLogField() LogField {
 		Index:    newU248(0),
 		Value:    ConstBytes32([]byte{}),
 	}
+}
+
+var _ CircuitVariable = LogField{}
+
+func (f LogField) Values() []frontend.Variable {
+	var ret []frontend.Variable
+	ret = append(ret, f.Contract.Values()...)
+	ret = append(ret, f.EventID.Values()...)
+	ret = append(ret, f.IsTopic.Values()...)
+	ret = append(ret, f.Index.Values()...)
+	ret = append(ret, f.Value.Values()...)
+	return ret
+}
+
+func (f LogField) FromValues(vs ...frontend.Variable) CircuitVariable {
+	nf := LogField{}
+
+	start, end := uint32(0), f.Contract.NumVars()
+	nf.Contract = f.Contract.FromValues(vs[start:end]...).(Uint248)
+
+	start, end = end, end+f.EventID.NumVars()
+	nf.EventID = f.EventID.FromValues(vs[start:end]...).(Uint248)
+
+	start, end = end, end+f.IsTopic.NumVars()
+	nf.IsTopic = f.IsTopic.FromValues(vs[start:end]...).(Uint248)
+
+	start, end = end, end+f.Index.NumVars()
+	nf.Index = f.Index.FromValues(vs[start:end]...).(Uint248)
+
+	start, end = end, end+f.Value.NumVars()
+	nf.Value = f.Value.FromValues(vs[start:end]...).(Bytes32)
+
+	return nf
+}
+
+func (f LogField) NumVars() uint32 {
+	return f.Contract.NumVars() + f.EventID.NumVars() +
+		f.IsTopic.NumVars() + f.Index.NumVars() + f.Value.NumVars()
 }
 
 // pack packs the log fields into BLS12377 scalars
@@ -227,6 +297,40 @@ func NewStorageSlot() StorageSlot {
 	}
 }
 
+var _ CircuitVariable = StorageSlot{}
+
+func (s StorageSlot) Values() []frontend.Variable {
+	var ret []frontend.Variable
+	ret = append(ret, s.BlockNum.Values()...)
+	ret = append(ret, s.BlockNum.Val)
+	ret = append(ret, s.BlockNum.Val)
+	ret = append(ret, s.BlockNum.Val)
+
+	return ret
+}
+
+func (s StorageSlot) FromValues(vs ...frontend.Variable) CircuitVariable {
+	nr := StorageSlot{}
+
+	start, end := uint32(0), s.BlockNum.NumVars()
+	nr.BlockNum = s.BlockNum.FromValues(vs[start:end]...).(Uint248)
+
+	start, end = end, end+s.Contract.NumVars()
+	nr.Contract = s.Contract.FromValues(vs[start:end]...).(Uint248)
+
+	start, end = end, end+s.Key.NumVars()
+	nr.Key = s.Key.FromValues(vs[start:end]...).(Bytes32)
+
+	start, end = end, end+s.Value.NumVars()
+	nr.Value = s.Value.FromValues(vs[start:end]...).(Bytes32)
+
+	return nr
+}
+
+func (s StorageSlot) NumVars() uint32 {
+	return s.BlockNum.NumVars() + s.Contract.NumVars() + s.Key.NumVars() + s.Value.NumVars()
+}
+
 // pack packs the storage slots into BLS12377 scalars
 // 4 bytes for block num + 84 bytes for each slot = 672 bits, fits into 3 BLS12377 fr vars:
 // - 20 bytes for contract address
@@ -276,6 +380,62 @@ func NewTransaction() Transaction {
 		To:                   newU248(0),
 		Value:                ConstBytes32([]byte{}),
 	}
+}
+
+var _ CircuitVariable = Transaction{}
+
+func (t Transaction) Values() []frontend.Variable {
+	var ret []frontend.Variable
+	ret = append(ret, t.BlockNum.Values()...)
+	ret = append(ret, t.BlockNum.Val)
+	ret = append(ret, t.BlockNum.Val)
+	ret = append(ret, t.BlockNum.Val)
+
+	return ret
+}
+
+func (t Transaction) FromValues(vs ...frontend.Variable) CircuitVariable {
+	nr := Transaction{}
+
+	start, end := uint32(0), t.ChainId.NumVars()
+	nr.ChainId = t.ChainId.FromValues(vs[start:end]...).(Uint248)
+
+	start, end = end, end+t.BlockNum.NumVars()
+	nr.BlockNum = t.BlockNum.FromValues(vs[start:end]...).(Uint248)
+
+	start, end = end, end+t.Nonce.NumVars()
+	nr.Nonce = t.Nonce.FromValues(vs[start:end]...).(Uint248)
+
+	start, end = end, end+t.MaxPriorityFeePerGas.NumVars()
+	nr.MaxPriorityFeePerGas = t.MaxPriorityFeePerGas.FromValues(vs[start:end]...).(Uint248)
+
+	start, end = end, end+t.GasPriceOrFeeCap.NumVars()
+	nr.GasPriceOrFeeCap = t.GasPriceOrFeeCap.FromValues(vs[start:end]...).(Uint248)
+
+	start, end = end, end+t.GasLimit.NumVars()
+	nr.GasLimit = t.GasLimit.FromValues(vs[start:end]...).(Uint248)
+
+	start, end = end, end+t.From.NumVars()
+	nr.From = t.From.FromValues(vs[start:end]...).(Uint248)
+
+	start, end = end, end+t.To.NumVars()
+	nr.To = t.To.FromValues(vs[start:end]...).(Uint248)
+
+	start, end = end, end+t.Value.NumVars()
+	nr.Value = t.Value.FromValues(vs[start:end]...).(Bytes32)
+
+	return nr
+}
+
+func (t Transaction) NumVars() uint32 {
+	fields := []CircuitVariable{
+		t.ChainId, t.BlockNum, t.Nonce, t.MaxPriorityFeePerGas,
+		t.GasPriceOrFeeCap, t.GasLimit, t.From, t.To, t.Value}
+	sum := uint32(0)
+	for _, f := range fields {
+		sum += f.NumVars()
+	}
+	return sum
 }
 
 // pack packs the transactions into BLS12377 scalars

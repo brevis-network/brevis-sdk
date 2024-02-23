@@ -219,9 +219,6 @@ type ReduceFunc[T, R CircuitVariable] func(accumulator R, current T) (newAccumul
 // Reduce reduces the data stream to another CircuitVariable
 func Reduce[T, R CircuitVariable](ds *DataStream[T], initial R, reduceFunc ReduceFunc[T, R]) R {
 	acc := initial
-	//var acc R
-	//// Pitfall warning: assigning acc := initial would make acc the same signal as initial. This causes the subsequent as
-	//acc = acc.FromValues(initial.Values()...).(R)
 	for i, data := range ds.underlying {
 		newAcc := reduceFunc(acc, data)
 		oldAccVals := acc.Values()

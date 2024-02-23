@@ -123,7 +123,7 @@ func (c *TestDataStreamCircuit) testComplex() {
 
 	// find the max
 	maxInit := Tuple2[Uint248, Uint248]{
-		F0: ConstUint248(0),
+		F0: ConstUint248(0), // the first field is out group field, it can be anything
 		F1: ConstUint248(0),
 	}
 	isGreater := func(a, b Tuple2[Uint248, Uint248]) Uint248 { return c.api.Uint248.IsGreaterThan(a.F1, b.F1) }
@@ -134,7 +134,7 @@ func (c *TestDataStreamCircuit) testComplex() {
 
 	// find the min
 	minInit := Tuple2[Uint248, Uint248]{
-		F0: ConstUint248(MaxUint248),
+		F0: ConstUint248(0), // the first field is out group field, it can be anything
 		F1: ConstUint248(MaxUint248),
 	}
 	isLess := func(a, b Tuple2[Uint248, Uint248]) Uint248 { return c.api.Uint248.IsLessThan(a.F1, b.F1) }
