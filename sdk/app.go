@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/brevis-network/brevis-sdk/sdk/proto"
-	"github.com/celer-network/zk-utils/common/eth"
+	"github.com/brevis-network/zk-utils/common/eth"
 	bls12377_fr "github.com/consensys/gnark-crypto/ecc/bls12-377/fr"
 	"github.com/consensys/gnark-crypto/ecc/bls12-377/fr/mimc"
 	"github.com/consensys/gnark/backend/plonk"
