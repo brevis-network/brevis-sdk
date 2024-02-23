@@ -92,7 +92,7 @@ func NewDataPoints[T any](maxCount int, newEmpty func() T) DataPoints[T] {
 	}
 	for i := range dp.Raw {
 		dp.Raw[i] = newEmpty()
-		dp.Toggles[i] = newU248(0)
+		dp.Toggles[i] = 0
 	}
 	return dp
 }
