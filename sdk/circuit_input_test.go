@@ -191,3 +191,74 @@ func TestTransactionPack(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestReceiptCircuitVariable(t *testing.T) {
+	r := Receipt{
+		BlockNum: ConstUint248(1234567),
+		Fields: [3]LogField{
+			{
+				Contract: ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
+				EventID:  ParseEventID(hexutil.MustDecode("0xDEF171Fe48CF")),
+				IsTopic:  ConstUint248(true),
+				Index:    ConstUint248(0),
+				Value:    ConstBytes32(hexutil.MustDecode("0x1234")),
+			},
+			{
+				Contract: ConstUint248(common.HexToAddress("0xDEF171Fe18CF0115B1d80b88dc8eAB59176FEe57")),
+				EventID:  ParseEventID(hexutil.MustDecode("0xDEF171F148CF")),
+				IsTopic:  ConstUint248(false),
+				Index:    ConstUint248(0),
+				Value:    ConstBytes32(hexutil.MustDecode("0x1234")),
+			},
+		},
+	}
+	values := r.Values()
+	reconstructed := r.FromValues(values...)
+	compareValues(t, values, reconstructed.Values())
+}
+
+func TestStorageCircuitVariable(t *testing.T) {
+	s := StorageSlot{
+		BlockNum: ConstUint248(1234567),
+		Contract: ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
+		Key:      ConstBytes32(hexutil.MustDecode("0x9c2d3d42dcdafb0cb8c10089d02447b96c5fce87f298e50f88f2e188a6afcc41")),
+		Value:    ConstBytes32(hexutil.MustDecode("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
+	}
+	values := s.Values()
+	reconstructed := s.FromValues(values...)
+	compareValues(t, values, reconstructed.Values())
+}
+
+func TestTransactionCircuitVariable(t *testing.T) {
+	tx := Transaction{
+		ChainId:              ConstUint248(1),
+		BlockNum:             ConstUint248(1234567),
+		Nonce:                ConstUint248(123),
+		MaxPriorityFeePerGas: ConstUint248(1234567890),
+		GasPriceOrFeeCap:     ConstUint248(1876543212),
+		GasLimit:             ConstUint248(123456),
+		From:                 ConstUint248(common.HexToAddress("0x58b529F9084D7eAA598EB3477Fe36064C5B7bbC1")),
+		To:                   ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
+		Value:                ConstBytes32(hexutil.MustDecode("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
+	}
+	values := tx.Values()
+	reconstructed := tx.FromValues(values...)
+	compareValues(t, values, reconstructed.Values())
+}
+
+func compareValues(t *testing.T, a, b []frontend.Variable) {
+	if len(a) != len(b) {
+		t.Errorf("len(a) (%d) != len(b) (%d)", len(a), len(b))
+	}
+	for i, v := range a {
+		if b[i] == nil && v == nil {
+			continue
+		}
+		if b[i].(*big.Int).Cmp(v.(*big.Int)) != 0 {
+			fmt.Println("a", a)
+			fmt.Println("b", b)
+			t.Errorf("a[%d] (%d) != b[%d] (%d)", i, a[i], i, b[i])
+			t.FailNow()
+		}
+	}
+}

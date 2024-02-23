@@ -151,7 +151,7 @@ func (r Receipt) FromValues(vs ...frontend.Variable) CircuitVariable {
 	nr.BlockNum = r.BlockNum.FromValues(vs[start:end]...).(Uint248)
 
 	for i, f := range r.Fields {
-		start, end := end, end+f.NumVars()
+		start, end = end, end+f.NumVars()
 		nr.Fields[i] = f.FromValues(vs[start:end]...).(LogField)
 	}
 	return nr
@@ -302,10 +302,9 @@ var _ CircuitVariable = StorageSlot{}
 func (s StorageSlot) Values() []frontend.Variable {
 	var ret []frontend.Variable
 	ret = append(ret, s.BlockNum.Values()...)
-	ret = append(ret, s.BlockNum.Val)
-	ret = append(ret, s.BlockNum.Val)
-	ret = append(ret, s.BlockNum.Val)
-
+	ret = append(ret, s.Contract.Values()...)
+	ret = append(ret, s.Key.Values()...)
+	ret = append(ret, s.Value.Values()...)
 	return ret
 }
 
@@ -386,10 +385,15 @@ var _ CircuitVariable = Transaction{}
 
 func (t Transaction) Values() []frontend.Variable {
 	var ret []frontend.Variable
+	ret = append(ret, t.ChainId.Values()...)
 	ret = append(ret, t.BlockNum.Values()...)
-	ret = append(ret, t.BlockNum.Val)
-	ret = append(ret, t.BlockNum.Val)
-	ret = append(ret, t.BlockNum.Val)
+	ret = append(ret, t.Nonce.Values()...)
+	ret = append(ret, t.MaxPriorityFeePerGas.Values()...)
+	ret = append(ret, t.GasPriceOrFeeCap.Values()...)
+	ret = append(ret, t.GasLimit.Values()...)
+	ret = append(ret, t.From.Values()...)
+	ret = append(ret, t.To.Values()...)
+	ret = append(ret, t.Value.Values()...)
 
 	return ret
 }
