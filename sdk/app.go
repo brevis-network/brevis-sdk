@@ -454,7 +454,7 @@ func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
 			BlockNum: newU248(receipt.BlockNum),
 			Fields:   buildLogFields(receipt.Fields),
 		}
-		in.Receipts.Toggles[i] = newU248(1)
+		in.Receipts.Toggles[i] = 1
 	}
 
 	// distribute other receipts in order to the rest of the unassigned spaces
@@ -467,7 +467,7 @@ func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
 			BlockNum: newU248(receipt.BlockNum),
 			Fields:   buildLogFields(receipt.Fields),
 		}
-		in.Receipts.Toggles[j] = newU248(1)
+		in.Receipts.Toggles[j] = 1
 		j++
 	}
 	return nil
@@ -492,7 +492,7 @@ func (q *BrevisApp) assignStorageSlots(in *CircuitInput) (err error) {
 	// assigning user appointed data at specific indices
 	for i, val := range q.storageVals.special {
 		in.StorageSlots.Raw[i] = buildStorageSlot(val)
-		in.StorageSlots.Toggles[i] = newU248(1)
+		in.StorageSlots.Toggles[i] = 1
 	}
 
 	// distribute other data in order to the rest of the unassigned spaces
@@ -502,7 +502,7 @@ func (q *BrevisApp) assignStorageSlots(in *CircuitInput) (err error) {
 			j++
 		}
 		in.StorageSlots.Raw[i] = buildStorageSlot(val)
-		in.StorageSlots.Toggles[i] = newU248(1)
+		in.StorageSlots.Toggles[i] = 1
 		j++
 	}
 	return nil
@@ -521,16 +521,16 @@ func (q *BrevisApp) assignTransactions(in *CircuitInput) (err error) {
 	// assigning user appointed data at specific indices
 	for i, t := range q.txs.special {
 		in.Transactions.Raw[i] = buildTx(t)
-		in.Transactions.Toggles[i] = newU248(1)
+		in.Transactions.Toggles[i] = 1
 	}
 
 	j := 0
 	for i, t := range q.txs.ordered {
-		for in.Transactions.Toggles[j] == newU248(1) {
+		for in.Transactions.Toggles[j] == 1 {
 			j++
 		}
 		in.Transactions.Raw[i] = buildTx(t)
-		in.Transactions.Toggles[i] = newU248(1)
+		in.Transactions.Toggles[i] = 1
 		j++
 	}
 	return nil
