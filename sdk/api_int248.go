@@ -65,11 +65,8 @@ func NewInt248API(api frontend.API) *Int248API {
 	return &Int248API{api}
 }
 
-func (api *Int248API) ToBinary(v Int248, n int) List[Uint248] {
-	if n > 248 {
-		panic(fmt.Sprintf("cannot decompose Int248 to binary of size %d bits", n))
-	}
-	return newU248s(api.g.ToBinary(v.Val, n)...)
+func (api *Int248API) ToBinary(v Int248) List[Uint248] {
+	return newU248s(api.g.ToBinary(v.Val, 248)...)
 }
 
 func (api *Int248API) FromBinary(vs ...Uint248) Int248 {
