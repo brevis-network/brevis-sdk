@@ -56,15 +56,15 @@ type TransactionData struct {
 	ChainId  *big.Int    `json:"chain_id,omitempty"`
 	BlockNum *big.Int    `json:"block_num,omitempty"`
 	Nonce    uint64      `json:"nonce,omitempty"`
-	// MaxPriorityFeePerGas is always 0 for non-dynamic fee txs
-	MaxPriorityFeePerGas *big.Int `json:"max_priority_fee_per_gas,omitempty"`
-	// GasPriceOrFeeCap means GasPrice for non-dynamic fee txs and GasFeeCap for
-	// dynamic fee txs
-	GasPriceOrFeeCap *big.Int       `json:"gas_price_or_fee_cap,omitempty"`
-	GasLimit         uint64         `json:"gas_limit,omitempty"`
-	From             common.Address `json:"from,omitempty"`
-	To               common.Address `json:"to,omitempty"`
-	Value            *big.Int       `json:"value,omitempty"`
+	// GasTipCapOrGasPrice is GasPrice for legacy tx (type 0) and GasTipCapOap for
+	// dynamic-fee tx (type 2)
+	GasTipCapOrGasPrice *big.Int `json:"max_priority_fee_per_gas,omitempty"`
+	// GasFeeCap is always 0 for legacy tx
+	GasFeeCap *big.Int       `json:"gas_price_or_fee_cap,omitempty"`
+	GasLimit  uint64         `json:"gas_limit,omitempty"`
+	From      common.Address `json:"from,omitempty"`
+	To        common.Address `json:"to,omitempty"`
+	Value     *big.Int       `json:"value,omitempty"`
 }
 
 type rawData[T ReceiptData | StorageData | TransactionData] struct {
@@ -541,8 +541,8 @@ func buildTx(t TransactionData) Transaction {
 		ChainId:              ConstUint248(t.ChainId),
 		BlockNum:             ConstUint248(t.BlockNum),
 		Nonce:                ConstUint248(t.Nonce),
-		MaxPriorityFeePerGas: ConstUint248(t.MaxPriorityFeePerGas),
-		GasPriceOrFeeCap:     ConstUint248(t.GasPriceOrFeeCap),
+		GasTipCapOrGasPrice: ConstUint248(t.GasTipCapOrGasPrice),
+		GasFeeCap:     ConstUint248(t.GasFeeCap),
 		GasLimit:             ConstUint248(t.GasLimit),
 		From:                 ConstUint248(t.From),
 		To:                   ConstUint248(t.To),

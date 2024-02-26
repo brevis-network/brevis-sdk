@@ -357,10 +357,11 @@ type Transaction struct {
 	ChainId  Uint248
 	BlockNum Uint248
 	Nonce    Uint248
-	// MaxPriorityFeePerGas is always 0 for non-dynamic fee txs
-	MaxPriorityFeePerGas Uint248
-	// GasPriceOrFeeCap means GasPrice for non-dynamic fee txs and GasFeeCap for dynamic fee txs
-	GasPriceOrFeeCap Uint248
+	// GasTipCapOrGasPrice is GasPrice for legacy tx (type 0) and GasTipCapOap for
+	// dynamic-fee tx (type 2)
+	GasTipCapOrGasPrice Uint248
+	// GasFeeCap is always 0 for legacy tx
+	GasFeeCap        Uint248
 	GasLimit         Uint248
 	From             Uint248
 	To               Uint248
@@ -369,15 +370,15 @@ type Transaction struct {
 
 func NewTransaction() Transaction {
 	return Transaction{
-		ChainId:              newU248(0),
-		BlockNum:             newU248(0),
-		Nonce:                newU248(0),
-		MaxPriorityFeePerGas: newU248(0),
-		GasPriceOrFeeCap:     newU248(0),
-		GasLimit:             newU248(0),
-		From:                 newU248(0),
-		To:                   newU248(0),
-		Value:                ConstBytes32([]byte{}),
+		ChainId:             newU248(0),
+		BlockNum:            newU248(0),
+		Nonce:               newU248(0),
+		GasTipCapOrGasPrice: newU248(0),
+		GasFeeCap:           newU248(0),
+		GasLimit:            newU248(0),
+		From:                newU248(0),
+		To:                  newU248(0),
+		Value:               ConstBytes32([]byte{}),
 	}
 }
 
@@ -388,8 +389,8 @@ func (t Transaction) Values() []frontend.Variable {
 	ret = append(ret, t.ChainId.Values()...)
 	ret = append(ret, t.BlockNum.Values()...)
 	ret = append(ret, t.Nonce.Values()...)
-	ret = append(ret, t.MaxPriorityFeePerGas.Values()...)
-	ret = append(ret, t.GasPriceOrFeeCap.Values()...)
+	ret = append(ret, t.GasTipCapOrGasPrice.Values()...)
+	ret = append(ret, t.GasFeeCap.Values()...)
 	ret = append(ret, t.GasLimit.Values()...)
 	ret = append(ret, t.From.Values()...)
 	ret = append(ret, t.To.Values()...)
@@ -410,11 +411,11 @@ func (t Transaction) FromValues(vs ...frontend.Variable) CircuitVariable {
 	start, end = end, end+t.Nonce.NumVars()
 	nr.Nonce = t.Nonce.FromValues(vs[start:end]...).(Uint248)
 
-	start, end = end, end+t.MaxPriorityFeePerGas.NumVars()
-	nr.MaxPriorityFeePerGas = t.MaxPriorityFeePerGas.FromValues(vs[start:end]...).(Uint248)
+	start, end = end, end+t.GasTipCapOrGasPrice.NumVars()
+	nr.GasTipCapOrGasPrice = t.GasTipCapOrGasPrice.FromValues(vs[start:end]...).(Uint248)
 
-	start, end = end, end+t.GasPriceOrFeeCap.NumVars()
-	nr.GasPriceOrFeeCap = t.GasPriceOrFeeCap.FromValues(vs[start:end]...).(Uint248)
+	start, end = end, end+t.GasFeeCap.NumVars()
+	nr.GasFeeCap = t.GasFeeCap.FromValues(vs[start:end]...).(Uint248)
 
 	start, end = end, end+t.GasLimit.NumVars()
 	nr.GasLimit = t.GasLimit.FromValues(vs[start:end]...).(Uint248)
@@ -433,8 +434,8 @@ func (t Transaction) FromValues(vs ...frontend.Variable) CircuitVariable {
 
 func (t Transaction) NumVars() uint32 {
 	fields := []CircuitVariable{
-		t.ChainId, t.BlockNum, t.Nonce, t.MaxPriorityFeePerGas,
-		t.GasPriceOrFeeCap, t.GasLimit, t.From, t.To, t.Value}
+		t.ChainId, t.BlockNum, t.Nonce, t.GasTipCapOrGasPrice,
+		t.GasFeeCap, t.GasLimit, t.From, t.To, t.Value}
 	sum := uint32(0)
 	for _, f := range fields {
 		sum += f.NumVars()
@@ -451,16 +452,16 @@ func (t Transaction) NumVars() uint32 {
 // to - 20 bytes
 // from - 20 bytes
 // value - 32 bytes
-func (t Transaction) pack(api frontend.API) []frontend.Variable {
-	var bits []frontend.Variable
-	bits = append(bits, api.ToBinary(t.BlockNum.Val, 8*4)...)
-	bits = append(bits, api.ToBinary(t.ChainId.Val, 8*4)...)
-	bits = append(bits, api.ToBinary(t.Nonce.Val, 8*4)...)
-	bits = append(bits, api.ToBinary(t.MaxPriorityFeePerGas.Val, 8*8)...)
-	bits = append(bits, api.ToBinary(t.GasPriceOrFeeCap.Val, 8*8)...)
-	bits = append(bits, api.ToBinary(t.GasLimit.Val, 8*4)...)
-	bits = append(bits, api.ToBinary(t.From.Val, 8*20)...)
-	bits = append(bits, api.ToBinary(t.To.Val, 8*20)...)
+func (t Transaction) pack(api frontend.API) []Variable {
+	var bits []Variable
+	bits = append(bits, api.ToBinary(t.BlockNum, 8*4)...)
+	bits = append(bits, api.ToBinary(t.ChainId, 8*4)...)
+	bits = append(bits, api.ToBinary(t.Nonce, 8*4)...)
+	bits = append(bits, api.ToBinary(t.GasTipCapOrGasPrice, 8*8)...)
+	bits = append(bits, api.ToBinary(t.GasFeeCap, 8*8)...)
+	bits = append(bits, api.ToBinary(t.GasLimit, 8*4)...)
+	bits = append(bits, api.ToBinary(t.From, 8*20)...)
+	bits = append(bits, api.ToBinary(t.To, 8*20)...)
 	bits = append(bits, t.Value.toBinaryVars(api)...)
 	return packBitsToFr(api, bits)
 }
@@ -470,8 +471,8 @@ func (t Transaction) goPack() []*big.Int {
 	bits = append(bits, decomposeBits(fromInterface(t.BlockNum), 8*4)...)
 	bits = append(bits, decomposeBits(fromInterface(t.ChainId), 8*4)...)
 	bits = append(bits, decomposeBits(fromInterface(t.Nonce), 8*4)...)
-	bits = append(bits, decomposeBits(fromInterface(t.MaxPriorityFeePerGas), 8*8)...)
-	bits = append(bits, decomposeBits(fromInterface(t.GasPriceOrFeeCap), 8*8)...)
+	bits = append(bits, decomposeBits(fromInterface(t.GasTipCapOrGasPrice), 8*8)...)
+	bits = append(bits, decomposeBits(fromInterface(t.GasFeeCap), 8*8)...)
 	bits = append(bits, decomposeBits(fromInterface(t.GasLimit), 8*4)...)
 	bits = append(bits, decomposeBits(fromInterface(t.From), 8*20)...)
 	bits = append(bits, decomposeBits(fromInterface(t.To), 8*20)...)
