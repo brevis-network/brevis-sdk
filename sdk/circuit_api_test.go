@@ -73,8 +73,43 @@ func (c *TestCircuitAPICircuit) testCasting() {
 
 func (c *TestCircuitAPICircuit) testOutput() {
 	api := c.api
+
+	bool1 := common.FromHex("0x01")
+	bool2 := common.FromHex("0x00")
+	u32 := common.LeftPadBytes(big.NewInt(32).Bytes(), 4)
+	u64 := common.LeftPadBytes(big.NewInt(64).Bytes(), 8)
+	u248 := common.LeftPadBytes(big.NewInt(248).Bytes(), 31)
+	addr := common.HexToAddress("0xaefB31e9EEee2822f4C1cBC13B70948b0B5C0b3c")
+	b32 := common.FromHex("c6a377bfc4eb120024a8ac08eef205be16b817020812c73223e81d1bdb9708ec")
+
 	api.OutputBool(ConstUint248(1))
-	api.OutputUint(32, ConstUint248(123))
-	api.OutputAddress(ConstUint248(common.HexToAddress("0xaefB31e9EEee2822f4C1cBC13B70948b0B5C0b3c")))
-	api.OutputBytes32(ConstBytes32(common.Hex2Bytes("0xc6a377bfc4eb120024a8ac08eef205be16b817020812c73223e81d1bdb9708ec")))
+	api.OutputBool(ConstUint248(0))
+	api.OutputUint(32, ConstUint248(32))
+	api.OutputUint(64, ConstUint248(64))
+	api.OutputUint(248, ConstUint248(248))
+	api.OutputAddress(ConstUint248(addr))
+	api.OutputBytes32(ConstBytes32(b32))
+
+	var packed []byte
+	packed = append(packed, bool1...)
+	packed = append(packed, bool2...)
+	packed = append(packed, u32...)
+	packed = append(packed, u64...)
+	packed = append(packed, u248...)
+	packed = append(packed, addr[:]...)
+	packed = append(packed, b32...)
+
+	var bits []uint
+	for _, b := range packed {
+		for i := 0; i < 8; i++ {
+			bits = append(bits, uint(b>>i&1))
+		}
+	}
+
+	if len(bits) != len(api.output) {
+		panic("inconsistent len")
+	}
+	for i, bit := range bits {
+		c.g.AssertIsEqual(bit, api.output[i])
+	}
 }
