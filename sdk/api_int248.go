@@ -103,11 +103,11 @@ func (api *Int248API) IsGreaterThan(a, b Int248) Uint248 {
 	return newU248(isLt)
 }
 
-//func (api *Int248API) IsZero(a Int248) Uint248 {
-//	isZero := api.g.IsZero(a.Val)
-//	return newU248(isZero)
-//}
-//
+func (api *Int248API) IsZero(a Int248) Uint248 {
+	isZero := api.g.IsZero(a.Val)
+	return newU248(isZero)
+}
+
 //func (api *Int248API) Add(a, b Int248) Int248 {
 //	panic("unimplemented")
 //	return Int248{}
