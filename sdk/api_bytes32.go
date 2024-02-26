@@ -79,11 +79,23 @@ func NewBytes32API(api frontend.API) *Bytes32API {
 	return &Bytes32API{api}
 }
 
-func (api *Bytes32API) ToBinary(v Bytes32) []Uint248 {
+func (api *Bytes32API) ToBinary(v Bytes32) List[Uint248] {
 	var bits []frontend.Variable
 	bits = append(bits, api.g.ToBinary(v.Val[0], numBitsPerVar)...)
 	bits = append(bits, api.g.ToBinary(v.Val[1], 32*8-numBitsPerVar)...)
 	return newU248s(bits...)
+}
+
+func (api *Bytes32API) FromBinary(vs ...Uint248) Bytes32 {
+	var list List[Uint248] = vs
+	values := list.Values()
+	for i := len(vs); i < 256; i++ {
+		values = append(values, 0)
+	}
+	res := Bytes32{}
+	res.Val[0] = api.g.FromBinary(values[:numBitsPerVar]...)
+	res.Val[1] = api.g.FromBinary(values[numBitsPerVar:]...)
+	return res
 }
 
 func (api *Bytes32API) IsEqual(a, b Bytes32) Uint248 {

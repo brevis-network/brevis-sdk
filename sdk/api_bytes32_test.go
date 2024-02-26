@@ -23,7 +23,7 @@ func (c *TestBytes32APICircuit) Define(g frontend.API) error {
 	c.g = g
 	c.b32 = NewBytes32API(g)
 
-	c.testToBinary()
+	c.testBinary()
 	c.testEqual()
 	c.testSelect()
 	c.testIsZero()
@@ -35,11 +35,16 @@ var testBytes = common.HexToHash("65ad6deeb12705855d1d6232650400730e14e78ad5d3c8
 var testBytes2 = common.HexToHash("75ad6deeb12705855d1d6232650400730e14e78ad5d3c8f160879f33dacf07f4")
 var testBits = "0110010110101101011011011110111010110001001001110000010110000101010111010001110101100010001100100110010100000100000000000111001100001110000101001110011110001010110101011101001111001000111100010110000010000111100111110011001111011010110011110000011111110100"
 
-func (c *TestBytes32APICircuit) testToBinary() {
-	bin := c.b32.ToBinary(ConstBytes32(testBytes[:]))
+func (c *TestBytes32APICircuit) testBinary() {
+	a := ConstBytes32(testBytes[:])
+	bin := c.b32.ToBinary(a)
 	for i, b := range flipByGroups(parseBitStr(testBits), 1) {
 		c.g.AssertIsEqual(b, bin[i].Val)
 	}
+
+	original := c.b32.FromBinary(bin...)
+	c.g.AssertIsEqual(original.Val[0], a.Val[0])
+	c.g.AssertIsEqual(original.Val[1], a.Val[1])
 }
 
 func (c *TestBytes32APICircuit) testEqual() {
