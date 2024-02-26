@@ -55,15 +55,15 @@ type TransactionData struct {
 	ChainId  *big.Int
 	BlockNum *big.Int
 	Nonce    uint64
-	// MaxPriorityFeePerGas is always 0 for non-dynamic fee txs
-	MaxPriorityFeePerGas *big.Int
-	// GasPriceOrFeeCap means GasPrice for non-dynamic fee txs and GasFeeCap for
-	// dynamic fee txs
-	GasPriceOrFeeCap *big.Int
-	GasLimit         uint64
-	From             common.Address
-	To               common.Address
-	Value            *big.Int
+	// GasTipCapOrGasPrice is GasPrice for legacy tx (type 0) and GasTipCapOap for
+	// dynamic-fee tx (type 2)
+	GasTipCapOrGasPrice *big.Int
+	// GasFeeCap is always 0 for legacy tx
+	GasFeeCap *big.Int
+	GasLimit  uint64
+	From      common.Address
+	To        common.Address
+	Value     *big.Int
 }
 
 type rawData[T ReceiptData | StorageData | TransactionData] struct {
@@ -540,8 +540,8 @@ func buildTx(t TransactionData) Transaction {
 		ChainId:             t.ChainId,
 		BlockNum:            t.BlockNum,
 		Nonce:               t.Nonce,
-		GasTipCapOrGasPrice: t.MaxPriorityFeePerGas,
-		GasFeeCap:           t.GasPriceOrFeeCap,
+		GasTipCapOrGasPrice: t.GasTipCapOrGasPrice,
+		GasFeeCap:           t.GasFeeCap,
 		GasLimit:            t.GasLimit,
 		From:                ParseAddress(t.From),
 		To:                  ParseAddress(t.To),

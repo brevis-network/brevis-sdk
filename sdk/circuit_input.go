@@ -254,7 +254,8 @@ type Transaction struct {
 	ChainId  Variable
 	BlockNum Variable
 	Nonce    Variable
-	// MaxPriorityFeePerGasOrGasPrice is GasPrice for legacy tx and GasTipCapOrGasPrice for dynamic-fee tx
+	// GasTipCapOrGasPrice is GasPrice for legacy tx (type 0) and GasTipCapOap for
+	// dynamic-fee tx (type 2)
 	GasTipCapOrGasPrice Variable
 	// GasFeeCap is always 0 for legacy tx
 	GasFeeCap Variable
