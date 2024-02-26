@@ -537,15 +537,15 @@ func (q *BrevisApp) assignTransactions(in *CircuitInput) (err error) {
 
 func buildTx(t TransactionData) Transaction {
 	return Transaction{
-		ChainId:              t.ChainId,
-		BlockNum:             t.BlockNum,
-		Nonce:                t.Nonce,
-		MaxPriorityFeePerGas: t.MaxPriorityFeePerGas,
-		GasPriceOrFeeCap:     t.GasPriceOrFeeCap,
-		GasLimit:             t.GasLimit,
-		From:                 ParseAddress(t.From),
-		To:                   ParseAddress(t.To),
-		Value:                ParseBytes32(t.Value.Bytes()),
+		ChainId:             t.ChainId,
+		BlockNum:            t.BlockNum,
+		Nonce:               t.Nonce,
+		GasTipCapOrGasPrice: t.MaxPriorityFeePerGas,
+		GasFeeCap:           t.GasPriceOrFeeCap,
+		GasLimit:            t.GasLimit,
+		From:                ParseAddress(t.From),
+		To:                  ParseAddress(t.To),
+		Value:               ParseBytes32(t.Value.Bytes()),
 	}
 }
 
