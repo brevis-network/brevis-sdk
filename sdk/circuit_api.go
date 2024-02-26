@@ -49,21 +49,13 @@ func (api *CircuitAPI) OutputBool(v Uint248) {
 // with a step size 8. e.g. uint8, uint16, ..., uint248.
 // Panics if a bitSize of non-multiple of 8 is used.
 // Panics if the bitSize exceeds 248. For outputting uint256, use OutputBytes32 instead
-func (api *CircuitAPI) OutputUint(bitSize int, i interface{}) {
+func (api *CircuitAPI) OutputUint(bitSize int, v Uint248) {
 	if bitSize%8 != 0 {
 		panic("bitSize must be multiple of 8")
 	}
-	switch v := i.(type) {
-	case *Uint521:
-		b := api.ToBytes32(v).toBinaryVars(api.g)
-		api.addOutput(b)
-	case Uint248:
-		b := api.g.ToBinary(v, bitSize)
-		api.addOutput(b)
-	default:
-		panic(fmt.Errorf("cannot output variable of type %T, only supports *Uint521 and Uint248", i))
-	}
-	fmt.Printf("added uint%d output: %v\n", bitSize, i)
+	b := api.g.ToBinary(v, bitSize)
+	api.addOutput(b)
+	fmt.Printf("added uint%d output: %d\n", bitSize, v.Val)
 }
 
 // OutputAddress adds an output of solidity address type.
