@@ -3,6 +3,7 @@ package sdk
 import (
 	"fmt"
 	"github.com/consensys/gnark/frontend"
+	"math/big"
 )
 
 type Int248 struct {
@@ -18,22 +19,26 @@ func newI248(v ...frontend.Variable) Int248 {
 	ret := Int248{Val: v[0]}
 	if len(v) > 1 {
 		ret.SignBit = v[1]
+		ret.signBitSet = true
 	}
 	return ret
 }
 
-func ConstInt248(i interface{}) Int248 {
-	v := fromInterface(i)
+func ConstInt248(v *big.Int) Int248 {
 	if v.BitLen() > 248 {
-		panic("cannot initialize Int248 with data of bit length > 248")
+		panic("cannot initialize Int248 with bit length > 248")
 	}
-	var signBit uint
+
+	abs := new(big.Int).Abs(v)
+	absBits := decomposeBitsExact(abs)
+
 	if v.Sign() < 0 {
-		signBit = 1
-	} else {
-		signBit = 0
+		bits := twosComplement(absBits, 248)
+		a := recompose(bits, 1)
+		return newI248(a, 1)
 	}
-	return newI248(fromInterface(v.Bytes()), signBit)
+
+	return newI248(abs, 0)
 }
 
 var _ CircuitVariable = Int248{}
@@ -61,6 +66,9 @@ func NewInt248API(api frontend.API) *Int248API {
 }
 
 func (api *Int248API) ToBinary(v Int248, n int) List[Uint248] {
+	if n > 248 {
+		panic(fmt.Sprintf("cannot decompose Int248 to binary of size %d bits", n))
+	}
 	return newU248s(api.g.ToBinary(v.Val, n)...)
 }
 
@@ -68,12 +76,19 @@ func (api *Int248API) FromBinary(vs ...Uint248) Int248 {
 	if len(vs) > 248 {
 		panic(fmt.Sprintf("cannot construct Int248 from binary of size %d bits", len(vs)))
 	}
+
 	var list List[Uint248] = vs
 	values := list.Values()
 
+	signBit := values[len(values)-1]
+	for i := len(values); i < 248; i++ {
+		//rest[i] = api.g.Select(signBit, 1, 0)
+		values = append(values, signBit)
+	}
+
 	ret := Int248{}
 	ret.Val = api.g.FromBinary(values...)
-	ret.SignBit = values[len(values)-1]
+	ret.SignBit = signBit
 	ret.signBitSet = true
 
 	return ret
@@ -92,14 +107,13 @@ func (api *Int248API) IsLessThan(a, b Int248) Uint248 {
 
 	cmp := api.g.Cmp(a.Val, b.Val)
 	isLtAsUint := api.g.IsZero(api.g.Add(cmp, 1))
-	isGtAsUint := api.g.IsZero(api.g.Sub(cmp, 1))
 
 	isLt := api.g.Lookup2(
 		a.SignBit, b.SignBit,
 		isLtAsUint, // a, b both pos
 		1,          // a neg, b pos
 		0,          // a pos, b neg
-		isGtAsUint, // a, b both neg
+		isLtAsUint, // a, b both neg
 	)
 
 	return newU248(isLt)
@@ -111,7 +125,6 @@ func (api *Int248API) IsGreaterThan(a, b Int248) Uint248 {
 	b = api.ensureSignBit(b)
 
 	cmp := api.g.Cmp(a.Val, b.Val)
-	isLtAsUint := api.g.IsZero(api.g.Add(cmp, 1))
 	isGtAsUint := api.g.IsZero(api.g.Sub(cmp, 1))
 
 	isLt := api.g.Lookup2(
@@ -119,7 +132,7 @@ func (api *Int248API) IsGreaterThan(a, b Int248) Uint248 {
 		isGtAsUint, // a, b both pos
 		0,          // a neg, b pos
 		1,          // a pos, b neg
-		isLtAsUint, // a, b both neg
+		isGtAsUint, // a, b both neg
 	)
 
 	return newU248(isLt)

@@ -42,11 +42,7 @@ func decompose[T uint | byte](data *big.Int, bitSize uint, length uint) []T {
 	return ret
 }
 
-func decomposeBig(data *big.Int, bitSize, length uint) []*big.Int {
-	if uint(data.BitLen()) > length*bitSize {
-		panic(fmt.Errorf("decomposed integer (bit len %d) does not fit into output (bit len %d, length %d)",
-			data.BitLen(), bitSize, length))
-	}
+func decomposeAndSlice(data *big.Int, bitSize, length uint) []*big.Int {
 	decomposed := make([]*big.Int, length)
 	base := new(big.Int).Lsh(big.NewInt(1), bitSize)
 	d := new(big.Int).Set(data)
@@ -56,6 +52,25 @@ func decomposeBig(data *big.Int, bitSize, length uint) []*big.Int {
 		decomposed[i] = rem
 	}
 	return decomposed
+}
+
+func decomposeBig(data *big.Int, bitSize, length uint) []*big.Int {
+	if uint(data.BitLen()) > length*bitSize {
+		panic(fmt.Errorf("decomposed integer (bit len %d) does not fit into output (bit len %d, length %d)",
+			data.BitLen(), bitSize, length))
+	}
+	return decomposeAndSlice(data, bitSize, length)
+}
+
+func decomposeBitsExact(data *big.Int) []uint {
+	abs := new(big.Int).Abs(data)
+	var ret []uint
+	for abs.Sign() > 0 {
+		bit := new(big.Int)
+		abs.DivMod(abs, big.NewInt(2), bit)
+		ret = append(ret, uint(bit.Uint64()))
+	}
+	return ret
 }
 
 func packBitsToInt(bits []uint, bitSize int) []*big.Int {
@@ -165,6 +180,38 @@ func parseBitStr(s string) []frontend.Variable {
 		} else {
 			ret[i] = 1
 		}
+	}
+	return ret
+}
+
+func twosComplement(bits []uint, n int) []uint {
+	padded := padBitsRight(bits, n, 0)
+	flipped := flipBits(padded)
+	a := recompose(flipped, 1)
+	a.Add(a, big.NewInt(1))
+	d := decomposeAndSlice(a, 1, 248)
+	ret := make([]uint, len(d))
+	for i, b := range d {
+		ret[i] = uint(b.Uint64())
+	}
+	return ret
+}
+
+func flipBits(bits []uint) []uint {
+	flipped := make([]uint, len(bits))
+	for j := 0; j < len(bits); j++ {
+		flipped[j] = ^bits[j] & 1
+	}
+	return flipped
+}
+
+func padBitsRight(bits []uint, n int, with uint) []uint {
+	ret := make([]uint, n)
+	for i := 0; i < len(bits); i++ {
+		ret[i] = bits[i]
+	}
+	for i := len(bits); i < n; i++ {
+		ret[i] = with
 	}
 	return ret
 }
