@@ -42,7 +42,7 @@ func (api *CircuitAPI) OutputBytes32(v Bytes32) {
 
 // OutputBool adds an output of solidity bool type
 func (api *CircuitAPI) OutputBool(v Uint248) {
-	api.addOutput(api.g.ToBinary(v, 8))
+	api.addOutput(api.g.ToBinary(v.Val, 8))
 }
 
 // OutputUint adds an output of solidity uint_bitSize type where N is in range [8, 248]
@@ -53,14 +53,14 @@ func (api *CircuitAPI) OutputUint(bitSize int, v Uint248) {
 	if bitSize%8 != 0 {
 		panic("bitSize must be multiple of 8")
 	}
-	b := api.g.ToBinary(v, bitSize)
+	b := api.g.ToBinary(v.Val, bitSize)
 	api.addOutput(b)
 	fmt.Printf("added uint%d output: %d\n", bitSize, v.Val)
 }
 
 // OutputAddress adds an output of solidity address type.
 func (api *CircuitAPI) OutputAddress(v Uint248) {
-	api.addOutput(api.g.ToBinary(v, 20*8))
+	api.addOutput(api.g.ToBinary(v.Val, 20*8))
 	fmt.Printf("added address output: %x\n", v)
 }
 
