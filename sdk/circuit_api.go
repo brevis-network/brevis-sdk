@@ -148,6 +148,8 @@ func (api *CircuitAPI) ToUint248(i interface{}) Uint248 {
 	switch v := i.(type) {
 	case Uint248:
 		return v
+	case Int248:
+		return newU248(v.Val)
 	case Bytes32:
 		api.g.AssertIsEqual(v.Val[1], 0)
 		return newU248(v.Val[0])
