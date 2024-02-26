@@ -231,15 +231,15 @@ func TestStorageCircuitVariable(t *testing.T) {
 
 func TestTransactionCircuitVariable(t *testing.T) {
 	tx := Transaction{
-		ChainId:              ConstUint248(1),
-		BlockNum:             ConstUint248(1234567),
-		Nonce:                ConstUint248(123),
-		MaxPriorityFeePerGas: ConstUint248(1234567890),
-		GasPriceOrFeeCap:     ConstUint248(1876543212),
-		GasLimit:             ConstUint248(123456),
-		From:                 ConstUint248(common.HexToAddress("0x58b529F9084D7eAA598EB3477Fe36064C5B7bbC1")),
-		To:                   ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
-		Value:                ConstBytes32(hexutil.MustDecode("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
+		ChainId:             ConstUint248(1),
+		BlockNum:            ConstUint248(1234567),
+		Nonce:               ConstUint248(123),
+		GasTipCapOrGasPrice: ConstUint248(1234567890),
+		GasFeeCap:           ConstUint248(1876543212),
+		GasLimit:            ConstUint248(123456),
+		From:                ConstUint248(common.HexToAddress("0x58b529F9084D7eAA598EB3477Fe36064C5B7bbC1")),
+		To:                  ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
+		Value:               ConstBytes32(hexutil.MustDecode("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
 	}
 	values := tx.Values()
 	reconstructed := tx.FromValues(values...)
