@@ -66,7 +66,7 @@ func (api *Uint248API) FromBinary(vs ...Uint248) Uint248 {
 	return newU248(api.g.FromBinary(vars...))
 }
 
-func (api *Uint248API) ToBinary(v Uint248, n int) []Uint248 {
+func (api *Uint248API) ToBinary(v Uint248, n int) List[Uint248] {
 	b := api.g.ToBinary(v.Val, n)
 	ret := make([]Uint248, n)
 	for i, bit := range b {

@@ -24,6 +24,7 @@ func (c *TestInt248APICircuit) Define(g frontend.API) error {
 	c.g = g
 	c.i248 = NewInt248API(g)
 
+	c.testBinary()
 	c.testSelect()
 	c.testComparisons()
 
@@ -38,6 +39,13 @@ var testInt248Neg = common.Hex2Bytes("ffffffffffffffffffffffffffffffffffffffffff
 var testI248Neg = ConstInt248(testInt248Neg)
 var testInt248Neg2 = common.Hex2Bytes("fffffffffffffffffffffffffffffffffffffffffffffff9d44e5ebc1ef7ec") // -444644294412797970
 var testI248Neg2 = ConstInt248(testInt248Neg2)
+
+func (c *TestInt248APICircuit) testBinary() {
+	bin := c.i248.ToBinary(testI248Neg, 248)
+	recovered := c.i248.FromBinary(bin...)
+	c.g.AssertIsEqual(recovered.Val, testInt248Neg)
+	c.g.AssertIsEqual(recovered.SignBit, 1)
+}
 
 func (c *TestInt248APICircuit) testSelect() {
 	selected := c.i248.Select(newU248(1), testI248Pos, testI248Neg)

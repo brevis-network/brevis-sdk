@@ -1,6 +1,9 @@
 package sdk
 
-import "github.com/consensys/gnark/frontend"
+import (
+	"fmt"
+	"github.com/consensys/gnark/frontend"
+)
 
 type Int248 struct {
 	// Val encodes the entire int248 including the sign bit as a uint
@@ -55,6 +58,25 @@ type Int248API struct {
 
 func NewInt248API(api frontend.API) *Int248API {
 	return &Int248API{api}
+}
+
+func (api *Int248API) ToBinary(v Int248, n int) List[Uint248] {
+	return newU248s(api.g.ToBinary(v.Val, n)...)
+}
+
+func (api *Int248API) FromBinary(vs ...Uint248) Int248 {
+	if len(vs) > 248 {
+		panic(fmt.Sprintf("cannot construct Int248 from binary of size %d bits", len(vs)))
+	}
+	var list List[Uint248] = vs
+	values := list.Values()
+
+	ret := Int248{}
+	ret.Val = api.g.FromBinary(values...)
+	ret.SignBit = values[len(values)-1]
+	ret.signBitSet = true
+
+	return ret
 }
 
 // IsEqual returns 1 if a == b, and 0 otherwise
