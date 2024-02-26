@@ -11,16 +11,16 @@ import (
 func TestDataMarshalUnmarshal(t *testing.T) {
 	value, _ := new(big.Int).SetString("12341231231231231231231231233", 10)
 	tx := TransactionData{
-		Hash:                 common.HexToHash("0x6a70343b232c18280821471baf247ce69fbf740893ec9fb80a47bda7f4ea4a2f"),
-		ChainId:              big.NewInt(1),
-		BlockNum:             big.NewInt(2),
-		Nonce:                3,
-		MaxPriorityFeePerGas: big.NewInt(4),
-		GasPriceOrFeeCap:     big.NewInt(6),
-		GasLimit:             6,
-		From:                 common.HexToAddress("0x1345c8a6b99536531F1fa3cfe37D8A5B7Fc859aA"),
-		To:                   common.HexToAddress("0x164Ef8f77e1C88Fb2C724D3755488bE4a3ba4342"),
-		Value:                value,
+		Hash:                common.HexToHash("0x6a70343b232c18280821471baf247ce69fbf740893ec9fb80a47bda7f4ea4a2f"),
+		ChainId:             big.NewInt(1),
+		BlockNum:            big.NewInt(2),
+		Nonce:               3,
+		GasTipCapOrGasPrice: big.NewInt(4),
+		GasFeeCap:           big.NewInt(6),
+		GasLimit:            6,
+		From:                common.HexToAddress("0x1345c8a6b99536531F1fa3cfe37D8A5B7Fc859aA"),
+		To:                  common.HexToAddress("0x164Ef8f77e1C88Fb2C724D3755488bE4a3ba4342"),
+		Value:               value,
 	}
 	txJson, err := json.MarshalIndent(tx, "", "  ")
 	check(err)

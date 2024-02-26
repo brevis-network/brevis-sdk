@@ -21,6 +21,9 @@ func newI248(v ...frontend.Variable) Int248 {
 
 func ConstInt248(i interface{}) Int248 {
 	v := fromInterface(i)
+	if v.BitLen() > 248 {
+		panic("cannot initialize Int248 with data of bit length > 248")
+	}
 	var signBit uint
 	if v.Sign() < 0 {
 		signBit = 1
@@ -62,8 +65,8 @@ func (api *Int248API) IsEqual(a, b Int248) Uint248 {
 
 // IsLessThan returns 1 if a < b, and 0 otherwise
 func (api *Int248API) IsLessThan(a, b Int248) Uint248 {
-	api.ensureSignBit(a)
-	api.ensureSignBit(b)
+	a = api.ensureSignBit(a)
+	b = api.ensureSignBit(b)
 
 	cmp := api.g.Cmp(a.Val, b.Val)
 	isLtAsUint := api.g.IsZero(api.g.Add(cmp, 1))
@@ -82,8 +85,8 @@ func (api *Int248API) IsLessThan(a, b Int248) Uint248 {
 
 // IsGreaterThan returns 1 if a > b, and 0 otherwise
 func (api *Int248API) IsGreaterThan(a, b Int248) Uint248 {
-	api.ensureSignBit(a)
-	api.ensureSignBit(b)
+	a = api.ensureSignBit(a)
+	b = api.ensureSignBit(b)
 
 	cmp := api.g.Cmp(a.Val, b.Val)
 	isLtAsUint := api.g.IsZero(api.g.Add(cmp, 1))
@@ -142,10 +145,12 @@ func (api *Int248API) AssertIsDifferent(a, b Int248) {
 	api.g.AssertIsDifferent(a.Val, b.Val)
 }
 
-func (api *Int248API) ensureSignBit(v Int248) {
+func (api *Int248API) ensureSignBit(v Int248) Int248 {
 	if v.signBitSet {
-		return
+		return v
 	}
 	bin := api.g.ToBinary(v.Val, 248)
 	v.SignBit = bin[247]
+	v.signBitSet = true
+	return v
 }
