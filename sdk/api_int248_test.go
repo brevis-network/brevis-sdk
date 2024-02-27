@@ -34,6 +34,7 @@ var testInt248Pos = big.NewInt(12345678912345)
 var testI248Pos = ConstInt248(testInt248Pos)
 var testInt248Pos2 = big.NewInt(12345678912346)
 var testI248Pos2 = ConstInt248(testInt248Pos2)
+var testI248Pos2Bits = flipByGroups(parseBitStr("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010110011101001110011110011100101101101011010"), 1)
 var testInt248Neg = big.NewInt(-444644294412797971)
 var testI248Neg = ConstInt248(testInt248Neg)
 var testInt248Neg2 = big.NewInt(-444644294412797970)
@@ -41,16 +42,26 @@ var testI248Neg2 = ConstInt248(testInt248Neg2)
 var testI248Neg2Bits = flipByGroups(parseBitStr("11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111100111010100010011100101111010111100000111101111011111101110"), 1)
 
 func (c *TestInt248APICircuit) testBinary() {
-	bin := c.i248.ToBinary(testI248Neg2)
-	if len(bin) != 248 {
-		panic("len(bin) != 248")
+	bin := c.i248.ToBinary(testI248Pos2)
+	for i, b := range bin {
+		c.g.AssertIsEqual(b.Val, testI248Pos2Bits[i])
 	}
+	recovered := c.i248.FromBinary(bin...)
+	c.g.AssertIsEqual(recovered.Val, testI248Pos2.Val)
+	c.g.AssertIsEqual(recovered.SignBit, 0)
+	recovered2 := c.i248.FromBinary(bin[:45]...)
+	c.g.AssertIsEqual(recovered2.Val, recovered.Val)
+
+	bin = c.i248.ToBinary(testI248Neg2)
 	for i, b := range bin {
 		c.g.AssertIsEqual(b.Val, testI248Neg2Bits[i])
 	}
-	recovered := c.i248.FromBinary(bin...)
+	recovered = c.i248.FromBinary(bin...)
 	c.g.AssertIsEqual(recovered.Val, testI248Neg2.Val)
 	c.g.AssertIsEqual(recovered.SignBit, 1)
+	recovered2 = c.i248.FromBinary(bin[:60]...)
+	c.g.AssertIsEqual(recovered2.Val, recovered.Val)
+
 }
 
 func (c *TestInt248APICircuit) testSelect() {
