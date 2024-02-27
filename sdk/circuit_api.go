@@ -2,7 +2,9 @@ package sdk
 
 import (
 	"fmt"
+	"github.com/brevis-network/zk-utils/circuits/gadgets/keccak"
 	"github.com/consensys/gnark/frontend"
+	"math/big"
 )
 
 // CircuitAPI contains a set of APIs that can only be used in circuit to perform
@@ -72,11 +74,48 @@ func (api *CircuitAPI) addOutput(bits []frontend.Variable) {
 	dryRunOutput = append(dryRunOutput, bits2Bytes(b)...)
 }
 
-// SolidityMappingStorageKey computes the storage key of a solidity mapping data type.
+// TODO: support storage key for plain value
+//func (api *CircuitAPI) StorageKey() {}
+
+// TODO: support storage key for array value
+//func (api *CircuitAPI) StorageKeyOfArrayElement() {}
+
+// TODO: support storage key for plain value in mapping
+//func (api *CircuitAPI) StorageKeyOfValueInMapping() {}
+
+// StorageKeyOfStructFieldInMapping computes the storage key for a struct field
+// stored in a solidity mapping. Implements keccak256(h(k) | p) for computing
+// mapping or nested mapping's storage key where the value is a struct The
+// mapping keys are of the order which you would access the solidity mapping. For
+// example, to access nested mapping at slot 1 value with m[a][b] and
+// subsequently the 4th index of the struct value, use
+// StorageKeyOfStructFieldInMapping(1, 4, a, b). If your a and b are not of
+// Bytes32 type, cast them to Bytes32 first using api.ToBytes32
 // https://docs.soliditylang.org/en/v0.8.24/internals/layout_in_storage.html#mappings-and-dynamic-arrays
-// keccak256(key | slot)
-func (api *CircuitAPI) SolidityMappingStorageKey(mappingKey Bytes32, slot uint) Bytes32 {
-	return Bytes32{}
+func (api *CircuitAPI) StorageKeyOfStructFieldInMapping(slot, offset int, mappingKey Bytes32, nestedMappingKeys ...Bytes32) Bytes32 {
+	slotBits := decomposeBig(big.NewInt(int64(slot)), 1, 256)
+
+	s := flipByGroups(newVars(slotBits), 8)
+	preimage := append(flipByGroups(api.Bytes32.ToBinary(mappingKey).Values(), 8), s...)
+	preimagePadded := keccak.PadBits101(api.g, preimage, 1)
+	key := keccak.Keccak256Bits(api.g, 1, 0, preimagePadded)
+
+	for _, mk := range nestedMappingKeys {
+		preimage = append(flipByGroups(api.Bytes32.ToBinary(mk).Values(), 8), key[:]...)
+		preimagePadded = keccak.PadBits101(api.g, preimage, 1)
+		key = keccak.Keccak256Bits(api.g, 1, 0, preimagePadded)
+	}
+
+	keyBits := newU248s(flipByGroups(key[:], 8)...)
+	storageKey := api.Bytes32.FromBinary(keyBits...)
+
+	// Hack: directly doing integer arithmetic on the low limb of the bytes32 because
+	// offset is usually very small (< 10). Overflow can only happen if the low limb
+	// of the keccak hash is 0xffffff... (almost 31 ff), which is essentially
+	// impossible.
+	// TODO: maybe switch to proper big number arithmetic?
+	storageKey.Val[0] = api.g.Add(storageKey.Val[0], offset)
+	return storageKey
 }
 
 func Select[T CircuitVariable](api *CircuitAPI, s Uint248, a, b T) T {
@@ -97,6 +136,9 @@ func (api *CircuitAPI) ToBytes32(i interface{}) Bytes32 {
 	switch v := i.(type) {
 	case Bytes32:
 		return v
+	case Int248:
+		bits := api.Int248.ToBinary(v)
+		return api.Bytes32.FromBinary(bits...)
 	case Uint521:
 		api.Uint521.AssertIsLessOrEqual(v, MaxBytes32)
 		bits := api.Uint521.ToBinary(v, 32*8)

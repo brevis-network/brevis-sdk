@@ -1,10 +1,12 @@
 package sdk
 
 import (
+	"fmt"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/test"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"testing"
 )
@@ -31,8 +33,21 @@ func (c *TestCircuitAPICircuit) Define(g frontend.API) error {
 
 	c.testCasting()
 	c.testOutput()
+	c.testMappingStorageKey()
 
 	return nil
+}
+
+func (c *TestCircuitAPICircuit) testToBytes32() {
+	A := ConstBytes32([]byte{1})
+	B := ConstUint248(1)
+	C := ConstUint521([]byte{1})
+	D := ConstInt248(big.NewInt(1))
+
+	api := c.api
+	api.Bytes32.AssertIsEqual(api.ToBytes32(B), A)
+	api.Bytes32.AssertIsEqual(api.ToBytes32(C), A)
+	api.Bytes32.AssertIsEqual(api.ToBytes32(D), A)
 }
 
 func (c *TestCircuitAPICircuit) testCasting() {
@@ -112,4 +127,16 @@ func (c *TestCircuitAPICircuit) testOutput() {
 	for i, bit := range bits {
 		c.g.AssertIsEqual(bit, api.output[i])
 	}
+}
+
+func (c *TestCircuitAPICircuit) testMappingStorageKey() {
+	api := c.api
+	mapKey := common.FromHex("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFCEE6A")
+	storageKey := api.StorageKeyOfStructFieldInMapping(6, 1, ConstBytes32(mapKey))
+	fmt.Printf("feeGrowthOutside0X128 storage key %s\n", storageKey)
+
+	k := common.FromHex("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFCEE6A")
+	k = append(k, common.LeftPadBytes([]byte{6}, 32)...)
+	expected := crypto.Keccak256(k)
+	fmt.Printf("expected: %x\n", expected)
 }

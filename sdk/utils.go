@@ -215,3 +215,30 @@ func padBitsRight(bits []uint, n int, with uint) []uint {
 	}
 	return ret
 }
+
+func bytesToBitsLE(bytes []byte) []uint {
+	var ret []uint
+	for _, b := range bytes {
+		for i := 0; i < 8; i++ {
+			ret = append(ret, uint(b>>i)&1)
+		}
+	}
+	return ret
+}
+
+func bytesFromBitsLE(bits []uint) []byte {
+	var ret []byte
+	for i := 0; i < len(bits); i += 8 {
+		start := i
+		end := i + 8
+		if end > len(bits) {
+			end = len(bits)
+		}
+		var byt byte
+		for j, b := range bits[start:end] {
+			byt += byte(b << j)
+		}
+		ret = append(ret, byt)
+	}
+	return ret
+}
