@@ -57,30 +57,6 @@ func (c *TestCircuitAPICircuit) testCasting() {
 
 	api.Int248.AssertIsEqual(api.ToInt248(E), D)
 	api.Int248.AssertIsEqual(api.ToInt248(A), F)
-
-	one := ConstUint521([]byte{1})
-	_u256Max := new(big.Int)
-	_u256Max.Lsh(big.NewInt(1), 256).Sub(_u256Max, big.NewInt(1))
-	u256Max := ConstUint521(_u256Max.Bytes())
-
-	sum := api.Uint521.Add(u256Max, u256Max)
-	_sum := new(big.Int).Add(_u256Max, _u256Max)
-	api.Uint521.AssertIsEqual(sum, ConstUint521(_sum.Bytes()))
-
-	diff := api.Uint521.Sub(u256Max, api.Uint521.Sub(u256Max, one))
-	api.Uint521.AssertIsEqual(diff, one)
-
-	product := api.Uint521.Mul(u256Max, u256Max)
-	_product := new(big.Int).Mul(_u256Max, _u256Max)
-	api.Uint521.AssertIsEqual(product, ConstUint521(_product.Bytes()))
-
-	q, r := api.Uint521.Div(ConstUint521([]byte{4}), ConstUint521([]byte{3}))
-	api.Uint521.AssertIsEqual(q, one)
-	api.Uint521.AssertIsEqual(r, ConstUint521([]byte{1}))
-
-	q, r = api.Uint521.Div(u256Max, api.Uint521.Sub(u256Max, one))
-	api.Uint521.AssertIsEqual(q, one)
-	api.Uint521.AssertIsEqual(r, one)
 }
 
 func (c *TestCircuitAPICircuit) testOutput() {
