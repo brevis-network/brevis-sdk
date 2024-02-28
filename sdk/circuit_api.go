@@ -138,6 +138,11 @@ func (api *CircuitAPI) ToBytes32(i interface{}) Bytes32 {
 		return v
 	case Int248:
 		bits := api.Int248.ToBinary(v)
+		sign := bits[len(bits)-1]
+		// extend the sign bits to fill 256 bits
+		for j := len(bits); j < 256; j++ {
+			bits = append(bits, sign)
+		}
 		return api.Bytes32.FromBinary(bits...)
 	case Uint521:
 		api.Uint521.AssertIsLessOrEqual(v, MaxBytes32)
