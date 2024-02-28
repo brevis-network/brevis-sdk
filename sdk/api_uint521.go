@@ -113,7 +113,7 @@ func (api *Uint521API) Div(a, b Uint521) (quotient, remainder Uint521) {
 }
 
 func (api *Uint521API) Select(s Uint248, a, b Uint521) Uint521 {
-	el := api.f.Select(s, a.Element, b.Element)
+	el := api.f.Select(s.Val, a.Element, b.Element)
 	return newU521(el)
 }
 
