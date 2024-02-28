@@ -22,10 +22,6 @@ type TestCircuitAPICircuit struct {
 	api *CircuitAPI
 }
 
-var testU248_a = ConstUint248(1)
-var testBytes32_b = ConstBytes32([]byte{1})
-var testU521_c = ConstUint521([]byte{1})
-
 func (c *TestCircuitAPICircuit) Define(g frontend.API) error {
 	api := NewCircuitAPI(g)
 	c.api = api
@@ -38,28 +34,29 @@ func (c *TestCircuitAPICircuit) Define(g frontend.API) error {
 	return nil
 }
 
-func (c *TestCircuitAPICircuit) testToBytes32() {
-	A := ConstBytes32([]byte{1})
-	B := ConstUint248(1)
-	C := ConstUint521([]byte{1})
-	D := ConstInt248(big.NewInt(1))
-
-	api := c.api
-	api.Bytes32.AssertIsEqual(api.ToBytes32(B), A)
-	api.Bytes32.AssertIsEqual(api.ToBytes32(C), A)
-	api.Bytes32.AssertIsEqual(api.ToBytes32(D), A)
-}
-
 func (c *TestCircuitAPICircuit) testCasting() {
+	A := ConstUint248(1)
+	B := ConstBytes32([]byte{1})
+	C := ConstUint521([]byte{1})
+	D := ConstInt248(big.NewInt(-2))
+	E := ConstBytes32(common.FromHex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE"))
+	F := ConstInt248(big.NewInt(1))
+	G := ConstUint248(common.FromHex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE"))
+
 	api := c.api
-	api.Bytes32.AssertIsEqual(api.ToBytes32(testU248_a), testBytes32_b)
-	api.Bytes32.AssertIsEqual(api.ToBytes32(testU521_c), testBytes32_b)
+	api.Bytes32.AssertIsEqual(api.ToBytes32(A), B)
+	api.Bytes32.AssertIsEqual(api.ToBytes32(C), B)
+	api.Bytes32.AssertIsEqual(api.ToBytes32(D), E)
 
-	api.Uint248.AssertIsEqual(api.ToUint248(testBytes32_b), testU248_a)
-	api.Uint248.AssertIsEqual(api.ToUint248(testU521_c), testU248_a)
+	api.Uint248.AssertIsEqual(api.ToUint248(B), A)
+	api.Uint248.AssertIsEqual(api.ToUint248(C), A)
+	api.Uint248.AssertIsEqual(api.ToUint248(D), G)
 
-	api.Uint521.AssertIsEqual(api.ToUint521(testU248_a), testU521_c)
-	api.Uint521.AssertIsEqual(api.ToUint521(testBytes32_b), testU521_c)
+	api.Uint521.AssertIsEqual(api.ToUint521(A), C)
+	api.Uint521.AssertIsEqual(api.ToUint521(B), C)
+
+	api.Int248.AssertIsEqual(api.ToInt248(E), D)
+	api.Int248.AssertIsEqual(api.ToInt248(A), F)
 
 	one := ConstUint521([]byte{1})
 	_u256Max := new(big.Int)
