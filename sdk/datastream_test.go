@@ -69,10 +69,58 @@ type TestDataStreamCircuit struct {
 func (c *TestDataStreamCircuit) Define(gapi frontend.API) error {
 	c.api = NewCircuitAPI(gapi)
 
+	c.testWindowUnderlying()
 	c.testSimple()
 	c.testComplex()
 
 	return nil
+}
+
+func (c *TestDataStreamCircuit) testWindowUnderlying() {
+	in := NewDataStream(c.api, c.In2)
+	// select a range of the underlying data
+	// [1, 2, 3, 100, 5, 2, 7, 101, 9, 3, 0, 200]
+	trimmed := RangeUnderlying(in, 0, 12)
+	// split the data into two windows
+	// [[1, 2, 3, 100], [5, 2, 7, 101], [9, 3, 0, 200]]
+	windows := WindowUnderlying(trimmed, 4)
+	u248 := c.api.Uint248
+	u := windows.underlying
+	u248.AssertIsEqual(u[0][0], ConstUint248(1))
+	u248.AssertIsEqual(u[0][1], ConstUint248(2))
+	u248.AssertIsEqual(u[0][2], ConstUint248(3))
+	u248.AssertIsEqual(u[0][3], ConstUint248(100))
+	c.api.g.AssertIsEqual(windows.toggles[0], 1)
+	u248.AssertIsEqual(u[1][0], ConstUint248(5))
+	u248.AssertIsEqual(u[1][1], ConstUint248(2))
+	u248.AssertIsEqual(u[1][2], ConstUint248(7))
+	u248.AssertIsEqual(u[1][3], ConstUint248(101))
+	c.api.g.AssertIsEqual(windows.toggles[1], 1)
+	u248.AssertIsEqual(u[2][0], ConstUint248(9))
+	u248.AssertIsEqual(u[2][1], ConstUint248(3))
+	u248.AssertIsEqual(u[2][2], ConstUint248(0))
+	u248.AssertIsEqual(u[2][3], ConstUint248(200))
+	c.api.g.AssertIsEqual(windows.toggles[2], 1)
+
+	list := newU248s([]frontend.Variable{0, 1, 2, 3, 4, 5}...)
+	ds := newDataStream(c.api, list, []frontend.Variable{1, 1, 1, 1, 0, 0})
+	windows = WindowUnderlying(ds, 2, 1)
+	u = windows.underlying
+	u248.AssertIsEqual(u[0][0], ConstUint248(0))
+	u248.AssertIsEqual(u[0][1], ConstUint248(1))
+	c.api.g.AssertIsEqual(windows.toggles[0], 1)
+	u248.AssertIsEqual(u[1][0], ConstUint248(1))
+	u248.AssertIsEqual(u[1][1], ConstUint248(2))
+	c.api.g.AssertIsEqual(windows.toggles[1], 1)
+	u248.AssertIsEqual(u[2][0], ConstUint248(2))
+	u248.AssertIsEqual(u[2][1], ConstUint248(3))
+	c.api.g.AssertIsEqual(windows.toggles[2], 1)
+	u248.AssertIsEqual(u[3][0], ConstUint248(3))
+	u248.AssertIsEqual(u[3][1], ConstUint248(4))
+	c.api.g.AssertIsEqual(windows.toggles[3], 0)
+	u248.AssertIsEqual(u[4][0], ConstUint248(4))
+	u248.AssertIsEqual(u[4][1], ConstUint248(5))
+	c.api.g.AssertIsEqual(windows.toggles[4], 0)
 }
 
 type MySchema = Tuple3[Bytes32, Uint248, Uint521]
@@ -86,7 +134,7 @@ func (c *TestDataStreamCircuit) testComplex() {
 
 	// split the data into two windows
 	// [[1, 2, 3, 100], [5, 2, 7, 101], [9, 3, 0, 200]]
-	windows := WindowUnderlying(trimmed, 4)
+	windows := WindowUnderlying(trimmed, 4, 4)
 
 	// map the window to MySchema, casting the data to the types I need, discarding
 	// the third field in the window in the process

@@ -361,11 +361,11 @@ type Transaction struct {
 	// dynamic-fee tx (type 2)
 	GasTipCapOrGasPrice Uint248
 	// GasFeeCap is always 0 for legacy tx
-	GasFeeCap        Uint248
-	GasLimit         Uint248
-	From             Uint248
-	To               Uint248
-	Value            Bytes32
+	GasFeeCap Uint248
+	GasLimit  Uint248
+	From      Uint248
+	To        Uint248
+	Value     Bytes32
 }
 
 func NewTransaction() Transaction {

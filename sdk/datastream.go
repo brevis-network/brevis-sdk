@@ -13,6 +13,9 @@ type DataStream[T CircuitVariable] struct {
 }
 
 func NewDataStream[T CircuitVariable](api *CircuitAPI, in DataPoints[T]) *DataStream[T] {
+	if len(in.Raw) != len(in.Toggles) {
+		panic("inconsistent data lengths")
+	}
 	return &DataStream[T]{
 		api:        api,
 		underlying: in.Raw,
@@ -46,14 +49,21 @@ func RangeUnderlying[T CircuitVariable](ds *DataStream[T], start, end int) *Data
 // underlying data directly. Panics if `size` does not divide the length of the
 // underlying list. Use Range to cut the list length into a multiple of `size`
 // first
-func WindowUnderlying[T CircuitVariable](ds *DataStream[T], size int) *DataStream[List[T]] {
+func WindowUnderlying[T CircuitVariable](ds *DataStream[T], size int, step ...int) *DataStream[List[T]] {
 	l := len(ds.underlying)
-	if l%size != 0 {
-		panic(fmt.Errorf("cannot Window on DataStream of size %d: %d mod %d != 0", l, l, size))
+	if len(step) > 1 {
+		panic("invalid number of optional param 'step'")
+	}
+	stepSize := size
+	if len(step) == 1 {
+		stepSize = step[0]
+	}
+	if (l-size+stepSize)%stepSize != 0 {
+		panic(fmt.Errorf("cannot window on DataStream of length %d window size %d step %d: uneven result windows", l, size, stepSize))
 	}
 	var toggles []frontend.Variable
 	var ret []List[T]
-	for i := 0; i <= l-size; i += size {
+	for i := 0; i <= l-size; i += stepSize {
 		start := i
 		end := start + size
 		ret = append(ret, ds.underlying[start:end])
