@@ -158,6 +158,7 @@ func (t Tuple5[F0, F1, F2, F3, F4]) Values() []frontend.Variable {
 	ret = append(ret, t.F1.Values()...)
 	ret = append(ret, t.F2.Values()...)
 	ret = append(ret, t.F3.Values()...)
+	ret = append(ret, t.F4.Values()...)
 	return ret
 }
 
