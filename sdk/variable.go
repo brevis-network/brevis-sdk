@@ -144,6 +144,47 @@ func (t Tuple4[F0, F1, F2, F3]) NumVars() uint32 {
 	return t.F0.NumVars() + t.F1.NumVars() + t.F2.NumVars() + t.F3.NumVars()
 }
 
+type Tuple5[F0, F1, F2, F3, F4 CircuitVariable] struct {
+	F0 F0
+	F1 F1
+	F2 F2
+	F3 F3
+	F4 F4
+}
+
+func (t Tuple5[F0, F1, F2, F3, F4]) Values() []frontend.Variable {
+	var ret []frontend.Variable
+	ret = append(ret, t.F0.Values()...)
+	ret = append(ret, t.F1.Values()...)
+	ret = append(ret, t.F2.Values()...)
+	ret = append(ret, t.F3.Values()...)
+	return ret
+}
+
+func (t Tuple5[F0, F1, F2, F3, F4]) FromValues(vs ...frontend.Variable) CircuitVariable {
+	ret := Tuple5[F0, F1, F2, F3, F4]{}
+	start, end := uint32(0), ret.F0.NumVars()
+	ret.F0 = ret.F0.FromValues(vs[start:end]...).(F0)
+
+	start, end = end, end+ret.F1.NumVars()
+	ret.F1 = ret.F1.FromValues(vs[start:end]...).(F1)
+
+	start, end = end, end+ret.F2.NumVars()
+	ret.F2 = ret.F2.FromValues(vs[start:end]...).(F2)
+
+	start, end = end, end+ret.F3.NumVars()
+	ret.F3 = ret.F3.FromValues(vs[start:end]...).(F3)
+
+	start, end = end, end+ret.F4.NumVars()
+	ret.F4 = ret.F4.FromValues(vs[start:end]...).(F4)
+
+	return ret
+}
+
+func (t Tuple5[F0, F1, F2, F3, F4]) NumVars() uint32 {
+	return t.F0.NumVars() + t.F1.NumVars() + t.F2.NumVars() + t.F3.NumVars() + t.F4.NumVars()
+}
+
 type Tuple8[F0, F1, F2, F3, F4, F5, F6, F7 CircuitVariable] struct {
 	F0 F0
 	F1 F1
