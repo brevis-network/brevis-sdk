@@ -50,6 +50,8 @@ func (v Uint248) FromValues(vs ...frontend.Variable) CircuitVariable {
 
 func (v Uint248) NumVars() uint32 { return 1 }
 
+func (v Uint248) String() string { return fmt.Sprintf("%d", v.Val) }
+
 type Uint248API struct {
 	g frontend.API
 }

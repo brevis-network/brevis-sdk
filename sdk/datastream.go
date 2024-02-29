@@ -31,6 +31,14 @@ func newDataStream[T CircuitVariable](api *CircuitAPI, in []T, toggles []fronten
 	}
 }
 
+func (ds *DataStream[T]) Show() {
+	fmt.Println()
+	for i, r := range ds.underlying {
+		fmt.Printf("%d | %s\n", ds.toggles[i], r)
+	}
+	fmt.Println()
+}
+
 // GetUnderlying gets an element from the DataStream. Performed on the underlying data
 // directly. It also requires the underlying data slot is valid
 func GetUnderlying[T CircuitVariable](ds *DataStream[T], index int) T {

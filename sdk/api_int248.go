@@ -57,6 +57,20 @@ func (v Int248) FromValues(vs ...frontend.Variable) CircuitVariable {
 
 func (v Int248) NumVars() uint32 { return 1 }
 
+func (v Int248) String() string {
+	b := fromInterface(v)
+	bits := decompose[uint](b, 1, 248)
+	signBit := bits[len(bits)]
+
+	abs := new(big.Int)
+	sign := ""
+	if signBit == 1 {
+		abs = recompose(twosComplement(bits, 248), 1)
+		sign = "-"
+	}
+	return fmt.Sprintf("%s%d", sign, abs)
+}
+
 type Int248API struct {
 	g frontend.API
 }

@@ -1,6 +1,7 @@
 package sdk
 
 import (
+	"fmt"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/math/emulated"
 	"math/big"
@@ -37,6 +38,16 @@ func (v Uint521) FromValues(vs ...frontend.Variable) CircuitVariable {
 }
 
 func (v Uint521) NumVars() uint32 { return 6 }
+
+func (v Uint521) String() string {
+	f := Uint521Field{}
+	n := new(big.Int)
+	for i, limb := range v.Element.Limbs {
+		b := fromInterface(limb)
+		n.Add(n, new(big.Int).Lsh(b, f.BitsPerLimb()*uint(i)))
+	}
+	return fmt.Sprintf("%d", n.Mod(n, f.Modulus()))
+}
 
 func newU521(el *emulated.Element[Uint521Field]) Uint521 {
 	return Uint521{el}

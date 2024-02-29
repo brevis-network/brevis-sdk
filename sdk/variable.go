@@ -1,8 +1,10 @@
 package sdk
 
 import (
+	"fmt"
 	"github.com/consensys/gnark/frontend"
 	"math/big"
+	"strings"
 )
 
 // MaxUint248 is the largest safe number for uint248 type
@@ -19,6 +21,7 @@ type CircuitVariable interface {
 	Values() []frontend.Variable
 	FromValues(vs ...frontend.Variable) CircuitVariable
 	NumVars() uint32
+	String() string
 }
 
 type List[T CircuitVariable] []T
@@ -49,6 +52,14 @@ func (l List[T]) NumVars() uint32 {
 	return sum
 }
 
+func (l List[T]) String() string {
+	strs := make([]string, len(l))
+	for i, t := range l {
+		strs[i] = t.String()
+	}
+	return strings.Join(strs, ", ")
+}
+
 type Tuple2[F0, F1 CircuitVariable] struct {
 	F0 F0
 	F1 F1
@@ -74,6 +85,10 @@ func (t Tuple2[F0, F1]) FromValues(vs ...frontend.Variable) CircuitVariable {
 
 func (t Tuple2[F0, F1]) NumVars() uint32 {
 	return t.F0.NumVars() + t.F1.NumVars()
+}
+
+func (t Tuple2[F0, F1]) String() string {
+	return fmt.Sprintf("(%s, %s)", t.F0, t.F1)
 }
 
 type Tuple3[F0, F1, F2 CircuitVariable] struct {
@@ -105,6 +120,10 @@ func (t Tuple3[F0, F1, F2]) FromValues(vs ...frontend.Variable) CircuitVariable 
 
 func (t Tuple3[F0, F1, F2]) NumVars() uint32 {
 	return t.F0.NumVars() + t.F1.NumVars() + t.F2.NumVars()
+}
+
+func (t Tuple3[F0, F1, F2]) String() string {
+	return fmt.Sprintf("(%s, %s, %s)", t.F0, t.F1, t.F2)
 }
 
 type Tuple4[F0, F1, F2, F3 CircuitVariable] struct {
@@ -142,6 +161,10 @@ func (t Tuple4[F0, F1, F2, F3]) FromValues(vs ...frontend.Variable) CircuitVaria
 
 func (t Tuple4[F0, F1, F2, F3]) NumVars() uint32 {
 	return t.F0.NumVars() + t.F1.NumVars() + t.F2.NumVars() + t.F3.NumVars()
+}
+
+func (t Tuple4[F0, F1, F2, F3]) String() string {
+	return fmt.Sprintf("(%s, %s, %s, %s)", t.F0, t.F1, t.F2, t.F3)
 }
 
 type Tuple5[F0, F1, F2, F3, F4 CircuitVariable] struct {
@@ -184,6 +207,10 @@ func (t Tuple5[F0, F1, F2, F3, F4]) FromValues(vs ...frontend.Variable) CircuitV
 
 func (t Tuple5[F0, F1, F2, F3, F4]) NumVars() uint32 {
 	return t.F0.NumVars() + t.F1.NumVars() + t.F2.NumVars() + t.F3.NumVars() + t.F4.NumVars()
+}
+
+func (t Tuple5[F0, F1, F2, F3, F4]) String() string {
+	return fmt.Sprintf("(%s, %s, %s, %s, %s)", t.F0, t.F1, t.F2, t.F3, t.F4)
 }
 
 type Tuple8[F0, F1, F2, F3, F4, F5, F6, F7 CircuitVariable] struct {
@@ -242,4 +269,8 @@ func (t Tuple8[F0, F1, F2, F3, F4, F5, F6, F7]) FromValues(vs ...frontend.Variab
 func (t Tuple8[F0, F1, F2, F3, F4, F5, F6, F7]) NumVars() uint32 {
 	return t.F0.NumVars() + t.F1.NumVars() + t.F2.NumVars() + t.F3.NumVars() +
 		t.F4.NumVars() + t.F5.NumVars() + t.F6.NumVars() + t.F7.NumVars()
+}
+
+func (t Tuple8[F0, F1, F2, F3, F4, F5, F6, F7]) String() string {
+	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s)", t.F0, t.F1, t.F2, t.F3, t.F4, t.F5, t.F6, t.F7)
 }

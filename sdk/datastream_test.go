@@ -135,6 +135,7 @@ func (c *TestDataStreamCircuit) testComplex() {
 	// split the data into two windows
 	// [[1, 2, 3, 100], [5, 2, 7, 101], [9, 3, 0, 200]]
 	windows := WindowUnderlying(trimmed, 4, 4)
+	windows.Show()
 
 	// map the window to MySchema, casting the data to the types I need, discarding
 	// the third field in the window in the process
@@ -145,6 +146,7 @@ func (c *TestDataStreamCircuit) testComplex() {
 			F2: c.api.ToUint521(curr[3]),
 		}
 	})
+	myCustomDS.Show()
 
 	// Define another schema of two fields, then
 	// group by the second field in my schema and aggregate the 3rd field
@@ -160,6 +162,7 @@ func (c *TestDataStreamCircuit) testComplex() {
 	}
 	rowsAfterGroupBy, err := GroupBy(myCustomDS, reduce, reducerInit, getGroupField)
 	check(err)
+	rowsAfterGroupBy.Show()
 
 	// map the rows and cast the second field to Uint248
 	rowsAfterMap := Map(rowsAfterGroupBy, func(curr Tuple2[Uint248, Uint521]) Tuple2[Uint248, Uint248] {
@@ -168,6 +171,7 @@ func (c *TestDataStreamCircuit) testComplex() {
 			F1: c.api.ToUint248(curr.F1),
 		}
 	})
+	rowsAfterMap.Show()
 
 	// find the max
 	maxInit := Tuple2[Uint248, Uint248]{
