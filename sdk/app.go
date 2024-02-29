@@ -305,6 +305,27 @@ func WithContext(ctx context.Context) SubmitProofOption {
 	return func(option submitProofOptions) { option.ctx = ctx }
 }
 
+func (q *BrevisApp) SubmitProofWithQueryId(queryId string, proof plonk.Proof) error {
+	buf := bytes.NewBuffer([]byte{})
+	_, err := proof.WriteTo(buf)
+	if err != nil {
+		return fmt.Errorf("error writing proof to bytes: %s", err.Error())
+	}
+	res, err := q.gc.SubmitProof(&proto.SubmitAppCircuitProofRequest{
+		QueryHash:     queryId,
+		TargetChainId: q.dstChainId,
+		Proof:         hexutil.Encode(buf.Bytes()),
+	})
+	if err != nil {
+		return fmt.Errorf("error calling brevis gateway SubmitProof: %s", err.Error())
+	}
+	if !res.GetSuccess() {
+		return fmt.Errorf("error calling brevis gateway SubmitProof: cdoe %s, msg %s",
+			res.GetErr().GetCode(), res.GetErr().GetMsg())
+	}
+	return nil
+}
+
 func (q *BrevisApp) SubmitProof(proof plonk.Proof, options ...SubmitProofOption) error {
 	opts := submitProofOptions{}
 	for _, apply := range options {
@@ -538,15 +559,15 @@ func (q *BrevisApp) assignTransactions(in *CircuitInput) (err error) {
 
 func buildTx(t TransactionData) Transaction {
 	return Transaction{
-		ChainId:              ConstUint248(t.ChainId),
-		BlockNum:             ConstUint248(t.BlockNum),
-		Nonce:                ConstUint248(t.Nonce),
+		ChainId:             ConstUint248(t.ChainId),
+		BlockNum:            ConstUint248(t.BlockNum),
+		Nonce:               ConstUint248(t.Nonce),
 		GasTipCapOrGasPrice: ConstUint248(t.GasTipCapOrGasPrice),
-		GasFeeCap:     ConstUint248(t.GasFeeCap),
-		GasLimit:             ConstUint248(t.GasLimit),
-		From:                 ConstUint248(t.From),
-		To:                   ConstUint248(t.To),
-		Value:                ConstBytes32(t.Value.Bytes()),
+		GasFeeCap:           ConstUint248(t.GasFeeCap),
+		GasLimit:            ConstUint248(t.GasLimit),
+		From:                ConstUint248(t.From),
+		To:                  ConstUint248(t.To),
+		Value:               ConstBytes32(t.Value.Bytes()),
 	}
 }
 
