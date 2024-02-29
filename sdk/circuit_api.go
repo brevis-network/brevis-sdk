@@ -16,8 +16,9 @@ type CircuitAPI struct {
 	Int248  *Int248API
 	Bytes32 *Bytes32API
 
-	g      frontend.API
-	output []frontend.Variable `gnark:"-"`
+	g                frontend.API
+	output           []frontend.Variable `gnark:"-"`
+	checkInputUnique bool
 }
 
 func NewCircuitAPI(gapi frontend.API) *CircuitAPI {
@@ -72,6 +73,10 @@ func (api *CircuitAPI) addOutput(bits []frontend.Variable) {
 	b := flipByGroups(bits, 8)
 	api.output = append(api.output, b...)
 	dryRunOutput = append(dryRunOutput, bits2Bytes(b)...)
+}
+
+func (api *CircuitAPI) AssertInputsAreUnique() {
+	api.checkInputUnique = true
 }
 
 // TODO: support storage key for plain value

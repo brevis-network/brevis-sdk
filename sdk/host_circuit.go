@@ -36,6 +36,9 @@ func (c *HostCircuit) Define(gapi frontend.API) error {
 	if err != nil {
 		return err
 	}
+	if api.checkInputUnique {
+		assertUnique(gapi, c.Input.InputCommitments)
+	}
 	err = c.Guest.Define(api, c.Input.DataInput)
 	if err != nil {
 		return fmt.Errorf("error building user-defined circuit %s", err.Error())
@@ -96,8 +99,6 @@ func (c *HostCircuit) commitInput() error {
 	hasher.Write(packed...)
 	togglesCommit := hasher.Sum()
 	c.api.AssertIsEqual(togglesCommit, c.Input.TogglesCommitment)
-
-	assertUnique(c.api, c.Input.InputCommitments)
 
 	return nil
 }
