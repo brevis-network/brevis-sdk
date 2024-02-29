@@ -305,16 +305,11 @@ func WithContext(ctx context.Context) SubmitProofOption {
 	return func(option submitProofOptions) { option.ctx = ctx }
 }
 
-func (q *BrevisApp) SubmitProofWithQueryId(queryId string, proof plonk.Proof) error {
-	buf := bytes.NewBuffer([]byte{})
-	_, err := proof.WriteTo(buf)
-	if err != nil {
-		return fmt.Errorf("error writing proof to bytes: %s", err.Error())
-	}
+func (q *BrevisApp) SubmitProofWithQueryId(queryId string, dstChainId uint64, proof []byte) error {
 	res, err := q.gc.SubmitProof(&proto.SubmitAppCircuitProofRequest{
 		QueryHash:     queryId,
-		TargetChainId: q.dstChainId,
-		Proof:         hexutil.Encode(buf.Bytes()),
+		TargetChainId: dstChainId,
+		Proof:         hexutil.Encode(proof),
 	})
 	if err != nil {
 		return fmt.Errorf("error calling brevis gateway SubmitProof: %s", err.Error())
