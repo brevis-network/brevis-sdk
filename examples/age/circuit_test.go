@@ -3,13 +3,14 @@ package age
 import (
 	"context"
 	"fmt"
+	"path/filepath"
+	"testing"
+
 	"github.com/brevis-network/brevis-sdk/sdk"
 	"github.com/brevis-network/brevis-sdk/test"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"path/filepath"
-	"testing"
 )
 
 func TestCircuit(t *testing.T) {
