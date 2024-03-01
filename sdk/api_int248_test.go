@@ -26,6 +26,7 @@ func (c *TestInt248APICircuit) Define(g frontend.API) error {
 	c.testBinary()
 	c.testSelect()
 	c.testComparisons()
+	c.testArithmetics()
 
 	return nil
 }
@@ -40,6 +41,8 @@ var testI248Neg = ConstInt248(testInt248Neg)
 var testInt248Neg2 = big.NewInt(-444644294412797970)
 var testI248Neg2 = ConstInt248(testInt248Neg2)
 var testI248Neg2Bits = flipByGroups(parseBitStr("11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111100111010100010011100101111010111100000111101111011111101110"), 1)
+var testInt248Pos3 = big.NewInt(444644294412797970)
+var testI248Pos3 = ConstInt248(testInt248Pos3)
 
 func (c *TestInt248APICircuit) testBinary() {
 	bin := c.i248.ToBinary(testI248Pos2)
@@ -97,4 +100,12 @@ func (c *TestInt248APICircuit) testComparisons() {
 	c.g.AssertIsEqual(c.i248.IsGreaterThan(testI248Neg, testI248Neg).Val, 0)
 	c.g.AssertIsEqual(c.i248.IsGreaterThan(testI248Pos, zero).Val, 1)
 	c.g.AssertIsEqual(c.i248.IsGreaterThan(zero, testI248Pos).Val, 0)
+}
+
+func (c *TestInt248APICircuit) testArithmetics() {
+	abs := c.i248.ABS(testI248Neg2)
+	c.g.AssertIsEqual(testI248Pos3.Val, abs.Val)
+
+	abs = c.i248.ABS(ConstInt248(big.NewInt(0)))
+	c.g.AssertIsEqual(big.NewInt(0), abs.Val)
 }

@@ -154,6 +154,18 @@ func (api *Int248API) IsZero(a Int248) Uint248 {
 	return newU248(isZero)
 }
 
+func (api *Int248API) ABS(a Int248) Uint248 {
+	bs := api.ToBinary(a)
+	signBit := bs[247] // ToBinary returns little-endian bits, the last bit is sign
+	flipped := make([]frontend.Variable, len(bs))
+	for i, v := range bs {
+		flipped[i] = api.g.IsZero(v.Val)
+	}
+	absWhenOrigIsNeg := api.g.Add(1, api.g.FromBinary(flipped...))
+	abs := api.g.Select(signBit.Val, absWhenOrigIsNeg, a.Val)
+	return newU248(abs)
+}
+
 //func (api *Int248API) Add(a, b Int248) Int248 {
 //	panic("unimplemented")
 //	return Int248{}
