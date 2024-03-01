@@ -20,6 +20,49 @@ func TestCircuit(t *testing.T) {
 	txHash := common.HexToHash(
 		"0x6dc75e61220cc775aafa17796c20e49ac08030020fce710e3e546aa4e003454c")
 
+	ec, err := ethclient.Dial("https://eth-mainnet.nodereal.io/v1/0af795b55d124a61b86836461ece1dee")
+	check(err)
+	tx, _, err := ec.TransactionByHash(context.Background(), txHash)
+	check(err)
+	receipt, err := ec.TransactionReceipt(context.Background(), txHash)
+	check(err)
+	from, err := types.Sender(types.NewLondonSigner(tx.ChainId()), tx)
+	check(err)
+
+	app.AddTransaction(sdk.TransactionData{
+		Hash:                txHash,
+		ChainId:             tx.ChainId(),
+		BlockNum:            receipt.BlockNumber,
+		Nonce:               tx.Nonce(),
+		GasTipCapOrGasPrice: tx.GasTipCap(),
+		GasFeeCap:           tx.GasFeeCap(),
+		GasLimit:            tx.Gas(),
+		From:                from,
+		To:                  *tx.To(),
+		Value:               tx.Value(),
+	})
+
+	appCircuit := &AppCircuit{}
+	appCircuitAssignment := &AppCircuit{}
+
+	circuitInput, err := app.BuildCircuitInput(appCircuit)
+	check(err)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Testing
+	///////////////////////////////////////////////////////////////////////////////
+
+	//test.IsSolved(t, appCircuit, appCircuitAssignment, circuitInput)
+	test.ProverSucceeded(t, appCircuit, appCircuitAssignment, circuitInput)
+}
+
+func TestE2E(t *testing.T) {
+	app, err := sdk.NewBrevisApp()
+	check(err)
+
+	txHash := common.HexToHash(
+		"0x6dc75e61220cc775aafa17796c20e49ac08030020fce710e3e546aa4e003454c")
+
 	ec, err := ethclient.Dial("...")
 	check(err)
 	tx, _, err := ec.TransactionByHash(context.Background(), txHash)

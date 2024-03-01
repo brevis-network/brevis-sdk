@@ -31,8 +31,8 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 	// For educational purposes, when we added the queries to the querier, we
 	// specifically requested index "1" for storage slots to be our "special" data.
 	// We can access this special index directly and use it in circuit.
-	s := slots.Get(1)
-	api.AssertIsEqualBytes32(s.Key, expectedKey)
+	s := sdk.GetUnderlying(slots, 1)
+	api.Bytes32.AssertIsEqual(s.Key, expectedKey)
 
 	owner := api.ToUint248(s.Value)
 	// Output will be reflected in our contract in the form of

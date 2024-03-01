@@ -462,28 +462,28 @@ func (t Transaction) String() string { return "" }
 // value - 32 bytes
 func (t Transaction) pack(api frontend.API) []Variable {
 	var bits []Variable
-	bits = append(bits, api.ToBinary(t.BlockNum, 8*4)...)
-	bits = append(bits, api.ToBinary(t.ChainId, 8*4)...)
-	bits = append(bits, api.ToBinary(t.Nonce, 8*4)...)
-	bits = append(bits, api.ToBinary(t.GasTipCapOrGasPrice, 8*8)...)
-	bits = append(bits, api.ToBinary(t.GasFeeCap, 8*8)...)
-	bits = append(bits, api.ToBinary(t.GasLimit, 8*4)...)
-	bits = append(bits, api.ToBinary(t.From, 8*20)...)
-	bits = append(bits, api.ToBinary(t.To, 8*20)...)
+	bits = append(bits, api.ToBinary(t.BlockNum.Val, 8*4)...)
+	bits = append(bits, api.ToBinary(t.ChainId.Val, 8*4)...)
+	bits = append(bits, api.ToBinary(t.Nonce.Val, 8*4)...)
+	bits = append(bits, api.ToBinary(t.GasTipCapOrGasPrice.Val, 8*8)...)
+	bits = append(bits, api.ToBinary(t.GasFeeCap.Val, 8*8)...)
+	bits = append(bits, api.ToBinary(t.GasLimit.Val, 8*4)...)
+	bits = append(bits, api.ToBinary(t.From.Val, 8*20)...)
+	bits = append(bits, api.ToBinary(t.To.Val, 8*20)...)
 	bits = append(bits, t.Value.toBinaryVars(api)...)
 	return packBitsToFr(api, bits)
 }
 
 func (t Transaction) goPack() []*big.Int {
 	var bits []uint
-	bits = append(bits, decomposeBits(fromInterface(t.BlockNum), 8*4)...)
-	bits = append(bits, decomposeBits(fromInterface(t.ChainId), 8*4)...)
-	bits = append(bits, decomposeBits(fromInterface(t.Nonce), 8*4)...)
-	bits = append(bits, decomposeBits(fromInterface(t.GasTipCapOrGasPrice), 8*8)...)
-	bits = append(bits, decomposeBits(fromInterface(t.GasFeeCap), 8*8)...)
-	bits = append(bits, decomposeBits(fromInterface(t.GasLimit), 8*4)...)
-	bits = append(bits, decomposeBits(fromInterface(t.From), 8*20)...)
-	bits = append(bits, decomposeBits(fromInterface(t.To), 8*20)...)
+	bits = append(bits, decomposeBits(fromInterface(t.BlockNum.Val), 8*4)...)
+	bits = append(bits, decomposeBits(fromInterface(t.ChainId.Val), 8*4)...)
+	bits = append(bits, decomposeBits(fromInterface(t.Nonce.Val), 8*4)...)
+	bits = append(bits, decomposeBits(fromInterface(t.GasTipCapOrGasPrice.Val), 8*8)...)
+	bits = append(bits, decomposeBits(fromInterface(t.GasFeeCap.Val), 8*8)...)
+	bits = append(bits, decomposeBits(fromInterface(t.GasLimit.Val), 8*4)...)
+	bits = append(bits, decomposeBits(fromInterface(t.From.Val), 8*20)...)
+	bits = append(bits, decomposeBits(fromInterface(t.To.Val), 8*20)...)
 	bits = append(bits, t.Value.toBinary()...)
 	return packBitsToInt(bits, bls12377_fr.Bits-1)
 }

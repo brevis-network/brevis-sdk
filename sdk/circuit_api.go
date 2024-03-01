@@ -64,7 +64,7 @@ func (api *CircuitAPI) OutputUint(bitSize int, v Uint248) {
 // OutputAddress adds an output of solidity address type.
 func (api *CircuitAPI) OutputAddress(v Uint248) {
 	api.addOutput(api.g.ToBinary(v.Val, 20*8))
-	fmt.Printf("added address output: %x\n", v)
+	fmt.Printf("added address output: %x\n", v.Val)
 }
 
 func (api *CircuitAPI) addOutput(bits []frontend.Variable) {
