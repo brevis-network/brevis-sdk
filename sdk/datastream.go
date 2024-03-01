@@ -3,7 +3,9 @@ package sdk
 import (
 	"fmt"
 	"github.com/consensys/gnark/frontend"
+	"github.com/jedib0t/go-pretty/v6/table"
 	"math/big"
+	"os"
 )
 
 type DataStream[T CircuitVariable] struct {
@@ -32,11 +34,14 @@ func newDataStream[T CircuitVariable](api *CircuitAPI, in []T, toggles []fronten
 }
 
 func (ds *DataStream[T]) Show() {
-	fmt.Println()
+	t := table.NewWriter()
+	t.SetStyle(table.StyleLight)
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(table.Row{"#", "data", "toggle"})
 	for i, r := range ds.underlying {
-		fmt.Printf("%d | %s\n", ds.toggles[i], r)
+		t.AppendRow(table.Row{i, r, ds.toggles[i]})
 	}
-	fmt.Println()
+	t.Render()
 }
 
 // GetUnderlying gets an element from the DataStream. Performed on the underlying data
