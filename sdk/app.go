@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 type ReceiptData struct {
@@ -511,7 +512,7 @@ func buildStorageSlot(s StorageData) StorageSlot {
 	return StorageSlot{
 		BlockNum: s.BlockNum,
 		Contract: ParseAddress(s.Address),
-		Key:      ParseBytes32(s.Key[:]),
+		Key:      ParseBytes32(crypto.Keccak256(s.Key[:])),
 		Value:    ParseBytes32(s.Value[:]),
 	}
 }
