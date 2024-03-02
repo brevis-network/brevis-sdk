@@ -95,8 +95,13 @@ func (api *CircuitAPI) AssertInputsAreUnique() {
 // example, to access nested mapping at slot 1 value with m[a][b] and
 // subsequently the 4th index of the struct value, use
 // StorageKeyOfStructFieldInMapping(1, 4, a, b). If your a and b are not of
-// Bytes32 type, cast them to Bytes32 first using api.ToBytes32
+// Bytes32 type, cast them to Bytes32 first using api.ToBytes32.
+//
 // https://docs.soliditylang.org/en/v0.8.24/internals/layout_in_storage.html#mappings-and-dynamic-arrays
+//
+// IMPORTANT NOTE: the result hash is actually the MPT key of the storage, which is
+// keccak256(storageKey). So the final formula is keccak256(keccak256(h(k) | p)).
+
 func (api *CircuitAPI) StorageKeyOfStructFieldInMapping(slot, offset int, mappingKey Bytes32, nestedMappingKeys ...Bytes32) Bytes32 {
 	slotBits := decomposeBig(big.NewInt(int64(slot)), 1, 256)
 
