@@ -59,7 +59,6 @@ func TestE2E(t *testing.T) {
 		Address:  account,
 		Key:      common.BytesToHash(slot),
 		Value:    common.HexToHash("0xf380166f8490f24af32bf47d1aa217fba62b6575"),
-		Value:    common.HexToHash("0xf380166f8490f24af32bf47d1aa217fba62b6575"),
 	}, 1)
 	// More slots can be added to be batch proven, but in this example we use only
 	// one to keep it simple
