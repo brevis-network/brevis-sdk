@@ -124,7 +124,7 @@ type BrevisApp struct {
 	buildInputCalled       bool
 	queryId                []byte
 	srcChainId, dstChainId uint64
-	
+
 }
 
 func NewBrevisApp(gatewayUrlOverride ...string) (*BrevisApp, error) {
@@ -532,7 +532,7 @@ func buildStorageSlot(s StorageData) StorageSlot {
 	return StorageSlot{
 		BlockNum: newU248(s.BlockNum),
 		Contract: ConstUint248(s.Address),
-		Key:      ConstBytes32(crypto.Keccak256(s.Key[:])),
+		Key:      ConstBytes32(crypto.Keccak256(crypto.Keccak256(s.Key[:])),
 		Value:    ConstBytes32(s.Value[:]),
 	}
 }
