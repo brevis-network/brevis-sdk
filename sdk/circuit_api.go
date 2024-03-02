@@ -79,11 +79,26 @@ func (api *CircuitAPI) AssertInputsAreUnique() {
 	api.checkInputUnique = true
 }
 
-// TODO: support storage key for plain value
-//func (api *CircuitAPI) StorageKey() {}
+// StorageKeyOfArrayElement computes the storage key for an element in an array
+// state variable
+func (api *CircuitAPI) StorageKeyOfArrayElement(arrStorageKey Bytes32, elementSize int, index Uint248) Bytes32 {
+	offset := api.g.Mul(index.Val, elementSize)
+	arrStorageKey.Val[0] = api.g.Add(arrStorageKey.Val[0], offset)
 
-// TODO: support storage key for array value
-//func (api *CircuitAPI) StorageKeyOfArrayElement() {}
+	// storage key hash
+	arrKeyBitsLE := api.Bytes32.ToBinary(arrStorageKey)
+	padded := keccak.PadBits101(api.g, flipByGroups(arrKeyBitsLE.Values(), 8), 1)
+	res := keccak.Keccak256Bits(api.g, 1, 0, padded)
+
+	// mpt key hash
+	padded = keccak.PadBits101(api.g, res[:], 1)
+	res = keccak.Keccak256Bits(api.g, 1, 0, padded)
+
+	// keccak output has the same byte wise endianness as input. reversing the bits
+	// by group of 8 to make it little-endian
+	hashByteWiseLE := newU248s(flipByGroups(res[:], 8)...)
+	return api.Bytes32.FromBinary(hashByteWiseLE...)
+}
 
 // TODO: support storage key for plain value in mapping
 //func (api *CircuitAPI) StorageKeyOfValueInMapping() {}
@@ -101,7 +116,6 @@ func (api *CircuitAPI) AssertInputsAreUnique() {
 //
 // IMPORTANT NOTE: the result hash is actually the MPT key of the storage, which is
 // keccak256(storageKey). So the final formula is keccak256(keccak256(h(k) | p)).
-
 func (api *CircuitAPI) StorageKeyOfStructFieldInMapping(slot, offset int, mappingKey Bytes32, nestedMappingKeys ...Bytes32) Bytes32 {
 	slotBits := decomposeBig(big.NewInt(int64(slot)), 1, 256)
 
@@ -116,7 +130,7 @@ func (api *CircuitAPI) StorageKeyOfStructFieldInMapping(slot, offset int, mappin
 		key = keccak.Keccak256Bits(api.g, 1, 0, preimagePadded)
 	}
 
-	keyBits := api.applyStructOffset(key[:], offset)
+	keyBits := api.offsetStorageKey(key[:], offset)
 
 	padded := keccak.PadBits101(api.g, keyBits, 1)
 	res := keccak.Keccak256Bits(api.g, 1, 0, padded)
@@ -127,7 +141,7 @@ func (api *CircuitAPI) StorageKeyOfStructFieldInMapping(slot, offset int, mappin
 	return api.Bytes32.FromBinary(hashByteWiseLE...)
 }
 
-func (api *CircuitAPI) applyStructOffset(keyBits []variable, offset int) []variable {
+func (api *CircuitAPI) offsetStorageKey(keyBits []variable, offset int) []variable {
 	if offset <= 0 {
 		return keyBits
 	}

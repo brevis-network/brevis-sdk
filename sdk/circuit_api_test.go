@@ -30,6 +30,7 @@ func (c *TestCircuitAPICircuit) Define(g frontend.API) error {
 	c.testCasting()
 	c.testOutput()
 	c.testMappingStorageKey()
+	c.testStorageKeyOfArrayElement()
 
 	return nil
 }
@@ -120,4 +121,21 @@ func (c *TestCircuitAPICircuit) testMappingStorageKey() {
 	api.Bytes32.AssertIsEqual(storageMptKey, ConstBytes32(expectedKey))
 
 	// TODO add tests for nested mapping cases
+}
+
+func (c *TestCircuitAPICircuit) testStorageKeyOfArrayElement() {
+	api := c.api
+
+	preimage := common.FromHex("0x0000000000000000000000000000000000000000000000000000000000000002")
+	arrSlotKey := crypto.Keccak256(preimage)
+
+	elMptKey := api.StorageKeyOfArrayElement(ConstBytes32(arrSlotKey), 2, ConstUint248(4))
+
+	expected := new(big.Int).SetBytes(arrSlotKey)
+	expected.Add(expected, big.NewInt(8))
+	expectedKey := expected.Bytes()
+	expectedKey = crypto.Keccak256(expectedKey)
+	expectedKey = crypto.Keccak256(expectedKey)
+
+	api.Bytes32.AssertIsEqual(elMptKey, ConstBytes32(expectedKey))
 }
