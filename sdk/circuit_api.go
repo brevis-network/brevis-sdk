@@ -79,6 +79,13 @@ func (api *CircuitAPI) AssertInputsAreUnique() {
 	api.checkInputUnique = true
 }
 
+func (api *CircuitAPI) StorageKey(slot Bytes32) Bytes32 {
+	s := api.Bytes32.ToBinary(slot)
+	padded := keccak.PadBits101(api.g, flipByGroups(s.Values(), 8), 1)
+	key := keccak.Keccak256Bits(api.g, 1, 0, padded)
+	return api.hashKeccakOutputAgain(key)
+}
+
 // StorageKeyOfArrayElement computes the storage key for an element in an array
 // state variable
 func (api *CircuitAPI) StorageKeyOfArrayElement(arrStorageKey Bytes32, elementSize int, index Uint248) Bytes32 {
@@ -91,13 +98,7 @@ func (api *CircuitAPI) StorageKeyOfArrayElement(arrStorageKey Bytes32, elementSi
 	res := keccak.Keccak256Bits(api.g, 1, 0, padded)
 
 	// mpt key hash
-	padded = keccak.PadBits101(api.g, res[:], 1)
-	res = keccak.Keccak256Bits(api.g, 1, 0, padded)
-
-	// keccak output has the same byte wise endianness as input. reversing the bits
-	// by group of 8 to make it little-endian
-	hashByteWiseLE := newU248s(flipByGroups(res[:], 8)...)
-	return api.Bytes32.FromBinary(hashByteWiseLE...)
+	return api.hashKeccakOutputAgain(res)
 }
 
 // TODO: support storage key for plain value in mapping
@@ -130,9 +131,12 @@ func (api *CircuitAPI) StorageKeyOfStructFieldInMapping(slot, offset int, mappin
 		key = keccak.Keccak256Bits(api.g, 1, 0, preimagePadded)
 	}
 
-	keyBits := api.offsetStorageKey(key[:], offset)
+	res := api.offsetStorageKey(key, offset)
+	return api.hashKeccakOutputAgain(res)
+}
 
-	padded := keccak.PadBits101(api.g, keyBits, 1)
+func (api *CircuitAPI) hashKeccakOutputAgain(bits [256]frontend.Variable) Bytes32 {
+	padded := keccak.PadBits101(api.g, bits[:], 1)
 	res := keccak.Keccak256Bits(api.g, 1, 0, padded)
 
 	// keccak output has the same byte wise endianness as input. reversing the bits
@@ -141,7 +145,7 @@ func (api *CircuitAPI) StorageKeyOfStructFieldInMapping(slot, offset int, mappin
 	return api.Bytes32.FromBinary(hashByteWiseLE...)
 }
 
-func (api *CircuitAPI) offsetStorageKey(keyBits []variable, offset int) []variable {
+func (api *CircuitAPI) offsetStorageKey(keyBits [256]variable, offset int) [256]variable {
 	if offset <= 0 {
 		return keyBits
 	}
@@ -149,11 +153,13 @@ func (api *CircuitAPI) offsetStorageKey(keyBits []variable, offset int) []variab
 	// offset is usually very small (< 100). Overflow can only happen if the low limb
 	// of the keccak hash is almost full (i.e. 0xffffff...), which is essentially
 	// impossible.
-	byteWiseLE := newU248s(flipByGroups(keyBits, 8)...)
+	byteWiseLE := newU248s(flipByGroups(keyBits[:], 8)...)
 	key := api.Bytes32.FromBinary(byteWiseLE...)
 	key.Val[0] = api.g.Add(key.Val[0], offset)
-	keyBits = flipByGroups(api.Bytes32.ToBinary(key).Values(), 8)
-	return keyBits
+
+	var ret [256]variable
+	copy(ret[:], flipByGroups(api.Bytes32.ToBinary(key).Values(), 8))
+	return ret
 }
 
 func Select[T CircuitVariable](api *CircuitAPI, s Uint248, a, b T) T {

@@ -29,6 +29,7 @@ func (c *TestCircuitAPICircuit) Define(g frontend.API) error {
 
 	c.testCasting()
 	c.testOutput()
+	c.testStorageKey()
 	c.testMappingStorageKey()
 	c.testStorageKeyOfArrayElement()
 
@@ -138,4 +139,16 @@ func (c *TestCircuitAPICircuit) testStorageKeyOfArrayElement() {
 	expectedKey = crypto.Keccak256(expectedKey)
 
 	api.Bytes32.AssertIsEqual(elMptKey, ConstBytes32(expectedKey))
+}
+
+func (c *TestCircuitAPICircuit) testStorageKey() {
+	api := c.api
+
+	preimage := common.FromHex("0x0000000000000000000000000000000000000000000000000000000000000002")
+	mptKey := api.StorageKey(ConstBytes32(preimage))
+
+	expected := crypto.Keccak256(preimage)
+	expected = crypto.Keccak256(expected)
+
+	api.Bytes32.AssertIsEqual(mptKey, ConstBytes32(expected))
 }
