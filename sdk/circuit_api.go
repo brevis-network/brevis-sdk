@@ -17,7 +17,7 @@ type CircuitAPI struct {
 	Bytes32 *Bytes32API
 
 	g                frontend.API
-	output           []frontend.Variable `gnark:"-"`
+	output           []variable `gnark:"-"`
 	checkInputUnique bool
 }
 
@@ -67,7 +67,7 @@ func (api *CircuitAPI) OutputAddress(v Uint248) {
 	fmt.Printf("added address output: %x\n", v.Val)
 }
 
-func (api *CircuitAPI) addOutput(bits []frontend.Variable) {
+func (api *CircuitAPI) addOutput(bits []variable) {
 	// the decomposed v bits are little-endian bits. The way evm uses Keccak expects
 	// the input to be big-endian bytes, but the bits in each byte are little endian
 	b := flipByGroups(bits, 8)
@@ -111,25 +111,40 @@ func (api *CircuitAPI) StorageKeyOfStructFieldInMapping(slot, offset int, mappin
 		key = keccak.Keccak256Bits(api.g, 1, 0, preimagePadded)
 	}
 
-	keyBits := newU248s(flipByGroups(key[:], 8)...)
-	storageKey := api.Bytes32.FromBinary(keyBits...)
+	keyBits := api.applyStructOffset(key[:], offset)
 
+	padded := keccak.PadBits101(api.g, keyBits, 1)
+	res := keccak.Keccak256Bits(api.g, 1, 0, padded)
+
+	// keccak output has the same byte wise endianness as input. reversing the bits
+	// by group of 8 to make it little-endian
+	hashByteWiseLE := newU248s(flipByGroups(res[:], 8)...)
+	return api.Bytes32.FromBinary(hashByteWiseLE...)
+}
+
+func (api *CircuitAPI) applyStructOffset(keyBits []variable, offset int) []variable {
+	if offset <= 0 {
+		return keyBits
+	}
 	// Hack: directly doing integer arithmetic on the low limb of the bytes32 because
-	// offset is usually very small (< 10). Overflow can only happen if the low limb
-	// of the keccak hash is 0xffffff... (almost 31 ff), which is essentially
+	// offset is usually very small (< 100). Overflow can only happen if the low limb
+	// of the keccak hash is almost full (i.e. 0xffffff...), which is essentially
 	// impossible.
-	// TODO: maybe switch to proper big number arithmetic?
-	storageKey.Val[0] = api.g.Add(storageKey.Val[0], offset)
-	return storageKey
+	byteWiseLE := newU248s(flipByGroups(keyBits, 8)...)
+	key := api.Bytes32.FromBinary(byteWiseLE...)
+	key.Val[0] = api.g.Add(key.Val[0], offset)
+	keyBits = flipByGroups(api.Bytes32.ToBinary(key).Values(), 8)
+	return keyBits
 }
 
 func Select[T CircuitVariable](api *CircuitAPI, s Uint248, a, b T) T {
 	aVals := a.Values()
 	bVals := b.Values()
 	if len(aVals) != len(bVals) {
-		panic(fmt.Errorf("cannot select: inconsistent value length of a (%d) and b (%d)", len(aVals), len(bVals)))
+		panic(fmt.Errorf("cannot select: inconsistent value length of a (%d) and b (%d)",
+			len(aVals), len(bVals)))
 	}
-	res := make([]frontend.Variable, len(aVals))
+	res := make([]variable, len(aVals))
 	for i := range aVals {
 		res[i] = api.g.Select(s.Val, aVals[i], bVals[i])
 	}
@@ -154,9 +169,9 @@ func (api *CircuitAPI) ToBytes32(i interface{}) Bytes32 {
 		bits := api.Uint521.ToBinary(v, 32*8)
 		lo := api.Uint248.FromBinary(bits[:numBitsPerVar]...)
 		hi := api.Uint248.FromBinary(bits[numBitsPerVar:256]...)
-		return Bytes32{Val: [2]frontend.Variable{lo.Val, hi.Val}}
+		return Bytes32{Val: [2]variable{lo.Val, hi.Val}}
 	case Uint248:
-		return Bytes32{Val: [2]frontend.Variable{v.Val, 0}}
+		return Bytes32{Val: [2]variable{v.Val, 0}}
 	}
 	panic(fmt.Errorf("unsupported casting from %T to Bytes32", i))
 }
@@ -170,7 +185,7 @@ func (api *CircuitAPI) ToUint521(i interface{}) Uint521 {
 		// Recompose the Bytes32 into BigField.NbLimbs limbs
 		bits := v.toBinaryVars(api.g)
 		f := Uint521Field{}
-		limbs := make([]frontend.Variable, f.NbLimbs())
+		limbs := make([]variable, f.NbLimbs())
 		b := f.BitsPerLimb()
 		limbs[0] = api.g.FromBinary(bits[:b]...)
 		limbs[1] = api.g.FromBinary(bits[b : 2*b]...)
@@ -179,7 +194,7 @@ func (api *CircuitAPI) ToUint521(i interface{}) Uint521 {
 		el := api.Uint521.f.NewElement(limbs)
 		return newU521(el)
 	case Uint248:
-		el := api.Uint521.f.NewElement([]frontend.Variable{v.Val, 0, 0, 0, 0, 0})
+		el := api.Uint521.f.NewElement([]variable{v.Val, 0, 0, 0, 0, 0})
 		return newU521(el)
 	}
 	panic(fmt.Errorf("unsupported casting from %T to *Uint521", i))
@@ -230,6 +245,6 @@ func (api *CircuitAPI) ToInt248(i interface{}) Int248 {
 	panic(fmt.Errorf("unsupported casting from %T to Int248", i))
 }
 
-func (api *CircuitAPI) isEqual(a, b frontend.Variable) frontend.Variable {
+func (api *CircuitAPI) isEqual(a, b variable) variable {
 	return api.g.IsZero(api.g.Sub(a, b))
 }

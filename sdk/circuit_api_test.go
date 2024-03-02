@@ -105,17 +105,19 @@ func (c *TestCircuitAPICircuit) testOutput() {
 func (c *TestCircuitAPICircuit) testMappingStorageKey() {
 	api := c.api
 	mapKey := common.FromHex("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFCEE6A")
-	storageKey := api.StorageKeyOfStructFieldInMapping(6, 1, ConstBytes32(mapKey))
-	fmt.Printf("feeGrowthOutside0X128 storage key %s\n", storageKey)
+	storageMptKey := api.StorageKeyOfStructFieldInMapping(6, 1, ConstBytes32(mapKey))
+	fmt.Printf("storage mpt key %s\n", storageMptKey)
 
 	preimage := common.FromHex("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFCEE6A")
 	preimage = append(preimage, common.LeftPadBytes([]byte{6}, 32)...)
 	h := crypto.Keccak256(preimage)
 	expected := new(big.Int).SetBytes(h)
 	expected.Add(expected, big.NewInt(1))
-	fmt.Printf("expected: %x\n", expected)
+	expectedKey := expected.Bytes()
+	expectedKey = crypto.Keccak256(expectedKey)
+	fmt.Printf("expected: %x\n", expectedKey)
 
-	api.Bytes32.AssertIsEqual(storageKey, ConstBytes32(expected.Bytes()))
+	api.Bytes32.AssertIsEqual(storageMptKey, ConstBytes32(expectedKey))
 
 	// TODO add tests for nested mapping cases
 }

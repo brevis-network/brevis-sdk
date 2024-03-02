@@ -460,8 +460,8 @@ func (t Transaction) String() string { return "" }
 // to - 20 bytes
 // from - 20 bytes
 // value - 32 bytes
-func (t Transaction) pack(api frontend.API) []Variable {
-	var bits []Variable
+func (t Transaction) pack(api frontend.API) []variable {
+	var bits []variable
 	bits = append(bits, api.ToBinary(t.BlockNum.Val, 8*4)...)
 	bits = append(bits, api.ToBinary(t.ChainId.Val, 8*4)...)
 	bits = append(bits, api.ToBinary(t.Nonce.Val, 8*4)...)

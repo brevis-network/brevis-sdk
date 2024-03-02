@@ -15,7 +15,7 @@ var MaxUint248 = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 248), big.NewI
 // size to 248 would suffice the purpose.
 var numBitsPerVar = 248
 
-type Variable = frontend.Variable
+type variable = frontend.Variable
 
 type CircuitVariable interface {
 	Values() []frontend.Variable
