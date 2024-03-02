@@ -3,7 +3,6 @@ package slot
 import (
 	"fmt"
 	"github.com/brevis-network/brevis-sdk/test"
-	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"path/filepath"
 	"testing"
@@ -23,7 +22,8 @@ func TestCircuit(t *testing.T) {
 	app.AddStorage(sdk.StorageData{
 		BlockNum: big.NewInt(18233760),
 		Address:  account,
-		Key:      common.BytesToHash(crypto.Keccak256(slot)),
+		Key:      common.BytesToHash(slot),
+		Value:    common.HexToHash("0xf380166f8490f24af32bf47d1aa217fba62b6575"),
 	}, 1)
 	// More slots can be added to be batch proven, but in this example we use only
 	// one to keep it simple
@@ -58,6 +58,7 @@ func TestE2E(t *testing.T) {
 		BlockNum: big.NewInt(18233760),
 		Address:  account,
 		Key:      common.BytesToHash(crypto.Keccak256(slot)),
+		Value:    common.HexToHash("0xf380166f8490f24af32bf47d1aa217fba62b6575"),
 	}, 1)
 	// More slots can be added to be batch proven, but in this example we use only
 	// one to keep it simple
