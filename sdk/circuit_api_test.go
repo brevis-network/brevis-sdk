@@ -130,12 +130,10 @@ func (c *TestCircuitAPICircuit) testStorageKeyOfArrayElement() {
 	preimage := common.FromHex("0x0000000000000000000000000000000000000000000000000000000000000002")
 	arrSlotKey := crypto.Keccak256(preimage)
 
-	elMptKey := api.StorageKeyOfArrayElement(ConstBytes32(arrSlotKey), 2, ConstUint248(4), ConstUint248(1))
+	elMptKey := api.StorageKeyOfArrayElement(ConstBytes32(arrSlotKey), 2, ConstUint248(1175), ConstUint248(1))
 
-	expected := new(big.Int).SetBytes(arrSlotKey)
-	expected.Add(expected, big.NewInt(9))
+	expected := new(big.Int).SetBytes(common.FromHex("0x405787fa12a823e0f2b7631cc41b3ba8828b3321ca811111fa75cd3aa3bb63fd"))
 	expectedKey := expected.Bytes()
-	expectedKey = crypto.Keccak256(expectedKey)
 	expectedKey = crypto.Keccak256(expectedKey)
 
 	api.Bytes32.AssertIsEqual(elMptKey, ConstBytes32(expectedKey))

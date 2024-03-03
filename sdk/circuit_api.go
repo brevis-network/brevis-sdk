@@ -79,6 +79,7 @@ func (api *CircuitAPI) AssertInputsAreUnique() {
 	api.checkInputUnique = true
 }
 
+// StorageKey computes the storage key for an element in a solidity state variable
 func (api *CircuitAPI) StorageKey(slot Bytes32) Bytes32 {
 	s := api.Bytes32.ToBinary(slot)
 	padded := keccak.PadBits101(api.g, flipByGroups(s.Values(), 8), 1)
@@ -86,20 +87,23 @@ func (api *CircuitAPI) StorageKey(slot Bytes32) Bytes32 {
 	return api.hashKeccakOutputAgain(key)
 }
 
-// StorageKeyOfArrayElement computes the storage key for an element in an array
-// state variable
+// StorageKeyOfArrayElement computes the storage key for an element in a solidity
+// array state variable. arrStorageKey is the storage key for the plain slot of
+// the array variable. index determines the array index. offset determines the
+// offset (in terms of bytes32) within each array element.
+// For example, if we have a solidity struct:
 func (api *CircuitAPI) StorageKeyOfArrayElement(arrStorageKey Bytes32, elementSize int, index, offset Uint248) Bytes32 {
 	api.Uint248.AssertIsLessOrEqual(offset, ConstUint248(elementSize))
 	o := api.g.Mul(index.Val, elementSize)
 	arrStorageKey.Val[0] = api.g.Add(arrStorageKey.Val[0], o, offset.Val)
 
-	// storage key hash
+	// mpt key
 	arrKeyBitsLE := api.Bytes32.ToBinary(arrStorageKey)
 	padded := keccak.PadBits101(api.g, flipByGroups(arrKeyBitsLE.Values(), 8), 1)
 	res := keccak.Keccak256Bits(api.g, 1, 0, padded)
 
-	// mpt key hash
-	return api.hashKeccakOutputAgain(res)
+	hash := flipByGroups(res[:], 8)
+	return api.Bytes32.FromBinary(newU248s(hash...)...)
 }
 
 // TODO: support storage key for plain value in mapping
