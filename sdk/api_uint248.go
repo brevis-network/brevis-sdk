@@ -170,6 +170,10 @@ func (api *Uint248API) AssertIsEqual(a, b Uint248) {
 	api.g.AssertIsEqual(a.Val, b.Val)
 }
 
+func (api *Uint248API) AssertIsLessOrEqual(a, b Uint248) {
+	api.g.AssertIsLessOrEqual(a.Val, b.Val)
+}
+
 func (api *Uint248API) AssertIsDifferent(a, b Uint248) {
 	api.g.AssertIsDifferent(a.Val, b.Val)
 }

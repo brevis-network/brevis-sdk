@@ -88,9 +88,10 @@ func (api *CircuitAPI) StorageKey(slot Bytes32) Bytes32 {
 
 // StorageKeyOfArrayElement computes the storage key for an element in an array
 // state variable
-func (api *CircuitAPI) StorageKeyOfArrayElement(arrStorageKey Bytes32, elementSize int, index Uint248) Bytes32 {
-	offset := api.g.Mul(index.Val, elementSize)
-	arrStorageKey.Val[0] = api.g.Add(arrStorageKey.Val[0], offset)
+func (api *CircuitAPI) StorageKeyOfArrayElement(arrStorageKey Bytes32, elementSize int, index, offset Uint248) Bytes32 {
+	api.Uint248.AssertIsLessOrEqual(offset, ConstUint248(elementSize))
+	o := api.g.Mul(index.Val, elementSize)
+	arrStorageKey.Val[0] = api.g.Add(arrStorageKey.Val[0], o, offset.Val)
 
 	// storage key hash
 	arrKeyBitsLE := api.Bytes32.ToBinary(arrStorageKey)
