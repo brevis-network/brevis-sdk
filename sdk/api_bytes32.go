@@ -54,10 +54,7 @@ func (v Bytes32) String() string {
 }
 
 // ConstBytes32 initializes a constant Bytes32 circuit variable. Panics if the
-// length of the supplied data bytes is larger than 32. It decomposes data (big
-// endian) into little endian bits then recomposes the result into two big ints
-// in the form of {lo, hi} This function is not a circuit g and should only be
-// used outside of circuit to initialize constant circuit variables
+// length of the supplied data bytes is larger than 32.
 func ConstBytes32(data []byte) Bytes32 {
 	if len(data) > 32 {
 		panic(fmt.Errorf("ConstBytes32 called with data of length %d", len(data)))
@@ -75,10 +72,11 @@ type Bytes32API struct {
 	g frontend.API
 }
 
-func NewBytes32API(api frontend.API) *Bytes32API {
+func newBytes32API(api frontend.API) *Bytes32API {
 	return &Bytes32API{api}
 }
 
+// ToBinary decomposes the input v to a list (size 256) of little-endian binary digits
 func (api *Bytes32API) ToBinary(v Bytes32) List[Uint248] {
 	var bits []frontend.Variable
 	bits = append(bits, api.g.ToBinary(v.Val[0], numBitsPerVar)...)
@@ -86,6 +84,9 @@ func (api *Bytes32API) ToBinary(v Bytes32) List[Uint248] {
 	return newU248s(bits...)
 }
 
+// FromBinary interprets the input vs as a list of little-endian binary digits
+// and recomposes it to a Bytes32. Input size can be less than 256 bits, the
+// input is padded on the MSB end with 0s.
 func (api *Bytes32API) FromBinary(vs ...Uint248) Bytes32 {
 	var list List[Uint248] = vs
 	values := list.Values()
@@ -98,6 +99,7 @@ func (api *Bytes32API) FromBinary(vs ...Uint248) Bytes32 {
 	return res
 }
 
+// IsEqual returns 1 if a == b, and 0 otherwise
 func (api *Bytes32API) IsEqual(a, b Bytes32) Uint248 {
 	eq := api.g.And(
 		api.g.IsZero(api.g.Sub(a.Val[0], b.Val[0])),
@@ -106,6 +108,7 @@ func (api *Bytes32API) IsEqual(a, b Bytes32) Uint248 {
 	return newU248(eq)
 }
 
+// Select returns a if s == 1, and b if s == 0
 func (api *Bytes32API) Select(s Uint248, a, b Bytes32) Bytes32 {
 	res := Bytes32{}
 	res.Val[0] = api.g.Select(s.Val, a.Val[0], b.Val[0])
@@ -113,15 +116,18 @@ func (api *Bytes32API) Select(s Uint248, a, b Bytes32) Bytes32 {
 	return res
 }
 
+// IsZero returns 1 if a == 0, and 0 otherwise
 func (api *Bytes32API) IsZero(a Bytes32) Uint248 {
 	return newU248(api.g.And(api.g.IsZero(a.Val[0]), api.g.IsZero(a.Val[1])))
 }
 
+// AssertIsEqual asserts a == b
 func (api *Bytes32API) AssertIsEqual(a, b Bytes32) {
 	api.g.AssertIsEqual(a.Val[0], b.Val[0])
 	api.g.AssertIsEqual(a.Val[1], b.Val[1])
 }
 
+// AssertIsDifferent asserts a != b
 func (api *Bytes32API) AssertIsDifferent(a, b Bytes32) {
 	eq := api.IsEqual(a, b)
 	api.g.AssertIsEqual(eq.Val, 0)

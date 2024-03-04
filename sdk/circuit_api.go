@@ -24,10 +24,10 @@ type CircuitAPI struct {
 func NewCircuitAPI(gapi frontend.API) *CircuitAPI {
 	return &CircuitAPI{
 		g:       gapi,
-		Uint248: NewUint248API(gapi),
-		Uint521: NewUint521API(gapi),
-		Int248:  NewInt248API(gapi),
-		Bytes32: NewBytes32API(gapi),
+		Uint248: newUint248API(gapi),
+		Uint521: newUint521API(gapi),
+		Int248:  newInt248API(gapi),
+		Bytes32: newBytes32API(gapi),
 	}
 }
 
@@ -91,7 +91,6 @@ func (api *CircuitAPI) StorageKey(slot Bytes32) Bytes32 {
 // array state variable. arrStorageKey is the storage key for the plain slot of
 // the array variable. index determines the array index. offset determines the
 // offset (in terms of bytes32) within each array element.
-// For example, if we have a solidity struct:
 func (api *CircuitAPI) StorageKeyOfArrayElement(arrStorageKey Bytes32, elementSize int, index, offset Uint248) Bytes32 {
 	api.Uint248.AssertIsLessOrEqual(offset, ConstUint248(elementSize))
 	o := api.g.Mul(index.Val, elementSize)
@@ -182,6 +181,8 @@ func Select[T CircuitVariable](api *CircuitAPI, s Uint248, a, b T) T {
 	return t.FromValues(res...).(T)
 }
 
+// ToBytes32 casts the input to a Bytes32 type. Supports Bytes32, Int248,
+// Uint521, and Uint248.
 func (api *CircuitAPI) ToBytes32(i interface{}) Bytes32 {
 	switch v := i.(type) {
 	case Bytes32:
@@ -206,7 +207,8 @@ func (api *CircuitAPI) ToBytes32(i interface{}) Bytes32 {
 	panic(fmt.Errorf("unsupported casting from %T to Bytes32", i))
 }
 
-// ToUint521 casts a Bytes32 or a Uint248 type to a Uint521 type
+// ToUint521 casts the input to a Uint521 type. Supports Uint521, Bytes32,
+// and Uint248
 func (api *CircuitAPI) ToUint521(i interface{}) Uint521 {
 	switch v := i.(type) {
 	case Uint521:
@@ -227,12 +229,11 @@ func (api *CircuitAPI) ToUint521(i interface{}) Uint521 {
 		el := api.Uint521.f.NewElement([]variable{v.Val, 0, 0, 0, 0, 0})
 		return newU521(el)
 	}
-	panic(fmt.Errorf("unsupported casting from %T to *Uint521", i))
+	panic(fmt.Errorf("unsupported casting from %T to Uint521", i))
 }
 
-// ToUint248 casts a Uint521 or a Bytes32 type to a Uint248 type. It adds
-// constraints for checking that the variable being cast does not overflow
-// uint248
+// ToUint248 casts the input to a Uint248 type. Supports Uint248, Int248,
+// Bytes32, and Uint521
 func (api *CircuitAPI) ToUint248(i interface{}) Uint248 {
 	switch v := i.(type) {
 	case Uint248:
@@ -251,6 +252,8 @@ func (api *CircuitAPI) ToUint248(i interface{}) Uint248 {
 	panic(fmt.Errorf("unsupported casting from %T to Uint248", i))
 }
 
+// ToInt248 casts the input to a Int248 type. Supports Int248, Uint248,
+// and Bytes32
 func (api *CircuitAPI) ToInt248(i interface{}) Int248 {
 	switch v := i.(type) {
 	case Int248:

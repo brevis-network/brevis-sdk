@@ -6,8 +6,8 @@ import (
 )
 
 func main() {
-	var kStart uint64 = 18
-	var kEnd uint64 = 18
+	var kStart uint64 = 25
+	var kEnd uint64 = 25
 
 	for k := kStart; k <= kEnd; k++ {
 		var sizeLagrange uint64 = 1 << k

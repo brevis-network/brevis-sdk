@@ -53,6 +53,11 @@ func newU521(el *emulated.Element[Uint521Field]) Uint521 {
 	return Uint521{el}
 }
 
+// ConstUint521 initializes a constant Uint521. This function does not generate
+// circuit wires and should only be used outside of circuit. Supports all int and
+// uint variants, bool, []byte (big-endian), *big.Int, and string inputs. If
+// input is string, this function uses *big.Int SetString function to interpret
+// the string
 func ConstUint521(i interface{}) Uint521 {
 	v := fromInterface(i)
 	el := emulated.ValueOf[Uint521Field](v)
@@ -64,7 +69,7 @@ type Uint521API struct {
 	f *emulated.Field[Uint521Field]
 }
 
-func NewUint521API(api frontend.API) *Uint521API {
+func newUint521API(api frontend.API) *Uint521API {
 	f, err := emulated.NewField[Uint521Field](api)
 	if err != nil {
 		panic(err)
@@ -73,6 +78,8 @@ func NewUint521API(api frontend.API) *Uint521API {
 	return &Uint521API{g: api, f: f}
 }
 
+// FromBinary interprets the input vs as a list of little-endian binary digits
+// and recomposes it to a Uint521
 func (api *Uint521API) FromBinary(vs ...Uint248) Uint521 {
 	vars := make([]frontend.Variable, len(vs))
 	for i, v := range vs {
@@ -81,6 +88,7 @@ func (api *Uint521API) FromBinary(vs ...Uint248) Uint521 {
 	return newU521(api.f.FromBits(vars))
 }
 
+// ToBinary decomposes the input v to a list (size n) of little-endian binary digits
 func (api *Uint521API) ToBinary(v Uint521, n int) List[Uint248] {
 	reduced := api.f.Reduce(v.Element)
 	bits := api.f.ToBits(reduced)
@@ -91,20 +99,23 @@ func (api *Uint521API) ToBinary(v Uint521, n int) List[Uint248] {
 	return ret
 }
 
+// Add returns a + b. Overflow can happen if a + b > 2^521
 func (api *Uint521API) Add(a, b Uint521) Uint521 {
 	return newU521(api.f.Add(a.Element, b.Element))
 }
 
+// Sub returns a - b. Underflow can happen if b > a
 func (api *Uint521API) Sub(a, b Uint521) Uint521 {
 	return newU521(api.f.Sub(a.Element, b.Element))
 }
 
+// Mul returns a * b. Overflow can happen if a * b > 2^521
 func (api *Uint521API) Mul(a, b Uint521) Uint521 {
 	return newU521(api.f.Mul(a.Element, b.Element))
 }
 
-// Div computes the standard unsigned integer division a / b and
-// its remainder. Uses QuoRemBigHint.
+// Div computes the standard unsigned integer division (like Go) and returns the
+// quotient and remainder. Uses QuoRemHint
 func (api *Uint521API) Div(a, b Uint521) (quotient, remainder Uint521) {
 	aEl := api.f.Reduce(a.Element)
 	bEl := api.f.Reduce(b.Element)
@@ -123,19 +134,23 @@ func (api *Uint521API) Div(a, b Uint521) (quotient, remainder Uint521) {
 	return newU521(q), newU521(r)
 }
 
+// Select returns a if s == 1, and b if s == 0
 func (api *Uint521API) Select(s Uint248, a, b Uint521) Uint521 {
 	el := api.f.Select(s.Val, a.Element, b.Element)
 	return newU521(el)
 }
 
-func (api *Uint521API) Equal(a, b Uint521) Uint248 {
+// IsEqual returns 1 if a == b, and 0 otherwise
+func (api *Uint521API) IsEqual(a, b Uint521) Uint248 {
 	return newU248(api.f.IsZero(api.f.Sub(a.Element, b.Element)))
 }
 
+// AssertIsEqual asserts a == b
 func (api *Uint521API) AssertIsEqual(a, b Uint521) {
 	api.f.AssertIsEqual(a.Element, b.Element)
 }
 
+// AssertIsLessOrEqual asserts a <= b
 func (api *Uint521API) AssertIsLessOrEqual(a, b Uint521) {
 	_a := api.f.Reduce(a.Element)
 	_b := api.f.Reduce(b.Element)

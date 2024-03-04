@@ -21,7 +21,7 @@ type TestBytes32APICircuit struct {
 
 func (c *TestBytes32APICircuit) Define(g frontend.API) error {
 	c.g = g
-	c.b32 = NewBytes32API(g)
+	c.b32 = newBytes32API(g)
 
 	c.testBinary()
 	c.testEqual()

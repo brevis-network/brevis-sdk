@@ -24,14 +24,18 @@ func newU248s(vs ...frontend.Variable) List[Uint248] {
 	return ret
 }
 
+// ConstUint248 initializes a constant Uint248. This function does not generate
+// circuit wires and should only be used outside of circuit. Supports all int and
+// uint variants, bool, []byte (big-endian), *big.Int, and string inputs. If
+// input is string, this function uses *big.Int SetString function to interpret
+// the string
 func ConstUint248(i interface{}) Uint248 {
 	return newU248(fromInterface(i))
 }
 
 // ParseEventID initializes a circuit Uint248 from bytes. Only the first 6 bytes
-// of the event id is used to save space. This function is not a circuit g and
-// should only be used outside of circuit to initialize constant circuit
-// variables
+// of the event id is used to save space. This function does not generate circuit
+// wires and should only be used outside of circuit.
 func ParseEventID(b []byte) Uint248 {
 	return newU248(new(big.Int).SetBytes(b[:6]))
 }
@@ -56,10 +60,12 @@ type Uint248API struct {
 	g frontend.API
 }
 
-func NewUint248API(api frontend.API) *Uint248API {
+func newUint248API(api frontend.API) *Uint248API {
 	return &Uint248API{api}
 }
 
+// FromBinary interprets the input vs as a list of little-endian binary digits
+// and recomposes it to a Uint248
 func (api *Uint248API) FromBinary(vs ...Uint248) Uint248 {
 	vars := make([]frontend.Variable, len(vs))
 	for i, v := range vs {
@@ -68,6 +74,8 @@ func (api *Uint248API) FromBinary(vs ...Uint248) Uint248 {
 	return newU248(api.g.FromBinary(vars...))
 }
 
+// ToBinary decomposes the input v to a list (size n) of little-endian binary
+// digits
 func (api *Uint248API) ToBinary(v Uint248, n int) List[Uint248] {
 	b := api.g.ToBinary(v.Val, n)
 	ret := make([]Uint248, n)
@@ -77,6 +85,7 @@ func (api *Uint248API) ToBinary(v Uint248, n int) List[Uint248] {
 	return ret
 }
 
+// Add returns a + b. Overflow can happen if a + b > 2^248
 func (api *Uint248API) Add(a, b Uint248, other ...Uint248) Uint248 {
 	vo := make([]frontend.Variable, len(other))
 	for i, o := range other {
@@ -85,16 +94,18 @@ func (api *Uint248API) Add(a, b Uint248, other ...Uint248) Uint248 {
 	return newU248(api.g.Add(a.Val, b.Val, vo...))
 }
 
+// Sub returns a - b. Underflow can happen if b > a
 func (api *Uint248API) Sub(a, b Uint248) Uint248 {
 	return newU248(api.g.Sub(a.Val, b.Val))
 }
 
+// Mul returns a * b. Overflow can happen if a * b > 2^248
 func (api *Uint248API) Mul(a, b Uint248) Uint248 {
 	return newU248(api.g.Mul(a.Val, b.Val))
 }
 
-// Div computes the standard unsigned integer division a / b and
-// its remainder. Uses QuoRemHint.
+// Div computes the standard unsigned integer division (like Go) and returns the
+// quotient and remainder. Uses QuoRemHint
 func (api *Uint248API) Div(a, b Uint248) (quotient, remainder Uint248) {
 	out, err := api.g.Compiler().NewHint(QuoRemHint, 2, a.Val, b.Val)
 	if err != nil {
@@ -115,6 +126,7 @@ func (api *Uint248API) Sqrt(a Uint248) Uint248 {
 	return newU248(out[0])
 }
 
+// IsZero returns 1 if a == 0, and 0 otherwise
 func (api *Uint248API) IsZero(a Uint248) Uint248 {
 	return newU248(api.g.IsZero(a.Val))
 }
@@ -156,24 +168,28 @@ func (api *Uint248API) Or(a, b Uint248, other ...Uint248) Uint248 {
 	return newU248(res)
 }
 
-// Not returns 1 if `a` is 0, and 0 if `a` is 1. The user must make sure `a` is
-// either 0 or 1
+// Not returns 1 if a is 0, and 0 if a is 1. The user must make sure a is either
+// 0 or 1
 func (api *Uint248API) Not(a Uint248) Uint248 {
 	return api.IsZero(a)
 }
 
+// Select returns a if s == 1, and b if s == 0
 func (api *Uint248API) Select(s Uint248, a, b Uint248) Uint248 {
 	return newU248(api.g.Select(s.Val, a.Val, b.Val))
 }
 
+// AssertIsEqual asserts a == b
 func (api *Uint248API) AssertIsEqual(a, b Uint248) {
 	api.g.AssertIsEqual(a.Val, b.Val)
 }
 
+// AssertIsLessOrEqual asserts a <= b
 func (api *Uint248API) AssertIsLessOrEqual(a, b Uint248) {
 	api.g.AssertIsLessOrEqual(a.Val, b.Val)
 }
 
+// AssertIsDifferent asserts a != b
 func (api *Uint248API) AssertIsDifferent(a, b Uint248) {
 	api.g.AssertIsDifferent(a.Val, b.Val)
 }

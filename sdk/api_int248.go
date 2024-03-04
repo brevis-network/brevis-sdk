@@ -24,6 +24,9 @@ func newI248(v ...frontend.Variable) Int248 {
 	return ret
 }
 
+// ConstInt248 initializes a constant Int248. This function does not generate
+// circuit wires and should only be used outside of circuit. The input big int
+// can be negative
 func ConstInt248(v *big.Int) Int248 {
 	if v.BitLen() > 248 {
 		panic("cannot initialize Int248 with bit length > 248")
@@ -75,14 +78,18 @@ type Int248API struct {
 	g frontend.API
 }
 
-func NewInt248API(api frontend.API) *Int248API {
+func newInt248API(api frontend.API) *Int248API {
 	return &Int248API{api}
 }
 
+// ToBinary decomposes the input v to a list (size n) of little-endian binary digits
 func (api *Int248API) ToBinary(v Int248) List[Uint248] {
 	return newU248s(api.g.ToBinary(v.Val, 248)...)
 }
 
+// FromBinary interprets the input vs as a list of little-endian binary digits
+// and recomposes it to an Int248. The MSB (most significant bit) of the input is
+// interpreted as the sign bit
 func (api *Int248API) FromBinary(vs ...Uint248) Int248 {
 	if len(vs) > 248 {
 		panic(fmt.Sprintf("cannot construct Int248 from binary of size %d bits", len(vs)))
@@ -149,11 +156,13 @@ func (api *Int248API) IsGreaterThan(a, b Int248) Uint248 {
 	return newU248(isLt)
 }
 
+// IsZero returns 1 if a == 0, and 0 otherwise
 func (api *Int248API) IsZero(a Int248) Uint248 {
 	isZero := api.g.IsZero(a.Val)
 	return newU248(isZero)
 }
 
+// ABS returns the absolute value of a
 func (api *Int248API) ABS(a Int248) Uint248 {
 	bs := api.ToBinary(a)
 	signBit := bs[247] // ToBinary returns little-endian bits, the last bit is sign
@@ -186,6 +195,7 @@ func (api *Int248API) ABS(a Int248) Uint248 {
 //	return Int248{}
 //}
 
+// Select returns a if s == 1, and b if s == 0
 func (api *Int248API) Select(s Uint248, a, b Int248) Int248 {
 	v := Int248{}
 	v.Val = api.g.Select(s.Val, a.Val, b.Val)
@@ -195,10 +205,12 @@ func (api *Int248API) Select(s Uint248, a, b Int248) Int248 {
 	return v
 }
 
+// AssertIsEqual asserts a == b
 func (api *Int248API) AssertIsEqual(a, b Int248) {
 	api.g.AssertIsEqual(a.Val, b.Val)
 }
 
+// AssertIsDifferent asserts a != b
 func (api *Int248API) AssertIsDifferent(a, b Int248) {
 	api.g.AssertIsDifferent(a.Val, b.Val)
 }

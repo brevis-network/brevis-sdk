@@ -21,7 +21,7 @@ type TestUint248APICircuit struct {
 
 func (c *TestUint248APICircuit) Define(g frontend.API) error {
 	c.g = g
-	c.u248 = NewUint248API(g)
+	c.u248 = newUint248API(g)
 
 	c.testBinary()
 	c.testSelect()
