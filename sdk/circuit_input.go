@@ -257,12 +257,12 @@ func (r Receipt) pack(api frontend.API) []frontend.Variable {
 
 func (r Receipt) goPack() []*big.Int {
 	var bits []uint
-	bits = append(bits, decomposeBits(fromInterface(r.BlockNum), 8*4)...)
+	bits = append(bits, decomposeBits(fromInterface(r.BlockNum.Val), 8*4)...)
 	for _, field := range r.Fields {
-		bits = append(bits, decomposeBits(fromInterface(field.Contract), 8*20)...)
-		bits = append(bits, decomposeBits(fromInterface(field.EventID), 8*6)...)
-		bits = append(bits, decomposeBits(fromInterface(field.IsTopic), 1)...)
-		bits = append(bits, decomposeBits(fromInterface(field.Index), 7)...)
+		bits = append(bits, decomposeBits(fromInterface(field.Contract.Val), 8*20)...)
+		bits = append(bits, decomposeBits(fromInterface(field.EventID.Val), 8*6)...)
+		bits = append(bits, decomposeBits(fromInterface(field.IsTopic.Val), 1)...)
+		bits = append(bits, decomposeBits(fromInterface(field.Index.Val), 7)...)
 		bits = append(bits, field.Value.toBinary()...)
 	}
 	return packBitsToInt(bits, bls12377_fr.Bits-1) // pack to ints of bit size of BLS12377Fr - 1, which is 252 bits
@@ -352,8 +352,8 @@ func (s StorageSlot) pack(api frontend.API) []frontend.Variable {
 
 func (s StorageSlot) goPack() []*big.Int {
 	var bits []uint
-	bits = append(bits, decomposeBits(fromInterface(s.BlockNum), 8*4)...)
-	bits = append(bits, decomposeBits(fromInterface(s.Contract), 8*20)...)
+	bits = append(bits, decomposeBits(fromInterface(s.BlockNum.Val), 8*4)...)
+	bits = append(bits, decomposeBits(fromInterface(s.Contract.Val), 8*20)...)
 	bits = append(bits, s.Key.toBinary()...)
 	bits = append(bits, s.Value.toBinary()...)
 	return packBitsToInt(bits, bls12377_fr.Bits-1)

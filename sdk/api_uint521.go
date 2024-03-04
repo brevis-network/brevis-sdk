@@ -59,6 +59,7 @@ func newU521(el *emulated.Element[Uint521Field]) Uint521 {
 // input is string, this function uses *big.Int SetString function to interpret
 // the string
 func ConstUint521(i interface{}) Uint521 {
+	ensureNotCircuitVariable(i)
 	v := fromInterface(i)
 	el := emulated.ValueOf[Uint521Field](v)
 	return newU521(&el)

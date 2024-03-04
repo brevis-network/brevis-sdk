@@ -132,8 +132,8 @@ func TestStoragePack(t *testing.T) {
 	s := StorageSlot{
 		BlockNum: ConstUint248(1234567),
 		Contract: ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
-		Key:      ConstBytes32(hexutil.MustDecode("0x9c2d3d42dcdafb0cb8c10089d02447b96c5fce87f298e50f88f2e188a6afcc41")),
-		Value:    ConstBytes32(hexutil.MustDecode("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
+		Key:      ConstBytes32(common.FromHex("0x9c2d3d42dcdafb0cb8c10089d02447b96c5fce87f298e50f88f2e188a6afcc41")),
+		Value:    ConstBytes32(common.FromHex("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
 	}
 	c := &TestStoragePackCircuit{
 		Slot:   s,

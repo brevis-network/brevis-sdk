@@ -144,9 +144,9 @@ func Count[T CircuitVariable](ds *DataStream[T]) Uint248 {
 	return newU248(count)
 }
 
-type ZipFunc[T0, T1, R CircuitVariable] func(a T0, b T1) R
+type ZipMap2Func[T0, T1, R CircuitVariable] func(a T0, b T1) R
 
-func Zip[T0, T1, R CircuitVariable](a *DataStream[T0], b List[T1], zipFunc ZipFunc[T0, T1, R]) *DataStream[R] {
+func ZipMap2[T0, T1, R CircuitVariable](a *DataStream[T0], b List[T1], zipFunc ZipMap2Func[T0, T1, R]) *DataStream[R] {
 	if la, lb := len(a.underlying), len(b); la != lb {
 		panic(fmt.Errorf("cannot zip: inconsistent underlying array lengths %d and %d", la, lb))
 	}
@@ -154,6 +154,20 @@ func Zip[T0, T1, R CircuitVariable](a *DataStream[T0], b List[T1], zipFunc ZipFu
 	for i := range a.underlying {
 		va, vb := a.underlying[i], b[i]
 		res[i] = zipFunc(va, vb)
+	}
+	return newDataStream(a.api, res, a.toggles)
+}
+
+type ZipMap3Func[T0, T1, T2, R CircuitVariable] func(a T0, b T1, c T2) R
+
+func ZipMap3[T0, T1, T2, R CircuitVariable](a *DataStream[T0], b List[T1], c List[T2], zipFunc ZipMap3Func[T0, T1, T2, R]) *DataStream[R] {
+	if la, lb, lc := len(a.underlying), len(b), len(c); la != lb || la != lc {
+		panic(fmt.Errorf("cannot zip: inconsistent underlying array lengths: %d, %d, %d", la, lb, lc))
+	}
+	res := make([]R, len(a.underlying))
+	for i := range a.underlying {
+		va, vb, vc := a.underlying[i], b[i], c[i]
+		res[i] = zipFunc(va, vb, vc)
 	}
 	return newDataStream(a.api, res, a.toggles)
 }

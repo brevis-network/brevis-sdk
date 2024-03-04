@@ -83,9 +83,3 @@ func (c *TestBytes32APICircuit) testIsZero() {
 	z = c.b32.IsZero(data2)
 	c.g.AssertIsEqual(z.Val, 1)
 }
-
-func check(err error) {
-	if err != nil {
-		panic(err)
-	}
-}

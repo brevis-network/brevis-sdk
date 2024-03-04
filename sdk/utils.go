@@ -119,8 +119,6 @@ func fromInterface(input interface{}) *big.Int {
 	in := input.(interface{})
 	var r big.Int
 	switch v := in.(type) {
-	case Uint248:
-		r.Set(fromInterface(v.Val))
 	case big.Int:
 		r.Set(&v)
 	case *big.Int:
@@ -241,4 +239,16 @@ func bytesFromBitsLE(bits []uint) []byte {
 		ret = append(ret, byt)
 	}
 	return ret
+}
+
+func ensureNotCircuitVariable(v any) {
+	if _, ok := v.(CircuitVariable); ok {
+		panic(fmt.Errorf("cannot initialize constant circuit variable with circuit variable type %T", v))
+	}
+}
+
+func check(err error) {
+	if err != nil {
+		panic(err)
+	}
 }

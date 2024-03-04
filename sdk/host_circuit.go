@@ -198,9 +198,6 @@ func (c *HostCircuit) commitOutput(bits []frontend.Variable) OutputCommitment {
 		c.api.FromBinary(bitsLE[:128]...),
 	}
 
-	fmt.Printf("output commit data %x\n", bits2Bytes(bits))
-	fmt.Printf("output commit hash %x%x\n", commit[0], commit[1])
-
 	return commit
 }
 

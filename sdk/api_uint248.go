@@ -30,6 +30,7 @@ func newU248s(vs ...frontend.Variable) List[Uint248] {
 // input is string, this function uses *big.Int SetString function to interpret
 // the string
 func ConstUint248(i interface{}) Uint248 {
+	ensureNotCircuitVariable(i)
 	return newU248(fromInterface(i))
 }
 
