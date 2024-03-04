@@ -75,6 +75,8 @@ func (api *CircuitAPI) addOutput(bits []variable) {
 	dryRunOutput = append(dryRunOutput, bits2Bytes(b)...)
 }
 
+// AssertInputsAreUnique Asserts that all input data (Transaction, Receipt,
+// StorageSlot) are different from each other
 func (api *CircuitAPI) AssertInputsAreUnique() {
 	api.checkInputUnique = true
 }
@@ -121,7 +123,9 @@ func (api *CircuitAPI) StorageKeyOfArrayElement(arrStorageKey Bytes32, elementSi
 //
 // IMPORTANT NOTE: the result hash is actually the MPT key of the storage, which is
 // keccak256(storageKey). So the final formula is keccak256(keccak256(h(k) | p)).
-func (api *CircuitAPI) StorageKeyOfStructFieldInMapping(slot, offset int, mappingKey Bytes32, nestedMappingKeys ...Bytes32) Bytes32 {
+func (api *CircuitAPI) StorageKeyOfStructFieldInMapping(
+	slot, offset int, mappingKey Bytes32, nestedMappingKeys ...Bytes32) Bytes32 {
+
 	slotBits := decomposeBig(big.NewInt(int64(slot)), 1, 256)
 
 	s := flipByGroups(newVars(slotBits), 8)
