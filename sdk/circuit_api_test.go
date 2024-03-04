@@ -3,6 +3,7 @@ package sdk
 import (
 	"fmt"
 	"github.com/consensys/gnark-crypto/ecc"
+	"github.com/consensys/gnark/backend"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/test"
 	"github.com/ethereum/go-ethereum/common"
@@ -13,8 +14,10 @@ import (
 
 func TestCircuitAPI(t *testing.T) {
 	c := &TestCircuitAPICircuit{}
-	err := test.IsSolved(c, c, ecc.BLS12_377.ScalarField())
-	check(err)
+	//err := test.IsSolved(c, c, ecc.BLS12_377.ScalarField())
+	//check(err)
+	assert := test.NewAssert(t)
+	assert.ProverSucceeded(c, c, test.WithCurves(ecc.BLS12_377), test.WithBackends(backend.PLONK))
 }
 
 type TestCircuitAPICircuit struct {

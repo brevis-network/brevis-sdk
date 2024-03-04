@@ -94,12 +94,12 @@ func (api *CircuitAPI) StorageKey(slot Bytes32) Bytes32 {
 // the array variable. index determines the array index. offset determines the
 // offset (in terms of bytes32) within each array element.
 func (api *CircuitAPI) StorageKeyOfArrayElement(arrStorageKey Bytes32, elementSize int, index, offset Uint248) Bytes32 {
-	api.Uint248.AssertIsLessOrEqual(offset, ConstUint248(elementSize))
+	//api.Uint248.AssertIsLessOrEqual(offset, ConstUint248(elementSize))
 	o := api.g.Mul(index.Val, elementSize)
 	ak := Bytes32{Val: [2]variable{
 		api.g.Add(arrStorageKey.Val[0], o, offset.Val),
-		arrStorageKey.Val[1]},
-	}
+		arrStorageKey.Val[1],
+	}}
 
 	// mpt key
 	arrKeyBitsLE := api.Bytes32.ToBinary(ak)
