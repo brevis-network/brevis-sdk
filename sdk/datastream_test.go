@@ -13,12 +13,13 @@ func TestGroupValuesHint(t *testing.T) {
 	values := []frontend.Variable{1, 2, 1, 1, 5, 6}
 	toggles := []frontend.Variable{1, 1, 0, 1, 0, 1}
 	c := &TestGroupValuesHintCircuit{values, toggles}
+
+	err := test.IsSolved(c, c, ecc.BLS12_377.ScalarField())
+	if err != nil {
+		t.Error(err)
+	}
 	assert := test.NewAssert(t)
 	assert.ProverSucceeded(c, c, test.WithCurves(ecc.BLS12_377), test.WithBackends(backend.PLONK))
-	//err := test.IsSolved(c, c, ecc.BLS12_377.ScalarField())
-	//if err != nil {
-	//	t.Error(err)
-	//}
 }
 
 type TestGroupValuesHintCircuit struct {
@@ -40,6 +41,10 @@ func TestDataStream(t *testing.T) {
 	c := &TestDataStreamCircuit{
 		In: DataPoints[Uint248]{
 			Raw:     newU248s([]frontend.Variable{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}...),
+			Toggles: []frontend.Variable{1, 1, 1, 1, 1, 0, 0, 0, 0, 0},
+		},
+		In1: DataPoints[Uint248]{
+			Raw:     newU248s([]frontend.Variable{2, 3, 4, 5, 6, 7, 8, 9, 10, 11}...),
 			Toggles: []frontend.Variable{1, 1, 1, 1, 1, 0, 0, 0, 0, 0},
 		},
 		In2: DataPoints[Uint248]{
@@ -70,6 +75,7 @@ func TestDataStream(t *testing.T) {
 
 type TestDataStreamCircuit struct {
 	In  DataPoints[Uint248]
+	In1 DataPoints[Uint248]
 	In2 DataPoints[Uint248]
 	api *CircuitAPI
 }
@@ -207,6 +213,13 @@ func (c *TestDataStreamCircuit) testComplex() {
 func (c *TestDataStreamCircuit) testSimple() {
 	u248 := c.api.Uint248
 	in := NewDataStream(c.api, c.In)
+	//in1 := NewDataStream(c.api, c.In1)
+	//
+	//zipped := Zip(in, in1, func(a Uint248, b Uint248) Uint248 {
+	//	return u248.Add(a, b)
+	//})
+	//zippedSum := Sum(zipped)
+	//u248.AssertIsEqual(zippedSum, ConstUint248(120))
 
 	a := Reduce(in, newU248s(0, 0), func(acc List[Uint248], curr Uint248) (newAcc List[Uint248]) {
 		return []Uint248{
@@ -241,5 +254,4 @@ func (c *TestDataStreamCircuit) testSimple() {
 	})
 
 	AssertSorted(b, func(a, b Uint248) Uint248 { return u248.IsEqual(u248.Sub(b, a), newU248(1)) })
-
 }
