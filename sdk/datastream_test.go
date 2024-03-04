@@ -3,6 +3,7 @@ package sdk
 import (
 	"fmt"
 	"github.com/consensys/gnark-crypto/ecc"
+	"github.com/consensys/gnark/backend"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/test"
 	"testing"
@@ -12,10 +13,12 @@ func TestGroupValuesHint(t *testing.T) {
 	values := []frontend.Variable{1, 2, 1, 1, 5, 6}
 	toggles := []frontend.Variable{1, 1, 0, 1, 0, 1}
 	c := &TestGroupValuesHintCircuit{values, toggles}
-	err := test.IsSolved(c, c, ecc.BLS12_377.ScalarField())
-	if err != nil {
-		t.Error(err)
-	}
+	assert := test.NewAssert(t)
+	assert.ProverSucceeded(c, c, test.WithCurves(ecc.BLS12_377), test.WithBackends(backend.PLONK))
+	//err := test.IsSolved(c, c, ecc.BLS12_377.ScalarField())
+	//if err != nil {
+	//	t.Error(err)
+	//}
 }
 
 type TestGroupValuesHintCircuit struct {
@@ -54,10 +57,15 @@ func TestDataStream(t *testing.T) {
 			},
 		},
 	}
-	err := test.IsSolved(c, c, ecc.BLS12_377.ScalarField())
-	if err != nil {
-		t.Error(err)
-	}
+	//ccs, err := frontend.Compile(ecc.BLS12_377.ScalarField(), scs.NewBuilder, c)
+	//check(err)
+	//fmt.Println("constraints", ccs.GetNbConstraints())
+	assert := test.NewAssert(t)
+	assert.ProverSucceeded(c, c, test.WithCurves(ecc.BLS12_377), test.WithBackends(backend.PLONK))
+	//err := test.IsSolved(c, c, ecc.BLS12_377.ScalarField())
+	//if err != nil {
+	//	t.Error(err)
+	//}
 }
 
 type TestDataStreamCircuit struct {

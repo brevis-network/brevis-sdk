@@ -65,8 +65,8 @@ func ConstUint521(i interface{}) Uint521 {
 }
 
 type Uint521API struct {
-	g frontend.API
-	f *emulated.Field[Uint521Field]
+	g frontend.API                  `gnark:"-"`
+	f *emulated.Field[Uint521Field] `gnark:"-"`
 }
 
 func newUint521API(api frontend.API) *Uint521API {

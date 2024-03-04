@@ -69,7 +69,7 @@ func ConstBytes32(data []byte) Bytes32 {
 }
 
 type Bytes32API struct {
-	g frontend.API
+	g frontend.API `gnark:"-"`
 }
 
 func newBytes32API(api frontend.API) *Bytes32API {

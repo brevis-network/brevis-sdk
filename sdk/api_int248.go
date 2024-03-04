@@ -12,7 +12,7 @@ type Int248 struct {
 	// SignBit caches the sign bit signal. 0 if positive, 1 if negative. It could be
 	// uninitialized.
 	SignBit    frontend.Variable
-	signBitSet bool
+	signBitSet bool `gnark:"-"`
 }
 
 func newI248(v ...frontend.Variable) Int248 {
@@ -75,7 +75,7 @@ func (v Int248) String() string {
 }
 
 type Int248API struct {
-	g frontend.API
+	g frontend.API `gnark:"-"`
 }
 
 func newInt248API(api frontend.API) *Int248API {
