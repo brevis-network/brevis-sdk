@@ -33,6 +33,7 @@ func newDataStream[T CircuitVariable](api *CircuitAPI, in []T, toggles []fronten
 	}
 }
 
+// Show pretty prints the data stream. Useful for debugging.
 func (ds *DataStream[T]) Show() {
 	t := table.NewWriter()
 	t.SetStyle(table.StyleLight)
@@ -89,8 +90,10 @@ func WindowUnderlying[T CircuitVariable](ds *DataStream[T], size int, step ...in
 	return newDataStream(ds.api, ret, toggles)
 }
 
+// AssertFunc returns 1 if the assertion passes, and 0 otherwise
 type AssertFunc[T CircuitVariable] func(current T) Uint248
 
+// AssertEach asserts on each valid element in the data stream
 func AssertEach[T CircuitVariable](ds *DataStream[T], assertFunc AssertFunc[T]) {
 	for i, data := range ds.underlying {
 		pass := assertFunc(data).Val
@@ -146,7 +149,15 @@ func Count[T CircuitVariable](ds *DataStream[T]) Uint248 {
 
 type ZipMap2Func[T0, T1, R CircuitVariable] func(a T0, b T1) R
 
-func ZipMap2[T0, T1, R CircuitVariable](a *DataStream[T0], b List[T1], zipFunc ZipMap2Func[T0, T1, R]) *DataStream[R] {
+// ZipMap2 zips a data stream with a list and apply the map function over the
+// zipped data. The underlying toggles of the result data stream depends on the
+// toggles from the source data stream. Panics if the underlying data lengths
+// mismatch
+// Example: ZipMap2([1,2,3], [4,5,6], mySumFunc) -> [5,7,9]
+func ZipMap2[T0, T1, R CircuitVariable](
+	a *DataStream[T0], b List[T1],
+	zipFunc ZipMap2Func[T0, T1, R],
+) *DataStream[R] {
 	if la, lb := len(a.underlying), len(b); la != lb {
 		panic(fmt.Errorf("cannot zip: inconsistent underlying array lengths %d and %d", la, lb))
 	}
@@ -160,7 +171,14 @@ func ZipMap2[T0, T1, R CircuitVariable](a *DataStream[T0], b List[T1], zipFunc Z
 
 type ZipMap3Func[T0, T1, T2, R CircuitVariable] func(a T0, b T1, c T2) R
 
-func ZipMap3[T0, T1, T2, R CircuitVariable](a *DataStream[T0], b List[T1], c List[T2], zipFunc ZipMap3Func[T0, T1, T2, R]) *DataStream[R] {
+// ZipMap3 zips a data stream with two other lists and apply the map function
+// over the zipped data. The underlying toggles of the result data stream depends
+// on the toggles from the source data stream.
+// Example: ZipMap3([1,2,3], [4,5,6], [7,8,9], mySumFunc) -> [12,15,18]
+func ZipMap3[T0, T1, T2, R CircuitVariable](
+	a *DataStream[T0], b List[T1], c List[T2],
+	zipFunc ZipMap3Func[T0, T1, T2, R],
+) *DataStream[R] {
 	if la, lb, lc := len(a.underlying), len(b), len(c); la != lb || la != lc {
 		panic(fmt.Errorf("cannot zip: inconsistent underlying array lengths: %d, %d, %d", la, lb, lc))
 	}
@@ -174,6 +192,11 @@ func ZipMap3[T0, T1, T2, R CircuitVariable](a *DataStream[T0], b List[T1], c Lis
 
 type GetValueFunc[T any] func(current T) Uint248
 
+// GroupBy a given field (identified through the field func), call reducer on
+// each group, and returns a data stream in which each element is an aggregation
+// result of the group. The optional param maxUniqueGroupValuesOptional can be
+// supplied to optimize performance. It assumes the worst case (all values in the
+// data stream are unique) if no maxUniqueGroupValuesOptional is configured.
 func GroupBy[T, R CircuitVariable](
 	ds *DataStream[T],
 	reducer ReduceFunc[T, R],
@@ -257,6 +280,7 @@ func GroupValuesHint(_ *big.Int, inputs []*big.Int, outputs []*big.Int) error {
 
 type MapFunc[T, R CircuitVariable] func(current T) R
 
+// Map maps each valid element in the data stream by calling the user defined mapFunc
 func Map[T, R CircuitVariable](ds *DataStream[T], mapFunc MapFunc[T, R]) *DataStream[R] {
 	res := make([]R, len(ds.underlying))
 	for i, data := range ds.underlying {
@@ -296,7 +320,8 @@ func Filter[T CircuitVariable](ds *DataStream[T], filterFunc FilterFunc[T]) *Dat
 	return newDataStream(ds.api, ds.underlying, newToggles)
 }
 
-// MinGeneric finds out the minimum value of the selected field from the data stream. Uses Reduce under the hood.
+// MinGeneric finds out the minimum value from the data stream with the user
+// defined sort function. Uses Reduce under the hood.
 func MinGeneric[T CircuitVariable](ds *DataStream[T], initialMin T, lt SortFunc[T]) T {
 	return Reduce(ds, initialMin, func(min, current T) (newMin T) {
 		curLtMin := lt(current, min)
@@ -304,7 +329,8 @@ func MinGeneric[T CircuitVariable](ds *DataStream[T], initialMin T, lt SortFunc[
 	})
 }
 
-// MaxGeneric finds out the maximum value of the selected field from the data stream. Uses Reduce under the hood.
+// MaxGeneric finds out the maximum value from the data stream with the user
+// defined sort function. Uses Reduce under the hood.
 func MaxGeneric[T CircuitVariable](ds *DataStream[T], initialMax T, gt SortFunc[T]) T {
 	return Reduce(ds, initialMax, func(max, current T) (newMax T) {
 		curGtMax := gt(current, max)
@@ -312,15 +338,17 @@ func MaxGeneric[T CircuitVariable](ds *DataStream[T], initialMax T, gt SortFunc[
 	})
 }
 
+// Min finds out the minimum value from the data stream. Uses MinGeneric
 func Min(ds *DataStream[Uint248]) Uint248 {
 	return MinGeneric(ds, newU248(MaxUint248), ds.api.Uint248.IsLessThan)
 }
 
+// Max finds out the maximum value from the data stream. Uses MinGeneric
 func Max(ds *DataStream[Uint248]) Uint248 {
 	return MaxGeneric(ds, newU248(0), ds.api.Uint248.IsGreaterThan)
 }
 
-// Sum sums values of the selected field in the data stream. Uses Reduce.
+// Sum sums values of the selected field in the data stream. Uses Reduce
 func Sum(ds *DataStream[Uint248]) Uint248 {
 	return Reduce(ds, newU248(0), func(sum Uint248, curr Uint248) (newSum Uint248) {
 		return ds.api.Uint248.Add(sum, curr)
