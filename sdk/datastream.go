@@ -144,6 +144,23 @@ func Count[T CircuitVariable](ds *DataStream[T]) Uint248 {
 	return newU248(count)
 }
 
+type ZipFunc[T0, T1, R CircuitVariable] func(a T0, b T1) R
+
+func Zip[T0, T1, R CircuitVariable](a *DataStream[T0], b *DataStream[T1], zipFunc ZipFunc[T0, T1, R]) *DataStream[R] {
+	g := a.api.g
+	if la, lb := len(a.underlying), len(b.underlying); la != lb {
+		panic(fmt.Errorf("cannot zip: inconsistent underlying array lengths %d and %d", la, lb))
+	}
+	res := make([]R, len(a.underlying))
+	toggles := make([]variable, len(res))
+	for i := range a.underlying {
+		va, vb := a.underlying[i], b.underlying[i]
+		res[i] = zipFunc(va, vb)
+		toggles[i] = g.And(a.toggles[i], b.toggles[i])
+	}
+	return newDataStream(a.api, res, toggles)
+}
+
 type GetValueFunc[T any] func(current T) Uint248
 
 func GroupBy[T, R CircuitVariable](
