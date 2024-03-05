@@ -87,12 +87,11 @@ func (q *rawData[T]) add(data T, index ...int) {
 	}
 }
 
-func (q *rawData[T]) list() []T {
+func (q *rawData[T]) list(max int) []T {
 	var empty T
 	var l []T
-	n := len(q.ordered) + len(q.special)
 	ordered := q.ordered
-	for i := 0; i < n; i++ {
+	for i := 0; i < max; i++ {
 		if q.special[i] != empty {
 			l = append(l, q.special[i])
 		} else if len(ordered) > 0 {
@@ -112,10 +111,11 @@ type BrevisApp struct {
 	txs         rawData[TransactionData]
 
 	// cache fields
-	circuitInput           CircuitInput
-	buildInputCalled       bool
-	queryId                []byte
-	srcChainId, dstChainId uint64
+	circuitInput                    CircuitInput
+	buildInputCalled                bool
+	queryId                         []byte
+	srcChainId, dstChainId          uint64
+	maxReceipts, maxStorage, maxTxs int
 }
 
 func NewBrevisApp(gatewayUrlOverride ...string) (*BrevisApp, error) {
@@ -167,16 +167,16 @@ func (q *BrevisApp) BuildCircuitInput(guestCircuit AppCircuit) (CircuitInput, er
 	// 3. dry-run user circuit to generate output and output commitment
 
 	in := &CircuitInput{}
-	maxReceipts, maxSlots, maxTxs := guestCircuit.Allocate()
+	q.maxReceipts, q.maxStorage, q.maxTxs = guestCircuit.Allocate()
 	err := q.checkAllocations(guestCircuit)
 	if err != nil {
 		return CircuitInput{}, err
 	}
 
 	// initialize
-	in.Receipts = NewDataPoints[Receipt](maxReceipts, NewReceipt)
-	in.StorageSlots = NewDataPoints[StorageSlot](maxSlots, NewStorageSlot)
-	in.Transactions = NewDataPoints[Transaction](maxTxs, NewTransaction)
+	in.Receipts = NewDataPoints[Receipt](q.maxReceipts, NewReceipt)
+	in.StorageSlots = NewDataPoints[StorageSlot](q.maxStorage, NewStorageSlot)
+	in.Transactions = NewDataPoints[Transaction](q.maxTxs, NewTransaction)
 	in.OutputCommitment = OutputCommitment{0, 0}
 	in.InputCommitments = make([]frontend.Variable, NumMaxDataPoints)
 	for i := range in.InputCommitments {
@@ -237,9 +237,9 @@ func (q *BrevisApp) PrepareRequest(
 	req := &proto.PrepareQueryRequest{
 		ChainId:           srcChainId,
 		TargetChainId:     dstChainId,
-		ReceiptInfos:      buildReceiptInfos(q.receipts),
-		StorageQueryInfos: buildStorageQueryInfos(q.storageVals),
-		TransactionInfos:  buildTxInfos(q.txs),
+		ReceiptInfos:      buildReceiptInfos(q.receipts, q.maxReceipts),
+		StorageQueryInfos: buildStorageQueryInfos(q.storageVals, q.maxStorage),
+		TransactionInfos:  buildTxInfos(q.txs, q.maxTxs),
 		AppCircuitInfo:    buildAppCircuitInfo(q.circuitInput, vk),
 		UseAppCircuitInfo: true,
 	}
