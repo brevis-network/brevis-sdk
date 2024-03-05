@@ -13,7 +13,6 @@ import (
 	bls12377_fr "github.com/consensys/gnark-crypto/ecc/bls12-377/fr"
 	"github.com/consensys/gnark-crypto/ecc/bls12-377/fr/mimc"
 	"github.com/consensys/gnark/backend/plonk"
-	"github.com/consensys/gnark/frontend"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -165,49 +164,40 @@ func (q *BrevisApp) BuildCircuitInput(guestCircuit AppCircuit) (CircuitInput, er
 	// 1. mimc hash data at each position to generate and assign input commitments and toggles commitment
 	// 2. dry-run user circuit to generate output and output commitment
 
-	in := &CircuitInput{}
 	q.maxReceipts, q.maxStorage, q.maxTxs = guestCircuit.Allocate()
 	err := q.checkAllocations(guestCircuit)
 	if err != nil {
 		return CircuitInput{}, err
 	}
 
-	// initialize
-	in.Receipts = NewDataPoints[Receipt](q.maxReceipts, defaultReceipt)
-	in.StorageSlots = NewDataPoints[StorageSlot](q.maxStorage, defaultStorageSlot)
-	in.Transactions = NewDataPoints[Transaction](q.maxTxs, defaultTransaction)
-	in.OutputCommitment = OutputCommitment{0, 0}
-	in.InputCommitments = make([]frontend.Variable, NumMaxDataPoints)
-	for i := range in.InputCommitments {
-		in.InputCommitments[i] = 0
-	}
+	in := defaultCircuitInput(q.maxReceipts, q.maxStorage, q.maxTxs)
 
 	// receipt
-	err = q.assignReceipts(in)
+	err = q.assignReceipts(&in)
 	if err != nil {
 		return buildCircuitInputErr("failed to assign in from receipt queries", err)
 	}
 
 	// storage
-	err = q.assignStorageSlots(in)
+	err = q.assignStorageSlots(&in)
 	if err != nil {
 		return buildCircuitInputErr("failed to assign in from storage queries", err)
 	}
 
 	// transaction
-	err = q.assignTransactions(in)
+	err = q.assignTransactions(&in)
 	if err != nil {
 		return buildCircuitInputErr("failed to assign in from transaction queries", err)
 	}
 
 	// commitment
-	q.assignInputCommitment(in)
-	q.assignToggleCommitment(in)
+	q.assignInputCommitment(&in)
+	q.assignToggleCommitment(&in)
 
 	fmt.Printf("input commits: %d\n", in.InputCommitments)
 
 	// dry run without assigning the output commitment first to compute the output commitment using the user circuit
-	outputCommit, output, err := dryRun(*in, guestCircuit)
+	outputCommit, output, err := dryRun(in, guestCircuit)
 	if err != nil {
 		return buildCircuitInputErr("failed to generate output commitment", err)
 	}
@@ -215,11 +205,11 @@ func (q *BrevisApp) BuildCircuitInput(guestCircuit AppCircuit) (CircuitInput, er
 	// cache dry-run output to be used in building gateway request later
 	in.dryRunOutput = output
 
-	q.circuitInput = *in // cache the generated circuit input for later use in building gateway request
+	q.circuitInput = in // cache the generated circuit input for later use in building gateway request
 	q.buildInputCalled = true
 	fmt.Printf("output %x\n", output)
 
-	return *in, nil
+	return in, nil
 }
 
 func (q *BrevisApp) PrepareRequest(
