@@ -87,7 +87,7 @@ func TestE2E(t *testing.T) {
 	appCircuit := &AppCircuit{}
 	appCircuitAssignment := &AppCircuit{}
 
-	circuitInput, err := app.BuildCircuitInput(appCircuit)
+	circuitInput, err := app.BuildCircuitInput(appCircuitAssignment)
 	check(err)
 
 	///////////////////////////////////////////////////////////////////////////////

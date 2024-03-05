@@ -30,37 +30,72 @@ app.AddTransaction(sdk.TransactionData{/*...*/})
 ### Defining Your Custom Circuit
 
 ```go
-type AppCircuit struct{}
+package app
+
+import "github.com/brevis-network/brevis-sdk/sdk"
+
+// AppCircuit must be a struct
+type AppCircuit struct{
+    // Custom inputs. These fields must be exported (first letter capitalized)
+    // These are the inputs that can be different for each proof you generate
+    // using the same circuit
+    MyInput  sdk.Uint248
+    MyInput2 sdk.Bytes32
+}
+
+func DefaultAppCircuit() *AppCircuit {
+    return &AppCircuit{
+        MyInput: sdk.ConstUint248(0),
+        MyInput2: sdk.ConstBytes32([]byte{}),
+    }
+}
 
 // the struct AppCircuit must implement the sdk.AppCircuit interface
-var _ sdk.AppCircuit = &AppCircuit{} 
+var _ sdk.AppCircuit = &AppCircuit{}
 
 func (c *AppCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions int) {
-    // The returned values define the number of max receipt/storage/transaction count
-    // your circuit is going to use. These are needed for optimization reasons. In
-    // this example, your circuit can process a maximum of 1 receipt, 2 storages, and
-    // 3 transactions
+    // When we return 1, 2, 3, it means that we are allowing our circuit to process 
+    // a maximum of 1 receipts, 2 storages, and 3 transactions
     return 1, 2, 3
 }
-func (c *AppCircuit) Define(api *sdk.CircuitAPI, input sdk.CircuitInput) error {
-    // You can access the data you added through app.AddReceipt etc. in the `input` parameter 
+
+var ConstEventID = ParseEventID(/* 0x123456... */)
+
+func (c *AppCircuit) Define(api *sdk.CircuitAPI, input sdk.DataInput) error {
+    // You can access the data you added through app.AddReceipt etc.
     receipts := sdk.NewDataStream(api, input.Receipts)
-	
+
+    // Checking some the receipts properties against some constants
+    // In this example, by checking these, you are proving to your 
+    // contract that you have checked that all events have a certain
+    // event ID
+    sdk.AssertEach(receipts, func(receipt sdk.Receipt) Variable {
+    return api.Equal(receipt.Fields[0].EventID, ConstEventID)
+    })
+
     // You can then perform various data stream operations on the data. 
-    // You can find the usage of specific API later.  
-    sum := receipts
-        .Map(/*...*/)
-        .Reduce(/*...*/)
-        .Sum(/*...*/)
-    // ...
-	
-    // To output any computation results, use sdk.OutputXXX APIs 
-    // These results will be available for use in your contract when   
-    // the proof is verified on-chain 
-    api.OutputUint(64, sum)
-    // sdk.OutputBytes32(...)
-    // and more..
-    
+    // You can find the usage of specific API later.
+    blockNums := sdk.Map(receipts, func(r sdk.Receipt) sdk.Uint248 {
+    return r.BlockNum
+    })
+    minBlockNum := sdk.Min(blockNums)
+
+    values := sdk.Map(receipts, func(r sdk.Receipt) sdk.Uint248 {
+    return api.ToUint248(r.Value)
+    })
+    sum := sdk.Sum(values)
+
+    // sdk.Reduce(...)
+    // sdk.GroupBy(...)
+    // and more ...
+
+    // You can output any number of computation results using sdk.OutputXXX APIs 
+    // These results will be available for use in your contract when the proof 
+    // is verified on-chain 
+    api.OutputUint(64, minBlockNum)
+    api.OutputUint(248, sum)
+    // more output...
+
     return nil
 }
 ```
@@ -68,44 +103,47 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, input sdk.CircuitInput) error {
 ### Circuit Testing
 
 ```go
-appCircuit := AppCircuit{}
-appCircuitAssignment := AppCircuit{}
-// BuildAppCircuit fetches additional data required to generate proofs from the
-// ETH RPC you provided and package the actual queried data into sdk.CircuitInput
-circuitInput, err := app.BuildCircuitInput(context.Background(), appCircuit)
+package app
 
-// brevis-sdk/test package 
+import (
+	"testing"
 
-// IsSolved is a quick way to check if your circuit can be solved using the given
-// inputs. This utility doesn't invoke the actual prover, so it's very fast. This
-// function is more useful when you want to quickly iterate and debug your
-// circuit logic.
-test.IsSolved(t, appCircuit, appCircuitAssignment, circuitInput)
-// ProverSucceeded is like IsSolved, but it internally goes through the entire
-// proving/verifying cycle. This function is favored for real testing. 
-test.ProverSucceeded(t, appCircuit, appCircuitAssignment, circuitInput)
+	"github.com/brevis-network/brevis-sdk/sdk"
+	"github.com/brevis-network/brevis-sdk/test"
+)
+
+func TestAppCircuit(t *testing.T) {
+    appCircuit := DefaultAppCircuit()
+    appCircuitAssignment := &AppCircuit{
+        MyInput: sdk.ConstUint248(123),
+        MyInput2: sdk.ConstBytes32([]byte{0, 1, 2, 3}),
+    }
+    // BuildAppCircuit fetches additional data required to generate proofs from the
+    // ETH RPC you provided and package the actual queried data into sdk.CircuitInput
+    circuitInput, err := app.BuildCircuitInput(appCircuitAssignment)
+
+    // brevis-sdk/test package 
+
+    // IsSolved is a quick way to check if your circuit can be solved using the given
+    // inputs. This utility doesn't invoke the actual prover, so it's very fast. This
+    // function is more useful when you want to quickly iterate and debug your
+    // circuit logic.
+    test.IsSolved(t, appCircuit, appCircuitAssignment, circuitInput)
+    // ProverSucceeded is like IsSolved, but it internally goes through the entire
+    // proving/verifying cycle. This function is favored for real testing. 
+    test.ProverSucceeded(t, appCircuit, appCircuitAssignment, circuitInput)
+}
 ```
 
 ### Compiling Circuit
 
-Compilation and setup are required for every new circuit. If you change your circuit logic or tweak the max counts defined in your `Allocate()` function, you need to recompile and setup  
-
-The compilation output is the description of the circuit's constraint system. You should use sdk.WriteTo to serialize and save your circuit so that it can be used in the proving step later.
-
-Setup is a one-time effort per circuit. A cache dir can be provided to output external dependencies. Once you have the verifying key you should also save its hash in your contract so that when a proof via Brevis is submitted on-chain you can verify that Brevis indeed used your verifying key to verify your circuit computations 
-
+Your circuit needs to be compiled before you can generate a proof with it. sdk.Compile automatically downloads the SRS for your circuit size and saves a kzgsrs-bls12_377-xx file to the provided srsDir, then it compiles the circuit and saves the compiled circuit, poving key, and verifying key to outDir
 ```go
-outDir := "$HOME/circuitOut/age"
+outDir := "$HOME/circuitOut/myapp"
 srsDir := "$HOME/kzgsrs"
 
-appCircuit := AppCircuit{}
-ccs, err := sdk.Compile(appCircuit, circuitInput)
-pk, vk, err := sdk.Setup(ccs, srsDir)
-
-// Save the outputs for use in proving steps later 
-err = sdk.WriteTo(ccs, filepath.Join(outDir, "ccs"))
-err = sdk.WriteTo(pk, filepath.Join(outDir, "pk"))
-err = sdk.WriteTo(vk, filepath.Join(outDir, "vk"))
+appCircuit := DefaultAppCircuit()
+compiledCircuit, pk, vk, err := sdk.Compile(appCircuit, outDir, srsDir)
 ```
 
 ### Proving
@@ -137,7 +175,7 @@ The data stream API gives the user the ability to perform various mapreduce styl
 To create an instance of the DataStream struct, use
 
 ```go
-receipts := sdk.NewDataStream(input.Receipts)
+receipts := sdk.NewDataStream(api, input.Receipts)
 ```
 
 Please refer to [datastream.go](sdk/datastream.go) for the usage of each API.
