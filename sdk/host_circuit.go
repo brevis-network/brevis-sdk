@@ -7,6 +7,7 @@ import (
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/hash/mimc"
+	"github.com/consensys/gnark/std/multicommit"
 	"github.com/consensys/gnark/test"
 )
 
@@ -49,9 +50,7 @@ func (c *HostCircuit) Define(gapi frontend.API) error {
 	if err != nil {
 		return err
 	}
-	if api.checkInputUnique {
-		assertUnique(gapi, c.Input.InputCommitments)
-	}
+	assertInputUniqueness(gapi, c.Input.InputCommitments)
 	err = c.Guest.Define(api, c.Input.DataInput)
 	if err != nil {
 		return fmt.Errorf("error building user-defined circuit %s", err.Error())
@@ -118,39 +117,31 @@ func (c *HostCircuit) commitInput() error {
 
 // Asserts that in the sorted list of inputs, each element is different from its
 // next element. Zeros are not checked.
-func assertUnique(api frontend.API, in []frontend.Variable) {
-	if len(in) < 2 {
-		return // no need to check uniqueness
-	}
+func assertInputUniqueness(api frontend.API, in []frontend.Variable) {
+	multicommit.WithCommitment(api, func(api frontend.API, gamma frontend.Variable) error {
+		sorted, err := api.Compiler().NewHint(SortHint, len(in), in...)
+		if err != nil {
+			panic(err)
+		}
+		// Grand product check. Asserts the following equation holds:
+		// Σ_{a \in in} a+ɣ = Σ_{b \in sorted} b+ɣ
+		var lhs, rhs frontend.Variable = 0, 0
+		for i := 0; i < len(sorted); i++ {
+			lhs = api.Mul(lhs, api.Add(in[i], gamma))
+			rhs = api.Mul(rhs, api.Add(sorted[i], gamma))
+		}
+		api.AssertIsEqual(lhs, rhs)
 
-	hasher, err := mimc.NewMiMC(api)
-	if err != nil {
-		panic(err)
-	}
-	hasher.Write(in...)
-	gamma := hasher.Sum()
-
-	sorted, err := api.Compiler().NewHint(SortHint, len(in), in...)
-	if err != nil {
-		panic(err)
-	}
-	// Grand product check. Asserts the following equation holds:
-	// Σ_{a \in in} a+ɣ = Σ_{b \in sorted} b+ɣ
-	var lhs, rhs frontend.Variable = 0, 0
-	for i := 0; i < len(sorted); i++ {
-		lhs = api.Mul(lhs, api.Add(in[i], gamma))
-		rhs = api.Mul(rhs, api.Add(sorted[i], gamma))
-	}
-	api.AssertIsEqual(lhs, rhs)
-
-	for i := 0; i < len(sorted)-1; i++ {
-		a, b := sorted[i], sorted[i+1]
-		// are both a and b zero? if yes, then it's valid; if not, then they must be different
-		bothZero := api.Select(api.IsZero(a), api.IsZero(b), 0)
-		isDifferent := api.Sub(1, api.IsZero(api.Sub(a, b)))
-		isValid := api.Select(bothZero, 1, isDifferent)
-		api.AssertIsEqual(isValid, 1)
-	}
+		for i := 0; i < len(sorted)-1; i++ {
+			a, b := sorted[i], sorted[i+1]
+			// are both a and b zero? if yes, then it's valid; if not, then they must be different
+			bothZero := api.Select(api.IsZero(a), api.IsZero(b), 0)
+			isDifferent := api.Sub(1, api.IsZero(api.Sub(a, b)))
+			isValid := api.Select(bothZero, 1, isDifferent)
+			api.AssertIsEqual(isValid, 1)
+		}
+		return nil
+	}, in...)
 }
 
 func (c *HostCircuit) dataLen() int {
