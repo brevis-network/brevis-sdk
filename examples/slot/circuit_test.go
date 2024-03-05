@@ -3,7 +3,6 @@ package slot
 import (
 	"fmt"
 	"math/big"
-	"path/filepath"
 	"testing"
 
 	"github.com/brevis-network/brevis-sdk/sdk"
@@ -84,46 +83,26 @@ func TestE2E(t *testing.T) {
 	// Compiling and Setup
 	///////////////////////////////////////////////////////////////////////////////
 
+	// The compiled circuit, proving key, and verifying key are saved to outDir, and
+	// the downloaded SRS in the process is saved to srsDir
 	outDir := "$HOME/circuitOut/storage"
-
-	// The compilation output is the description of the circuit's constraint system.
-	// You should use sdk.WriteTo to serialize and save your circuit so that it can
-	// be used in the proving step later.
-	ccs, err := sdk.Compile(appCircuit)
-	check(err)
-	err = sdk.WriteTo(ccs, filepath.Join(outDir, "ccs"))
-	check(err)
-
-	// Setup is a one-time effort per circuit. A cache dir can be provided to output
-	// external dependencies. Once you have the verifying key you should also save
-	// its hash in your contract so that when a proof via Brevis is submitted
-	// on-chain you can verify that Brevis indeed used your verifying key to verify
-	// your circuit computations
-	pk, vk, err := sdk.Setup(ccs, "$HOME/kzgsrs")
-	check(err)
-	err = sdk.WriteTo(pk, filepath.Join(outDir, "pk"))
-	check(err)
-	err = sdk.WriteTo(vk, filepath.Join(outDir, "vk"))
-	check(err)
-
-	// Once you saved your ccs, pk, and vk files, you can read them back into memory
-	// for use with the provided utils
-	ccs, err = sdk.ReadCircuitFrom(filepath.Join(outDir, "ccs"))
-	check(err)
-	pk, err = sdk.ReadPkFrom(filepath.Join(outDir, "pk"))
-	check(err)
-	vk, err = sdk.ReadVkFrom(filepath.Join(outDir, "vk"))
+	srsDir := "$HOME/kzgsrs"
+	compiledCircuit, pk, vk, err := sdk.Compile(appCircuit, outDir, srsDir)
 	check(err)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Proving
 	///////////////////////////////////////////////////////////////////////////////
 
+	// Once you saved your ccs, pk, and vk files, you can read them back into memory
+	// for use with the provided utils
+	compiledCircuit, pk, vk, err = sdk.ReadSetupFrom(outDir)
+	check(err)
+
 	fmt.Println(">> prove")
 	witness, publicWitness, err := sdk.NewFullWitness(appCircuitAssignment, in)
 	check(err)
-
-	proof, err := sdk.Prove(ccs, pk, witness)
+	proof, err := sdk.Prove(compiledCircuit, pk, witness)
 	check(err)
 
 	///////////////////////////////////////////////////////////////////////////////

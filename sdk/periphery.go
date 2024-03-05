@@ -21,18 +21,25 @@ import (
 	"time"
 )
 
-func Compile(app AppCircuit) (constraint.ConstraintSystem, error) {
+func Compile(app AppCircuit, compileOutDir, srsDir string) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, error) {
 	fmt.Println(">> compile")
-	host := DefaultHostCircuit(app)
-
-	before := time.Now()
-	ccs, err := frontend.Compile(ecc.BLS12_377.ScalarField(), scs.NewBuilder, host)
+	ccs, err := compile(app, compileOutDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to compile: %s", err.Error())
+		return nil, nil, nil, err
 	}
-
-	fmt.Printf("circuit compiled in %s, number constraints %d\n", time.Since(before), ccs.GetNbConstraints())
-	return ccs, nil
+	fmt.Println(">> setup")
+	pk, vk, err := setup(ccs, srsDir)
+	err = WriteTo(ccs, filepath.Join(compileOutDir, "compiledCircuit"))
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	err = WriteTo(pk, filepath.Join(compileOutDir, "pk"))
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	err = WriteTo(vk, filepath.Join(compileOutDir, "vk"))
+	fmt.Println("compilation/setup complete")
+	return ccs, pk, vk, err
 }
 
 func NewFullWitness(assign AppCircuit, in CircuitInput) (w, wpub witness.Witness, err error) {
@@ -50,19 +57,28 @@ func NewFullWitness(assign AppCircuit, in CircuitInput) (w, wpub witness.Witness
 	return
 }
 
-func Setup(ccs constraint.ConstraintSystem, cacheDir ...string) (pk plonk.ProvingKey, vk plonk.VerifyingKey, err error) {
-	fmt.Println(">> setup")
-
-	if len(cacheDir) > 1 {
-		panic("Setup called with multiple paths")
+func compile(app AppCircuit, compileOutDir string) (constraint.ConstraintSystem, error) {
+	if len(compileOutDir) == 0 {
+		return nil, fmt.Errorf("must provide a directory to save compilation output")
 	}
-	dir := cacheDir[0]
+	host := DefaultHostCircuit(app)
+
+	before := time.Now()
+	ccs, err := frontend.Compile(ecc.BLS12_377.ScalarField(), scs.NewBuilder, host)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compile: %s", err.Error())
+	}
+
+	fmt.Printf("circuit compiled in %s, number constraints %d\n", time.Since(before), ccs.GetNbConstraints())
+	return ccs, nil
+}
+
+func setup(ccs constraint.ConstraintSystem, cacheDir string) (pk plonk.ProvingKey, vk plonk.VerifyingKey, err error) {
 	if len(cacheDir) == 0 {
-		dir = "./"
+		return nil, nil, fmt.Errorf("must provide a directory to save SRS")
 	}
-
 	r1cs := ccs.(*cs.SparseR1CS)
-	srsDir := os.ExpandEnv(dir)
+	srsDir := os.ExpandEnv(cacheDir)
 
 	canonical, lagrange, err := srs.NewSRS(r1cs, "https://kzg-srs.s3.us-west-2.amazonaws.com", srsDir)
 	if err != nil {
@@ -138,6 +154,19 @@ func WriteTo(w io.WriterTo, path string) error {
 	}
 	fmt.Printf("%d bytes written to %s\n", d, path)
 	return nil
+}
+
+func ReadSetupFrom(compileOutDir string) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, error) {
+	ccs, err := ReadCircuitFrom(filepath.Join(compileOutDir, "compiledCircuit"))
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	pk, err := ReadPkFrom(filepath.Join(compileOutDir, "pk"))
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	vk, err := ReadVkFrom(filepath.Join(compileOutDir, "vk"))
+	return ccs, pk, vk, err
 }
 
 func ReadCircuitFrom(path string) (constraint.ConstraintSystem, error) {

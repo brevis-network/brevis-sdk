@@ -159,13 +159,13 @@ func (q *BrevisApp) AddTransaction(data TransactionData, index ...int) {
 // BuildCircuitInput executes all added queries and package the query results
 // into circuit assignment (the DataInput struct) The provided ctx is used
 // when performing network calls to the provided blockchain RPC.
-func (q *BrevisApp) BuildCircuitInput(guestCircuit AppCircuit) (CircuitInput, error) {
+func (q *BrevisApp) BuildCircuitInput(app AppCircuit) (CircuitInput, error) {
 
 	// 1. mimc hash data at each position to generate and assign input commitments and toggles commitment
 	// 2. dry-run user circuit to generate output and output commitment
 
-	q.maxReceipts, q.maxStorage, q.maxTxs = guestCircuit.Allocate()
-	err := q.checkAllocations(guestCircuit)
+	q.maxReceipts, q.maxStorage, q.maxTxs = app.Allocate()
+	err := q.checkAllocations(app)
 	if err != nil {
 		return CircuitInput{}, err
 	}
@@ -197,7 +197,7 @@ func (q *BrevisApp) BuildCircuitInput(guestCircuit AppCircuit) (CircuitInput, er
 	fmt.Printf("input commits: %d\n", in.InputCommitments)
 
 	// dry run without assigning the output commitment first to compute the output commitment using the user circuit
-	outputCommit, output, err := dryRun(in, guestCircuit)
+	outputCommit, output, err := dryRun(in, app)
 	if err != nil {
 		return buildCircuitInputErr("failed to generate output commitment", err)
 	}

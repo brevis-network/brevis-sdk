@@ -6,7 +6,6 @@ import (
 	"github.com/brevis-network/brevis-sdk/test"
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
-	"path/filepath"
 	"testing"
 )
 
@@ -90,60 +89,39 @@ func TestE2E(t *testing.T) {
 
 	// Initialize our AppCircuit and prepare the circuit assignment
 	appCircuit := &AppCircuit{
-		UserAddr: sdk.ConstUint248(common.HexToAddress("0xaefB31e9EEee2822f4C1cBC13B70948b0B5C0b3c")),
+		// you need to give every custom input an assignment or otherwise the circuit won't compile
+		UserAddr: sdk.ConstUint248(0),
 	}
 	appCircuitAssignment := &AppCircuit{
 		UserAddr: sdk.ConstUint248(common.HexToAddress("0xaefB31e9EEee2822f4C1cBC13B70948b0B5C0b3c")),
 	}
 
 	// Execute the added queries and package the query results into circuit inputs
-	in, err := app.BuildCircuitInput(appCircuit)
+	in, err := app.BuildCircuitInput(appCircuitAssignment)
 	check(err)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Testing
 	///////////////////////////////////////////////////////////////////////////////
 
-	// Use the test package to check if the circuit can be solved using the given
-	// assignment
-	fmt.Printf("appCircuit %+v\n", appCircuit)
-	fmt.Printf("appCircuitAssignment %+v\n", appCircuitAssignment)
+	// Use the test package to check if the input can be proved with the given
+	// circuit
 	test.ProverSucceeded(t, appCircuit, appCircuitAssignment, in)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Compiling and Setup
 	///////////////////////////////////////////////////////////////////////////////
 
+	// The compiled circuit, proving key, and verifying key are saved to outDir, and
+	// the downloaded SRS in the process is saved to srsDir
 	outDir := "$HOME/circuitOut/tradingvolume"
 	srsDir := "$HOME/kzgsrs"
-
-	// The compilation output is the description of the circuit's constraint system.
-	// You should use sdk.WriteTo to serialize and save your circuit so that it can
-	// be used in the proving step later.
-	ccs, err := sdk.Compile(appCircuit)
-	check(err)
-	err = sdk.WriteTo(ccs, filepath.Join(outDir, "ccs"))
-	check(err)
-
-	// Setup is a one-time effort per circuit. A cache dir can be provided to output
-	// external dependencies. Once you have the verifying key you should also save
-	// its hash in your contract so that when a proof via Brevis is submitted
-	// on-chain you can verify that Brevis indeed used your verifying key to verify
-	// your circuit computations
-	pk, vk, err := sdk.Setup(ccs, srsDir)
-	check(err)
-	err = sdk.WriteTo(pk, filepath.Join(outDir, "pk"))
-	check(err)
-	err = sdk.WriteTo(vk, filepath.Join(outDir, "vk"))
+	compiledCircuit, pk, vk, err := sdk.Compile(appCircuit, outDir, srsDir)
 	check(err)
 
 	// Once you saved your ccs, pk, and vk files, you can read them back into memory
 	// for use with the provided utils
-	ccs, err = sdk.ReadCircuitFrom(filepath.Join(outDir, "ccs"))
-	check(err)
-	pk, err = sdk.ReadPkFrom(filepath.Join(outDir, "pk"))
-	check(err)
-	vk, err = sdk.ReadVkFrom(filepath.Join(outDir, "pk"))
+	compiledCircuit, pk, vk, err = sdk.ReadSetupFrom(outDir)
 	check(err)
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -153,8 +131,7 @@ func TestE2E(t *testing.T) {
 	fmt.Println(">> prove")
 	witness, publicWitness, err := sdk.NewFullWitness(appCircuitAssignment, in)
 	check(err)
-
-	proof, err := sdk.Prove(ccs, pk, witness)
+	proof, err := sdk.Prove(compiledCircuit, pk, witness)
 	check(err)
 
 	///////////////////////////////////////////////////////////////////////////////
