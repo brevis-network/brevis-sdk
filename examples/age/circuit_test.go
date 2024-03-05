@@ -63,7 +63,7 @@ func TestE2E(t *testing.T) {
 	txHash := common.HexToHash(
 		"0x6dc75e61220cc775aafa17796c20e49ac08030020fce710e3e546aa4e003454c")
 
-	ec, err := ethclient.Dial("...")
+	ec, err := ethclient.Dial("")
 	check(err)
 	tx, _, err := ec.TransactionByHash(context.Background(), txHash)
 	check(err)
@@ -103,27 +103,26 @@ func TestE2E(t *testing.T) {
 	///////////////////////////////////////////////////////////////////////////////
 
 	outDir := "$HOME/circuitOut/age"
-	//srsDir := "$HOME/kzgsrs"
 
 	// The compilation output is the description of the circuit's constraint system.
 	// You should use sdk.WriteTo to serialize and save your circuit so that it can
 	// be used in the proving step later.
-	//ccs, err := sdk.Compile(appCircuit, circuitInput)
-	//check(err)
-	//err = sdk.WriteTo(ccs, filepath.Join(outDir, "ccs"))
-	//check(err)
+	ccs, err := sdk.Compile(appCircuit)
+	check(err)
+	err = sdk.WriteTo(ccs, filepath.Join(outDir, "ccs"))
+	check(err)
 
 	// Setup is a one-time effort per circuit. A cache dir can be provided to output
 	// external dependencies. Once you have the verifying key you should also save
 	// its hash in your contract so that when a proof via Brevis is submitted
 	// on-chain you can verify that Brevis indeed used your verifying key to verify
 	// your circuit computations
-	//pk, vk, err := sdk.Setup(ccs, srsDir)
-	//check(err)
-	//err = sdk.WriteTo(pk, filepath.Join(outDir, "pk"))
-	//check(err)
-	//err = sdk.WriteTo(vk, filepath.Join(outDir, "vk"))
-	//check(err)
+	pk, vk, err := sdk.Setup(ccs, "$HOME/kzgsrs")
+	check(err)
+	err = sdk.WriteTo(pk, filepath.Join(outDir, "pk"))
+	check(err)
+	err = sdk.WriteTo(vk, filepath.Join(outDir, "vk"))
+	check(err)
 
 	fmt.Println("compilation/setup complete")
 
@@ -131,16 +130,18 @@ func TestE2E(t *testing.T) {
 	// Proving
 	///////////////////////////////////////////////////////////////////////////////
 
-	ccs, err := sdk.ReadCircuitFrom(filepath.Join(outDir, "ccs"))
-	check(err)
-	pk, err := sdk.ReadPkFrom(filepath.Join(outDir, "pk"))
-	check(err)
-	vk, err := sdk.ReadVkFrom(filepath.Join(outDir, "vk"))
-	check(err)
+	//ccs, err := sdk.ReadCircuitFrom(filepath.Join(outDir, "ccs"))
+	//check(err)
+	//pk, err := sdk.ReadPkFrom(filepath.Join(outDir, "pk"))
+	//check(err)
+	//vk, err := sdk.ReadVkFrom(filepath.Join(outDir, "vk"))
+	//check(err)
 
-	witness, _, err := sdk.NewFullWitness(appCircuitAssignment, circuitInput)
+	witness, publicWitness, err := sdk.NewFullWitness(appCircuitAssignment, circuitInput)
 	check(err)
 	proof, err := sdk.Prove(ccs, pk, witness)
+	check(err)
+	err = sdk.Verify(vk, publicWitness, proof)
 	check(err)
 
 	///////////////////////////////////////////////////////////////////////////////
