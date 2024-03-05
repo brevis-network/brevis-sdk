@@ -213,6 +213,113 @@ func (t Tuple5[F0, F1, F2, F3, F4]) String() string {
 	return fmt.Sprintf("(%s, %s, %s, %s, %s)", t.F0, t.F1, t.F2, t.F3, t.F4)
 }
 
+type Tuple6[F0, F1, F2, F3, F4, F5 CircuitVariable] struct {
+	F0 F0
+	F1 F1
+	F2 F2
+	F3 F3
+	F4 F4
+	F5 F5
+}
+
+func (t Tuple6[F0, F1, F2, F3, F4, F5]) Values() []frontend.Variable {
+	var ret []frontend.Variable
+	ret = append(ret, t.F0.Values()...)
+	ret = append(ret, t.F1.Values()...)
+	ret = append(ret, t.F2.Values()...)
+	ret = append(ret, t.F3.Values()...)
+	ret = append(ret, t.F4.Values()...)
+	ret = append(ret, t.F5.Values()...)
+	return ret
+}
+
+func (t Tuple6[F0, F1, F2, F3, F4, F5]) FromValues(vs ...frontend.Variable) CircuitVariable {
+	ret := Tuple6[F0, F1, F2, F3, F4, F5]{}
+	start, end := uint32(0), ret.F0.NumVars()
+	ret.F0 = ret.F0.FromValues(vs[start:end]...).(F0)
+
+	start, end = end, end+ret.F1.NumVars()
+	ret.F1 = ret.F1.FromValues(vs[start:end]...).(F1)
+
+	start, end = end, end+ret.F2.NumVars()
+	ret.F2 = ret.F2.FromValues(vs[start:end]...).(F2)
+
+	start, end = end, end+ret.F3.NumVars()
+	ret.F3 = ret.F3.FromValues(vs[start:end]...).(F3)
+
+	start, end = end, end+ret.F4.NumVars()
+	ret.F4 = ret.F4.FromValues(vs[start:end]...).(F4)
+
+	start, end = end, end+ret.F5.NumVars()
+	ret.F5 = ret.F5.FromValues(vs[start:end]...).(F5)
+
+	return ret
+}
+
+func (t Tuple6[F0, F1, F2, F3, F4, F5]) NumVars() uint32 {
+	return t.F0.NumVars() + t.F1.NumVars() + t.F2.NumVars() + t.F3.NumVars() + t.F4.NumVars() + t.F5.NumVars()
+}
+
+func (t Tuple6[F0, F1, F2, F3, F4, F5]) String() string {
+	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s)", t.F0, t.F1, t.F2, t.F3, t.F4, t.F5)
+}
+
+type Tuple7[F0, F1, F2, F3, F4, F5, F6 CircuitVariable] struct {
+	F0 F0
+	F1 F1
+	F2 F2
+	F3 F3
+	F4 F4
+	F5 F5
+	F6 F6
+}
+
+func (t Tuple7[F0, F1, F2, F3, F4, F5, F6]) Values() []frontend.Variable {
+	var ret []frontend.Variable
+	ret = append(ret, t.F0.Values()...)
+	ret = append(ret, t.F1.Values()...)
+	ret = append(ret, t.F2.Values()...)
+	ret = append(ret, t.F3.Values()...)
+	ret = append(ret, t.F4.Values()...)
+	ret = append(ret, t.F5.Values()...)
+	ret = append(ret, t.F6.Values()...)
+	return ret
+}
+
+func (t Tuple7[F0, F1, F2, F3, F4, F5, F6]) FromValues(vs ...frontend.Variable) CircuitVariable {
+	ret := Tuple7[F0, F1, F2, F3, F4, F5, F6]{}
+	start, end := uint32(0), ret.F0.NumVars()
+	ret.F0 = ret.F0.FromValues(vs[start:end]...).(F0)
+
+	start, end = end, end+ret.F1.NumVars()
+	ret.F1 = ret.F1.FromValues(vs[start:end]...).(F1)
+
+	start, end = end, end+ret.F2.NumVars()
+	ret.F2 = ret.F2.FromValues(vs[start:end]...).(F2)
+
+	start, end = end, end+ret.F3.NumVars()
+	ret.F3 = ret.F3.FromValues(vs[start:end]...).(F3)
+
+	start, end = end, end+ret.F4.NumVars()
+	ret.F4 = ret.F4.FromValues(vs[start:end]...).(F4)
+
+	start, end = end, end+ret.F5.NumVars()
+	ret.F5 = ret.F5.FromValues(vs[start:end]...).(F5)
+
+	start, end = end, end+ret.F6.NumVars()
+	ret.F6 = ret.F6.FromValues(vs[start:end]...).(F6)
+
+	return ret
+}
+
+func (t Tuple7[F0, F1, F2, F3, F4, F5, F6]) NumVars() uint32 {
+	return t.F0.NumVars() + t.F1.NumVars() + t.F2.NumVars() + t.F3.NumVars() + t.F4.NumVars() + t.F5.NumVars() + t.F6.NumVars()
+}
+
+func (t Tuple7[F0, F1, F2, F3, F4, F5, F6]) String() string {
+	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s)", t.F0, t.F1, t.F2, t.F3, t.F4, t.F5, t.F6)
+}
+
 type Tuple8[F0, F1, F2, F3, F4, F5, F6, F7 CircuitVariable] struct {
 	F0 F0
 	F1 F1
