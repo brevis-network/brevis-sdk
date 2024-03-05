@@ -16,8 +16,9 @@ type CircuitAPI struct {
 	Int248  *Int248API
 	Bytes32 *Bytes32API
 
-	g      frontend.API
-	output []variable `gnark:"-"`
+	g                    frontend.API
+	output               []variable `gnark:"-"`
+	checkInputUniqueness int
 }
 
 func NewCircuitAPI(gapi frontend.API) *CircuitAPI {
@@ -72,6 +73,12 @@ func (api *CircuitAPI) addOutput(bits []variable) {
 	b := flipByGroups(bits, 8)
 	api.output = append(api.output, b...)
 	dryRunOutput = append(dryRunOutput, bits2Bytes(b)...)
+}
+
+// AssertInputsAreUnique Asserts that all input data (Transaction, Receipt,
+// StorageSlot) are different from each other
+func (api *CircuitAPI) AssertInputsAreUnique() {
+	api.checkInputUniqueness = 1
 }
 
 // StorageKey computes the storage key for an element in a solidity state variable

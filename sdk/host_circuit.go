@@ -50,7 +50,7 @@ func (c *HostCircuit) Define(gapi frontend.API) error {
 	if err != nil {
 		return err
 	}
-	assertInputUniqueness(gapi, c.Input.InputCommitments)
+	assertInputUniqueness(gapi, c.Input.InputCommitments, api.checkInputUniqueness)
 	err = c.Guest.Define(api, c.Input.DataInput)
 	if err != nil {
 		return fmt.Errorf("error building user-defined circuit %s", err.Error())
@@ -117,7 +117,7 @@ func (c *HostCircuit) commitInput() error {
 
 // Asserts that in the sorted list of inputs, each element is different from its
 // next element. Zeros are not checked.
-func assertInputUniqueness(api frontend.API, in []frontend.Variable) {
+func assertInputUniqueness(api frontend.API, in []frontend.Variable, shouldCheck int) {
 	multicommit.WithCommitment(api, func(api frontend.API, gamma frontend.Variable) error {
 		sorted, err := api.Compiler().NewHint(SortHint, len(in), in...)
 		if err != nil {
@@ -138,6 +138,7 @@ func assertInputUniqueness(api frontend.API, in []frontend.Variable) {
 			bothZero := api.Select(api.IsZero(a), api.IsZero(b), 0)
 			isDifferent := api.Sub(1, api.IsZero(api.Sub(a, b)))
 			isValid := api.Select(bothZero, 1, isDifferent)
+			isValid = api.Select(shouldCheck, isValid, 1)
 			api.AssertIsEqual(isValid, 1)
 		}
 		return nil
