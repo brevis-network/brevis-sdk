@@ -88,26 +88,18 @@ func (q *rawData[T]) add(data T, index ...int) {
 }
 
 func (q *rawData[T]) list() []T {
-	indexed := map[int]T{}
-	// copy the map
-	for i, v := range q.special {
-		indexed[i] = v
-	}
-
 	var empty T
-	j := 0
-	for _, v := range q.ordered {
-		for indexed[j] != empty {
-			j++
+	var l []T
+	n := len(q.ordered) + len(q.special)
+	ordered := q.ordered
+	for i := 0; i < n; i++ {
+		if q.special[i] != empty {
+			l = append(l, q.special[i])
+		} else if len(ordered) > 0 {
+			l = append(l, ordered[0])
+			ordered = ordered[1:]
 		}
-		indexed[j] = v
 	}
-
-	l := make([]T, len(indexed))
-	for i, v := range indexed {
-		l[i] = v
-	}
-
 	return l
 }
 
