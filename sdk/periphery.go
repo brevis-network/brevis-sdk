@@ -21,9 +21,9 @@ import (
 	"time"
 )
 
-func Compile(guest AppCircuit, in CircuitInput) (constraint.ConstraintSystem, error) {
+func Compile(app AppCircuit) (constraint.ConstraintSystem, error) {
 	fmt.Println(">> compile")
-	host := NewHostCircuit(in.Clone(), guest)
+	host := DefaultHostCircuit(app)
 
 	before := time.Now()
 	ccs, err := frontend.Compile(ecc.BLS12_377.ScalarField(), scs.NewBuilder, host)

@@ -15,6 +15,14 @@ type DataInput struct {
 	Transactions DataPoints[Transaction]
 }
 
+func defaultDataInput(maxReceipts, maxStorage, maxTxs int) DataInput {
+	return DataInput{
+		Receipts:     NewDataPoints(maxReceipts, defaultReceipt),
+		StorageSlots: NewDataPoints(maxStorage, defaultStorageSlot),
+		Transactions: NewDataPoints(maxTxs, defaultTransaction),
+	}
+}
+
 func (d DataInput) Toggles() []frontend.Variable {
 	var toggles []frontend.Variable
 	toggles = append(toggles, d.Receipts.Toggles...)
@@ -41,6 +49,19 @@ type CircuitInput struct {
 	OutputCommitment OutputCommitment `gnark:",public"`
 
 	dryRunOutput []byte `gnark:"-"`
+}
+
+func defaultCircuitInput(maxReceipts, maxStorage, maxTxs int) CircuitInput {
+	var inputCommits = make([]frontend.Variable, NumMaxDataPoints)
+	for i := 0; i < NumMaxDataPoints; i++ {
+		inputCommits[i] = 0
+	}
+	return CircuitInput{
+		DataInput:         defaultDataInput(maxReceipts, maxStorage, maxTxs),
+		InputCommitments:  inputCommits,
+		TogglesCommitment: 0,
+		OutputCommitment:  OutputCommitment{0, 0},
+	}
 }
 
 func (in CircuitInput) Clone() CircuitInput {
@@ -126,7 +147,7 @@ type Receipt struct {
 	Fields   [NumMaxLogFields]LogField
 }
 
-func NewReceipt() Receipt {
+func defaultReceipt() Receipt {
 	return Receipt{
 		BlockNum: newU248(0),
 		Fields:   [3]LogField{NewLogField(), NewLogField(), NewLogField()},
@@ -292,7 +313,7 @@ type StorageSlot struct {
 	Value Bytes32
 }
 
-func NewStorageSlot() StorageSlot {
+func defaultStorageSlot() StorageSlot {
 	return StorageSlot{
 		BlockNum: newU248(0),
 		Contract: newU248(0),
@@ -374,7 +395,7 @@ type Transaction struct {
 	Value     Bytes32
 }
 
-func NewTransaction() Transaction {
+func defaultTransaction() Transaction {
 	return Transaction{
 		ChainId:             newU248(0),
 		BlockNum:            newU248(0),

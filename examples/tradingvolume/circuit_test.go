@@ -115,11 +115,12 @@ func TestE2E(t *testing.T) {
 	///////////////////////////////////////////////////////////////////////////////
 
 	outDir := "$HOME/circuitOut/tradingvolume"
+	srsDir := "$HOME/kzgsrs"
 
 	// The compilation output is the description of the circuit's constraint system.
 	// You should use sdk.WriteTo to serialize and save your circuit so that it can
 	// be used in the proving step later.
-	ccs, err := sdk.Compile(appCircuit, in)
+	ccs, err := sdk.Compile(appCircuit)
 	check(err)
 	err = sdk.WriteTo(ccs, filepath.Join(outDir, "ccs"))
 	check(err)
@@ -129,7 +130,7 @@ func TestE2E(t *testing.T) {
 	// its hash in your contract so that when a proof via Brevis is submitted
 	// on-chain you can verify that Brevis indeed used your verifying key to verify
 	// your circuit computations
-	pk, vk, err := sdk.Setup(ccs, outDir)
+	pk, vk, err := sdk.Setup(ccs, srsDir)
 	check(err)
 	err = sdk.WriteTo(pk, filepath.Join(outDir, "pk"))
 	check(err)

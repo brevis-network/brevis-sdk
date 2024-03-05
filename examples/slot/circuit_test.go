@@ -89,7 +89,7 @@ func TestE2E(t *testing.T) {
 	// The compilation output is the description of the circuit's constraint system.
 	// You should use sdk.WriteTo to serialize and save your circuit so that it can
 	// be used in the proving step later.
-	ccs, err := sdk.Compile(appCircuit, in)
+	ccs, err := sdk.Compile(appCircuit)
 	check(err)
 	err = sdk.WriteTo(ccs, filepath.Join(outDir, "ccs"))
 	check(err)

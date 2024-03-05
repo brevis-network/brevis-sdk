@@ -162,9 +162,8 @@ func (q *BrevisApp) AddTransaction(data TransactionData, index ...int) {
 // when performing network calls to the provided blockchain RPC.
 func (q *BrevisApp) BuildCircuitInput(guestCircuit AppCircuit) (CircuitInput, error) {
 
-	// 1. call rpc to fetch data for each query type, then assign the corresponding input fields
-	// 2. mimc hash data at each position to generate and assign input commitments and toggles commitment
-	// 3. dry-run user circuit to generate output and output commitment
+	// 1. mimc hash data at each position to generate and assign input commitments and toggles commitment
+	// 2. dry-run user circuit to generate output and output commitment
 
 	in := &CircuitInput{}
 	q.maxReceipts, q.maxStorage, q.maxTxs = guestCircuit.Allocate()
@@ -174,9 +173,9 @@ func (q *BrevisApp) BuildCircuitInput(guestCircuit AppCircuit) (CircuitInput, er
 	}
 
 	// initialize
-	in.Receipts = NewDataPoints[Receipt](q.maxReceipts, NewReceipt)
-	in.StorageSlots = NewDataPoints[StorageSlot](q.maxStorage, NewStorageSlot)
-	in.Transactions = NewDataPoints[Transaction](q.maxTxs, NewTransaction)
+	in.Receipts = NewDataPoints[Receipt](q.maxReceipts, defaultReceipt)
+	in.StorageSlots = NewDataPoints[StorageSlot](q.maxStorage, defaultStorageSlot)
+	in.Transactions = NewDataPoints[Transaction](q.maxTxs, defaultTransaction)
 	in.OutputCommitment = OutputCommitment{0, 0}
 	in.InputCommitments = make([]frontend.Variable, NumMaxDataPoints)
 	for i := range in.InputCommitments {

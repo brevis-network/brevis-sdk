@@ -22,6 +22,19 @@ type HostCircuit struct {
 	Guest AppCircuit
 }
 
+func DefaultHostCircuit(app AppCircuit) *HostCircuit {
+	maxReceipts, maxStorage, maxTxs := app.Allocate()
+	var inputCommits = make([]frontend.Variable, NumMaxDataPoints)
+	for i := 0; i < NumMaxDataPoints; i++ {
+		inputCommits[i] = 0
+	}
+	h := &HostCircuit{
+		Input: defaultCircuitInput(maxReceipts, maxStorage, maxTxs),
+		Guest: app,
+	}
+	return h
+}
+
 func NewHostCircuit(in CircuitInput, guest AppCircuit) *HostCircuit {
 	return &HostCircuit{
 		Input: in,
