@@ -7,6 +7,7 @@ import (
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/hash/mimc"
+	"github.com/consensys/gnark/std/multicommit"
 	"github.com/consensys/gnark/test"
 )
 
@@ -20,6 +21,19 @@ type HostCircuit struct {
 
 	Input CircuitInput
 	Guest AppCircuit
+}
+
+func DefaultHostCircuit(app AppCircuit) *HostCircuit {
+	maxReceipts, maxStorage, maxTxs := app.Allocate()
+	var inputCommits = make([]frontend.Variable, NumMaxDataPoints)
+	for i := 0; i < NumMaxDataPoints; i++ {
+		inputCommits[i] = 0
+	}
+	h := &HostCircuit{
+		Input: defaultCircuitInput(maxReceipts, maxStorage, maxTxs),
+		Guest: app,
+	}
+	return h
 }
 
 func NewHostCircuit(in CircuitInput, guest AppCircuit) *HostCircuit {
@@ -36,14 +50,15 @@ func (c *HostCircuit) Define(gapi frontend.API) error {
 	if err != nil {
 		return err
 	}
+	assertInputUniqueness(gapi, c.Input.InputCommitments, api.checkInputUniqueness)
 	err = c.Guest.Define(api, c.Input.DataInput)
 	if err != nil {
 		return fmt.Errorf("error building user-defined circuit %s", err.Error())
 	}
 	outputCommit := c.commitOutput(api.output)
 	dryRunOutputCommit = outputCommit
-	api.AssertIsEqual(outputCommit[0], c.Input.OutputCommitment[0])
-	api.AssertIsEqual(outputCommit[1], c.Input.OutputCommitment[1])
+	gapi.AssertIsEqual(outputCommit[0], c.Input.OutputCommitment[0])
+	gapi.AssertIsEqual(outputCommit[1], c.Input.OutputCommitment[1])
 	return nil
 }
 
@@ -56,7 +71,7 @@ func (c *HostCircuit) commitInput() error {
 	if err != nil {
 		return fmt.Errorf("error creating mimc hasher instance: %s", err.Error())
 	}
-	hashOrZero := func(toggle Variable, vs []Variable) Variable {
+	hashOrZero := func(toggle frontend.Variable, vs []frontend.Variable) frontend.Variable {
 		hasher.Write(vs...)
 		sum := hasher.Sum()
 		hasher.Reset()
@@ -64,18 +79,21 @@ func (c *HostCircuit) commitInput() error {
 		return h
 	}
 
-	var inputCommits []Variable
-	for i, receipt := range c.Input.Receipts.Raw {
+	var inputCommits []frontend.Variable
+	receipts := c.Input.Receipts
+	for i, receipt := range receipts.Raw {
 		packed := receipt.pack(c.api)
-		inputCommits = append(inputCommits, hashOrZero(c.Input.Receipts.Toggles[i], packed))
+		inputCommits = append(inputCommits, hashOrZero(receipts.Toggles[i], packed))
 	}
-	for i, slot := range c.Input.StorageSlots.Raw {
+	storage := c.Input.StorageSlots
+	for i, slot := range storage.Raw {
 		packed := slot.pack(c.api)
-		inputCommits = append(inputCommits, hashOrZero(c.Input.StorageSlots.Toggles[i], packed))
+		inputCommits = append(inputCommits, hashOrZero(storage.Toggles[i], packed))
 	}
-	for i, tx := range c.Input.Transactions.Raw {
+	txs := c.Input.Transactions
+	for i, tx := range txs.Raw {
 		packed := tx.pack(c.api)
-		inputCommits = append(inputCommits, hashOrZero(c.Input.Transactions.Toggles[i], packed))
+		inputCommits = append(inputCommits, hashOrZero(txs.Toggles[i], packed))
 	}
 
 	// adding constraint for input commitments (both effective commitments and dummies)
@@ -94,84 +112,76 @@ func (c *HostCircuit) commitInput() error {
 	togglesCommit := hasher.Sum()
 	c.api.AssertIsEqual(togglesCommit, c.Input.TogglesCommitment)
 
-	assertUnique(c.api, c.Input.InputCommitments)
-
 	return nil
 }
 
 // Asserts that in the sorted list of inputs, each element is different from its
 // next element. Zeros are not checked.
-func assertUnique(api frontend.API, in []frontend.Variable) {
-	if len(in) < 2 {
-		return // no need to check uniqueness
-	}
+func assertInputUniqueness(api frontend.API, in []frontend.Variable, shouldCheck int) {
+	multicommit.WithCommitment(api, func(api frontend.API, gamma frontend.Variable) error {
+		sorted, err := api.Compiler().NewHint(SortHint, len(in), in...)
+		if err != nil {
+			panic(err)
+		}
+		// Grand product check. Asserts the following equation holds:
+		// Σ_{a \in in} a+ɣ = Σ_{b \in sorted} b+ɣ
+		var lhs, rhs frontend.Variable = 0, 0
+		for i := 0; i < len(sorted); i++ {
+			lhs = api.Mul(lhs, api.Add(in[i], gamma))
+			rhs = api.Mul(rhs, api.Add(sorted[i], gamma))
+		}
+		api.AssertIsEqual(lhs, rhs)
 
-	hasher, err := mimc.NewMiMC(api)
-	if err != nil {
-		panic(err)
-	}
-	hasher.Write(in...)
-	gamma := hasher.Sum()
-
-	sorted, err := api.Compiler().NewHint(SortHint, len(in), in...)
-	if err != nil {
-		panic(err)
-	}
-	// Grand product check. Asserts the following equation holds:
-	// Σ_{a \in in} a+ɣ = Σ_{b \in sorted} b+ɣ
-	var lhs, rhs Variable = 0, 0
-	for i := 0; i < len(sorted); i++ {
-		lhs = api.Mul(lhs, api.Add(in[i], gamma))
-		rhs = api.Mul(rhs, api.Add(sorted[i], gamma))
-	}
-	api.AssertIsEqual(lhs, rhs)
-
-	for i := 0; i < len(sorted)-1; i++ {
-		a, b := sorted[i], sorted[i+1]
-		// are both a and b zero? if yes, then it's valid; if not, then they must be different
-		bothZero := api.Select(api.IsZero(a), api.IsZero(b), 0)
-		isDifferent := api.Sub(1, api.IsZero(api.Sub(a, b)))
-		isValid := api.Select(bothZero, 1, isDifferent)
-		api.AssertIsEqual(isValid, 1)
-	}
+		for i := 0; i < len(sorted)-1; i++ {
+			a, b := sorted[i], sorted[i+1]
+			// are both a and b zero? if yes, then it's valid; if not, then they must be different
+			bothZero := api.Select(api.IsZero(a), api.IsZero(b), 0)
+			isDifferent := api.Sub(1, api.IsZero(api.Sub(a, b)))
+			isValid := api.Select(bothZero, 1, isDifferent)
+			isValid = api.Select(shouldCheck, isValid, 1)
+			api.AssertIsEqual(isValid, 1)
+		}
+		return nil
+	}, in...)
 }
 
 func (c *HostCircuit) dataLen() int {
-	return len(c.Input.Receipts.Raw) + len(c.Input.StorageSlots.Raw) + len(c.Input.Transactions.Raw)
+	d := c.Input
+	return len(d.Receipts.Raw) + len(d.StorageSlots.Raw) + len(d.Transactions.Raw)
 }
 
 func (c *HostCircuit) validateInput() error {
-	w := c.Input
-	inputLen := len(w.Receipts.Raw) + len(w.StorageSlots.Raw) + len(w.Transactions.Raw)
+	d := c.Input
+	inputLen := len(d.Receipts.Raw) + len(d.StorageSlots.Raw) + len(d.Transactions.Raw)
 	if inputLen > NumMaxDataPoints {
 		return fmt.Errorf("input len must be less than %d", NumMaxDataPoints)
 	}
 	maxReceipts, maxSlots, maxTransactions := c.Guest.Allocate()
-	if len(w.Receipts.Raw) != len(w.Receipts.Toggles) || len(w.Receipts.Raw) != maxReceipts {
+	if len(d.Receipts.Raw) != len(d.Receipts.Toggles) || len(d.Receipts.Raw) != maxReceipts {
 		return fmt.Errorf("receipt input/toggle len mismatch: %d vs %d",
-			len(w.Receipts.Raw), len(w.Receipts.Toggles))
+			len(d.Receipts.Raw), len(d.Receipts.Toggles))
 	}
-	if len(w.StorageSlots.Raw) != len(w.StorageSlots.Toggles) || len(w.StorageSlots.Raw) != maxSlots {
+	if len(d.StorageSlots.Raw) != len(d.StorageSlots.Toggles) || len(d.StorageSlots.Raw) != maxSlots {
 		return fmt.Errorf("storageSlots input/toggle len mismatch: %d vs %d",
-			len(w.StorageSlots.Raw), len(w.StorageSlots.Toggles))
+			len(d.StorageSlots.Raw), len(d.StorageSlots.Toggles))
 	}
-	if len(w.Transactions.Raw) != len(w.Transactions.Toggles) || len(w.Transactions.Raw) != maxTransactions {
+	if len(d.Transactions.Raw) != len(d.Transactions.Toggles) || len(d.Transactions.Raw) != maxTransactions {
 		return fmt.Errorf("transaction input/toggle len mismatch: %d vs %d",
-			len(w.Transactions.Raw), len(w.Transactions.Toggles))
+			len(d.Transactions.Raw), len(d.Transactions.Toggles))
 	}
 	return nil
 }
 
 // commitOutput commits the user's output using Keccak256
 // assumes `bits` are already little-endian bits in every byte. see CircuitAPI.addOutput
-func (c *HostCircuit) commitOutput(bits []Variable) OutputCommitment {
+func (c *HostCircuit) commitOutput(bits []frontend.Variable) OutputCommitment {
 	if len(bits)%8 != 0 {
 		panic(fmt.Errorf("len bits (%d) must be multiple of 8", len(bits)))
 	}
 
 	rounds := len(bits)/1088 + 1
 	paddedLen := rounds * 1088
-	padded := make([]Variable, paddedLen)
+	padded := make([]frontend.Variable, paddedLen)
 	copy(padded, bits)
 
 	// pad 101, start from one bit after the
@@ -193,16 +203,13 @@ func (c *HostCircuit) commitOutput(bits []Variable) OutputCommitment {
 		c.api.FromBinary(bitsLE[:128]...),
 	}
 
-	fmt.Printf("output commit data %x\n", bits2Bytes(bits))
-	fmt.Printf("output commit hash %x%x\n", commit[0], commit[1])
-
 	return commit
 }
 
-func bits2Bytes(data []Variable) []byte {
+func bits2Bytes(data []frontend.Variable) []byte {
 	var bits []uint
 	for _, b := range data {
-		bits = append(bits, uint(var2BigInt(b).Int64()))
+		bits = append(bits, uint(fromInterface(b).Int64()))
 	}
 
 	bytes := make([]byte, len(bits)/8)

@@ -29,8 +29,8 @@ func buildAppCircuitInfo(in CircuitInput, vk plonk.VerifyingKey) *proto.AppCircu
 	}
 }
 
-func buildReceiptInfos(r rawData[ReceiptData]) (infos []*proto.ReceiptInfo) {
-	for _, d := range r.list() {
+func buildReceiptInfos(r rawData[ReceiptData], max int) (infos []*proto.ReceiptInfo) {
+	for _, d := range r.list(max) {
 		var logExtractInfo []*proto.LogExtractInfo
 		for _, f := range d.Fields {
 			logExtractInfo = append(logExtractInfo, &proto.LogExtractInfo{
@@ -47,8 +47,8 @@ func buildReceiptInfos(r rawData[ReceiptData]) (infos []*proto.ReceiptInfo) {
 	return
 }
 
-func buildStorageQueryInfos(r rawData[StorageData]) (infos []*proto.StorageQueryInfo) {
-	for _, d := range r.list() {
+func buildStorageQueryInfos(r rawData[StorageData], max int) (infos []*proto.StorageQueryInfo) {
+	for _, d := range r.list(max) {
 		infos = append(infos, &proto.StorageQueryInfo{
 			Account:     d.Address.Hex(),
 			StorageKeys: []string{d.Key.Hex()},
@@ -58,8 +58,8 @@ func buildStorageQueryInfos(r rawData[StorageData]) (infos []*proto.StorageQuery
 	return
 }
 
-func buildTxInfos(r rawData[TransactionData]) (infos []*proto.TransactionInfo) {
-	for _, d := range r.list() {
+func buildTxInfos(r rawData[TransactionData], max int) (infos []*proto.TransactionInfo) {
+	for _, d := range r.list(max) {
 		infos = append(infos, &proto.TransactionInfo{
 			TransactionHash: d.Hash.Hex(),
 		})

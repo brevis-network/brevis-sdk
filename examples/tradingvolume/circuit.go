@@ -2,7 +2,6 @@ package tradingvolume
 
 import (
 	"github.com/brevis-network/brevis-sdk/sdk"
-	"github.com/consensys/gnark/frontend"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
@@ -17,7 +16,7 @@ import (
 type AppCircuit struct {
 	// You can define your own custom circuit inputs here, but note that they cannot
 	// have the `gnark:",public"` tag.
-	UserAddr sdk.Variable
+	UserAddr sdk.Uint248
 }
 
 // Your guest circuit must implement the sdk.AppCircuit interface
@@ -32,13 +31,13 @@ var EventIdSwap = sdk.ParseEventID(
 var EventIdTransfer = sdk.ParseEventID(
 	hexutil.MustDecode("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"))
 
-var RouterAddress = sdk.ParseAddress(
+var RouterAddress = sdk.ConstUint248(
 	common.HexToAddress("0xEf1c6E67703c7BD7107eed8303Fbe6EC2554BF6B"))
-var UsdcPoolAddress = sdk.ParseAddress(
+var UsdcPoolAddress = sdk.ConstUint248(
 	common.HexToAddress("0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640"))
-var UsdcAddress = sdk.ParseAddress(
+var UsdcAddress = sdk.ConstUint248(
 	common.HexToAddress("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"))
-var Salt = sdk.ParseBytes32(
+var Salt = sdk.ConstBytes32(
 	hexutil.MustDecode("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"))
 
 func (c *AppCircuit) Allocate() (maxReceipts, maxSlots, maxTransactions int) {
@@ -52,6 +51,8 @@ func (c *AppCircuit) Allocate() (maxReceipts, maxSlots, maxTransactions int) {
 }
 
 func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
+	u248 := api.Uint248
+
 	// In order to use the nice methods such as .Map() and .Reduce(), raw data needs
 	// to be wrapped in a DataStream. You could also use the raw data directly if you
 	// are familiar with writing gnark circuits.
@@ -59,47 +60,52 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 
 	// Main application logic: Run the assert function on each receipt. The function
 	// should return 1 if assertion successes and 0 otherwise
-	receipts.AssertEach(func(l sdk.Receipt) sdk.Variable {
+	sdk.AssertEach(receipts, func(l sdk.Receipt) sdk.Uint248 {
 		// If the recipient field of the Swap event is uniswap router, it means the user
 		// requested native token out. We need to instead check the user's address in the
 		// Transfer event emitted by USDC contract
-		recipientIsRouter := api.Equal(api.ToVariable(l.Fields[1].Value), RouterAddress)
+		recipientIsRouter := u248.IsEqual(api.ToUint248(l.Fields[1].Value), RouterAddress)
 		// the following line translates to "if recipient is router, then use `from` as
 		// userAddr, else use `recipient`"
-		userAddr := api.Select(
-			recipientIsRouter, api.ToVariable(l.Fields[2].Value), api.ToVariable(l.Fields[1].Value))
+		userAddr := u248.Select(
+			recipientIsRouter, api.ToUint248(l.Fields[2].Value), api.ToUint248(l.Fields[1].Value))
 		// asserts that the following equality checks each results in 1
-		assertionPassed := api.And(
+		assertionPassed := u248.And(
 			// 1. Check that the user address related to the swaps is consistent across all
 			// receipts
-			api.Equal(userAddr, c.UserAddr),
+			u248.IsEqual(userAddr, c.UserAddr),
 			// 2. Check that the contract address of each log field is the expected contract
-			api.Equal(l.Fields[0].Contract, UsdcPoolAddress),
-			api.Equal(l.Fields[1].Contract, UsdcPoolAddress),
-			api.Equal(l.Fields[2].Contract, UsdcAddress),
+			u248.IsEqual(l.Fields[0].Contract, UsdcPoolAddress),
+			u248.IsEqual(l.Fields[1].Contract, UsdcPoolAddress),
+			u248.IsEqual(l.Fields[2].Contract, UsdcAddress),
 			// 3. Check the EventID of the fields are as expected
-			api.Equal(l.Fields[0].EventID, EventIdSwap),
-			api.Equal(l.Fields[1].EventID, EventIdSwap),
-			api.Equal(l.Fields[2].EventID, EventIdTransfer),
+			u248.IsEqual(l.Fields[0].EventID, EventIdSwap),
+			u248.IsEqual(l.Fields[1].EventID, EventIdSwap),
+			u248.IsEqual(l.Fields[2].EventID, EventIdTransfer),
 			// 4. Check the index of the fields are as expected
-			api.IsZero(l.Fields[0].IsTopic), // `amount0` is not a topic field
-			api.Equal(l.Fields[0].Index, 0), // `amount0` is the 0th data field in the `Swap` event
-			l.Fields[1].IsTopic,             // `recipient` is a topic field
-			api.Equal(l.Fields[1].Index, 2), // `recipient` is the 2nd topic field in the `Swap` event
-			l.Fields[2].IsTopic,             // `from` is a topic field
-			api.Equal(l.Fields[2].Index, 1), // `from` is the 1st index field in the `Transfer` event
+			u248.IsZero(l.Fields[0].IsTopic),                     // `amount0` is not a topic field
+			u248.IsEqual(l.Fields[0].Index, sdk.ConstUint248(0)), // `amount0` is the 0th data field in the `Swap` event
+			l.Fields[1].IsTopic,                                  // `recipient` is a topic field
+			u248.IsEqual(l.Fields[1].Index, sdk.ConstUint248(2)), // `recipient` is the 2nd topic field in the `Swap` event
+			l.Fields[2].IsTopic,                                  // `from` is a topic field
+			u248.IsEqual(l.Fields[2].Index, sdk.ConstUint248(1)), // `from` is the 1st index field in the `Transfer` event
 		)
 		return assertionPassed
 	})
 
+	blockNums := sdk.Map(receipts, func(cur sdk.Receipt) sdk.Uint248 { return cur.BlockNum })
+
+	volumes := sdk.Map(receipts, func(cur sdk.Receipt) sdk.Uint248 {
+		valInt := api.ToInt248(cur.Fields[0].Value)
+		return api.Int248.ABS(valInt)
+	})
+
 	// Find out the minimum block number. This enables us to find out over what range
 	// the user has a specific trading volume
-	minBlockNum := receipts.Min(func(l sdk.Receipt) sdk.Variable { return l.BlockNum })
+	minBlockNum := sdk.Min(blockNums)
 
 	// Sum up the volume of each trade
-	sumVolume := receipts.Sum(func(l sdk.Receipt) sdk.Variable {
-		return abs(api, api.ToVariable(l.Fields[0].Value))
-	})
+	sumVolume := sdk.Sum(volumes)
 
 	// Output will be reflected in app contract's callback in the form of
 	// _circuitOutput: abi.encodePacked(uint256,uint248,uint64,address)
@@ -110,19 +116,4 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 	api.OutputAddress(c.UserAddr)
 
 	return nil
-}
-
-func abs(api *sdk.CircuitAPI, orig frontend.Variable) frontend.Variable {
-	bs := api.ToBinary(orig, 248)
-	signBit := bs[247] // ToBinary returns little-endian bits, the last bit is sign
-	absWhenOrigIsNeg := api.Add(1, api.FromBinary(flipBits(api, bs)...))
-	return api.Select(signBit, absWhenOrigIsNeg, orig)
-}
-
-func flipBits(api *sdk.CircuitAPI, vs []frontend.Variable) (ret []frontend.Variable) {
-	ret = make([]frontend.Variable, len(vs))
-	for i, v := range vs {
-		ret[i] = api.IsZero(v)
-	}
-	return
 }

@@ -18,9 +18,9 @@ func (c *AppCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions int) {
 func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 	txs := sdk.NewDataStream(api, in.Transactions)
 
-	tx := txs.Get(0)
+	tx := sdk.GetUnderlying(txs, 0)
 	// This is our main check logic
-	api.AssertIsEqual(tx.Nonce, 0)
+	api.Uint248.AssertIsEqual(tx.Nonce, sdk.ConstUint248(0))
 
 	// Output variables can be later accessed in our app contract
 	api.OutputAddress(tx.From)

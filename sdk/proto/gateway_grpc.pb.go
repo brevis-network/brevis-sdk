@@ -43,7 +43,7 @@ const (
 	Web_GetQueryStatus_FullMethodName                = "/zk.gateway.Web/GetQueryStatus"
 )
 
-// WebClient is the client API for Web service.
+// WebClient is the client api for Web service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type WebClient interface {
@@ -280,7 +280,7 @@ func (c *webClient) GetQueryStatus(ctx context.Context, in *GetQueryStatusReques
 	return out, nil
 }
 
-// WebServer is the server API for Web service.
+// WebServer is the server api for Web service.
 // All implementations should embed UnimplementedWebServer
 // for forward compatibility
 type WebServer interface {

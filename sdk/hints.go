@@ -3,6 +3,7 @@ package sdk
 import (
 	"fmt"
 	"github.com/consensys/gnark/constraint/solver"
+	"github.com/consensys/gnark/std/math/emulated"
 	"math/big"
 	"sort"
 	"sync"
@@ -19,7 +20,7 @@ func registerHints() {
 }
 
 func GetHints() []solver.Hint {
-	return []solver.Hint{QuoRemHint, SqrtHint, SortHint}
+	return []solver.Hint{QuoRemHint, SqrtHint, SortHint, GroupValuesHint, QuoRemBigHint}
 }
 
 func QuoRemHint(_ *big.Int, in, out []*big.Int) error {
@@ -35,7 +36,7 @@ func QuoRemHint(_ *big.Int, in, out []*big.Int) error {
 	return nil
 }
 
-func SqrtHint(field *big.Int, in, out []*big.Int) error {
+func SqrtHint(_ *big.Int, in, out []*big.Int) error {
 	if len(in) != 1 {
 		return fmt.Errorf("SqrtHint: input len must be 1")
 	}
@@ -43,7 +44,7 @@ func SqrtHint(field *big.Int, in, out []*big.Int) error {
 		return fmt.Errorf("SqrtHint: output len must be 1")
 	}
 	out[0] = new(big.Int)
-	out[0].ModSqrt(in[0], field)
+	out[0].Sqrt(in[0])
 	return nil
 }
 
@@ -60,4 +61,11 @@ func SortHint(_ *big.Int, in, out []*big.Int) error {
 
 	copy(out, l)
 	return nil
+}
+
+func QuoRemBigHint(_ *big.Int, in []*big.Int, out []*big.Int) error {
+	return emulated.UnwrapHint(in, out, func(mod *big.Int, in, out []*big.Int) error {
+		out[0].QuoRem(in[0], in[1], out[1])
+		return nil
+	})
 }

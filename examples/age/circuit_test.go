@@ -3,13 +3,13 @@ package age
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"github.com/brevis-network/brevis-sdk/sdk"
 	"github.com/brevis-network/brevis-sdk/test"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"path/filepath"
-	"testing"
 )
 
 func TestCircuit(t *testing.T) {
@@ -19,7 +19,7 @@ func TestCircuit(t *testing.T) {
 	txHash := common.HexToHash(
 		"0x6dc75e61220cc775aafa17796c20e49ac08030020fce710e3e546aa4e003454c")
 
-	ec, err := ethclient.Dial("...")
+	ec, err := ethclient.Dial("")
 	check(err)
 	tx, _, err := ec.TransactionByHash(context.Background(), txHash)
 	check(err)
@@ -53,33 +53,60 @@ func TestCircuit(t *testing.T) {
 
 	//test.IsSolved(t, appCircuit, appCircuitAssignment, circuitInput)
 	test.ProverSucceeded(t, appCircuit, appCircuitAssignment, circuitInput)
+}
+
+func TestE2E(t *testing.T) {
+	app, err := sdk.NewBrevisApp()
+	check(err)
+
+	txHash := common.HexToHash(
+		"0x6dc75e61220cc775aafa17796c20e49ac08030020fce710e3e546aa4e003454c")
+
+	ec, err := ethclient.Dial("")
+	check(err)
+	tx, _, err := ec.TransactionByHash(context.Background(), txHash)
+	check(err)
+	receipt, err := ec.TransactionReceipt(context.Background(), txHash)
+	check(err)
+	from, err := types.Sender(types.NewLondonSigner(tx.ChainId()), tx)
+	check(err)
+
+	app.AddTransaction(sdk.TransactionData{
+		Hash:                txHash,
+		ChainId:             tx.ChainId(),
+		BlockNum:            receipt.BlockNumber,
+		Nonce:               tx.Nonce(),
+		GasTipCapOrGasPrice: tx.GasTipCap(),
+		GasFeeCap:           tx.GasFeeCap(),
+		GasLimit:            tx.Gas(),
+		From:                from,
+		To:                  *tx.To(),
+		Value:               tx.Value(),
+	})
+
+	appCircuit := &AppCircuit{}
+	appCircuitAssignment := &AppCircuit{}
+
+	circuitInput, err := app.BuildCircuitInput(appCircuitAssignment)
+	check(err)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Testing
+	///////////////////////////////////////////////////////////////////////////////
+
+	//test.IsSolved(t, appCircuit, appCircuitAssignment, circuitInput)
+	test.ProverSucceeded(t, appCircuit, appCircuitAssignment, circuitInput)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Compiling and Setup
 	///////////////////////////////////////////////////////////////////////////////
 
 	outDir := "$HOME/circuitOut/age"
-	//srsDir := "$HOME/kzgsrs"
-
-	// The compilation output is the description of the circuit's constraint system.
-	// You should use sdk.WriteTo to serialize and save your circuit so that it can
-	// be used in the proving step later.
-	//ccs, err := sdk.Compile(appCircuit, circuitInput)
-	//check(err)
-	//err = sdk.WriteTo(ccs, filepath.Join(outDir, "ccs"))
-	//check(err)
-
-	// Setup is a one-time effort per circuit. A cache dir can be provided to output
-	// external dependencies. Once you have the verifying key you should also save
-	// its hash in your contract so that when a proof via Brevis is submitted
-	// on-chain you can verify that Brevis indeed used your verifying key to verify
-	// your circuit computations
-	//pk, vk, err := sdk.Setup(ccs, srsDir)
-	//check(err)
-	//err = sdk.WriteTo(pk, filepath.Join(outDir, "pk"))
-	//check(err)
-	//err = sdk.WriteTo(vk, filepath.Join(outDir, "vk"))
-	//check(err)
+	srsDir := "$HOME/kzgsrs"
+	// The compiled circuit, proving key, and verifying key are saved to outDir, and
+	// the downloaded SRS in the process is saved to srsDir
+	compiledCircuit, pk, vk, err := sdk.Compile(appCircuit, outDir, srsDir)
+	check(err)
 
 	fmt.Println("compilation/setup complete")
 
@@ -87,16 +114,16 @@ func TestCircuit(t *testing.T) {
 	// Proving
 	///////////////////////////////////////////////////////////////////////////////
 
-	ccs, err := sdk.ReadCircuitFrom(filepath.Join(outDir, "ccs"))
-	check(err)
-	pk, err := sdk.ReadPkFrom(filepath.Join(outDir, "pk"))
-	check(err)
-	vk, err := sdk.ReadVkFrom(filepath.Join(outDir, "vk"))
+	// Once you saved your ccs, pk, and vk files, you can read them back into memory
+	// for use with the provided utils
+	compiledCircuit, pk, vk, err = sdk.ReadSetupFrom(outDir)
 	check(err)
 
-	witness, _, err := sdk.NewFullWitness(appCircuitAssignment, circuitInput)
+	witness, publicWitness, err := sdk.NewFullWitness(appCircuitAssignment, circuitInput)
 	check(err)
-	proof, err := sdk.Prove(ccs, pk, witness)
+	proof, err := sdk.Prove(compiledCircuit, pk, witness)
+	check(err)
+	err = sdk.Verify(vk, publicWitness, proof) // optional
 	check(err)
 
 	///////////////////////////////////////////////////////////////////////////////
