@@ -291,11 +291,12 @@ func Map[T, R CircuitVariable](ds *DataStream[T], mapFunc MapFunc[T, R]) *DataSt
 
 type ReduceFunc[T, R CircuitVariable] func(accumulator R, current T) (newAccumulator R)
 
-// Reduce reduces the data stream to another CircuitVariable
-func Reduce[T, R CircuitVariable](ds *DataStream[T], initial R, reduceFunc ReduceFunc[T, R]) R {
+// Reduce reduces the data stream to another CircuitVariable with the given
+// reducer and initial condition
+func Reduce[T, R CircuitVariable](ds *DataStream[T], initial R, reducer ReduceFunc[T, R]) R {
 	acc := initial
 	for i, data := range ds.underlying {
-		newAcc := reduceFunc(acc, data)
+		newAcc := reducer(acc, data)
 		oldAccVals := acc.Values()
 		values := make([]frontend.Variable, len(oldAccVals))
 		for j, newAccV := range newAcc.Values() {
@@ -309,11 +310,12 @@ func Reduce[T, R CircuitVariable](ds *DataStream[T], initial R, reduceFunc Reduc
 // FilterFunc must return 1/0 to include/exclude `current` in the filter result
 type FilterFunc[T CircuitVariable] func(current T) Uint248
 
-func Filter[T CircuitVariable](ds *DataStream[T], filterFunc FilterFunc[T]) *DataStream[T] {
+// Filter filters the data stream with the given predicate
+func Filter[T CircuitVariable](ds *DataStream[T], predicate FilterFunc[T]) *DataStream[T] {
 	api := ds.api.g
 	newToggles := make([]frontend.Variable, len(ds.underlying))
 	for i, data := range ds.underlying {
-		toggle := filterFunc(data).Val
+		toggle := predicate(data).Val
 		valid := ds.api.isEqual(ds.toggles[i], 1)
 		newToggles[i] = api.Select(api.And(toggle, valid), 1, 0)
 	}
@@ -321,7 +323,8 @@ func Filter[T CircuitVariable](ds *DataStream[T], filterFunc FilterFunc[T]) *Dat
 }
 
 // MinGeneric finds out the minimum value from the data stream with the user
-// defined sort function. Uses Reduce under the hood.
+// defined sort function. Uses Reduce under the hood. Note if the data stream is
+// empty (all data points are toggled off), this function returns MaxUint248.
 func MinGeneric[T CircuitVariable](ds *DataStream[T], initialMin T, lt SortFunc[T]) T {
 	return Reduce(ds, initialMin, func(min, current T) (newMin T) {
 		curLtMin := lt(current, min)
@@ -330,7 +333,8 @@ func MinGeneric[T CircuitVariable](ds *DataStream[T], initialMin T, lt SortFunc[
 }
 
 // MaxGeneric finds out the maximum value from the data stream with the user
-// defined sort function. Uses Reduce under the hood.
+// defined sort function. Uses Reduce under the hood. Note if the data stream is
+// empty (all data points are toggled off), this function returns 0.
 func MaxGeneric[T CircuitVariable](ds *DataStream[T], initialMax T, gt SortFunc[T]) T {
 	return Reduce(ds, initialMax, func(max, current T) (newMax T) {
 		curGtMax := gt(current, max)
@@ -338,12 +342,16 @@ func MaxGeneric[T CircuitVariable](ds *DataStream[T], initialMax T, gt SortFunc[
 	})
 }
 
-// Min finds out the minimum value from the data stream. Uses MinGeneric
+// Min finds out the minimum value from the data stream. Uses MinGeneric. Note if
+// the data stream is empty (all data points are toggled off), this function
+// returns MaxUint248.
 func Min(ds *DataStream[Uint248]) Uint248 {
 	return MinGeneric(ds, newU248(MaxUint248), ds.api.Uint248.IsLessThan)
 }
 
-// Max finds out the maximum value from the data stream. Uses MinGeneric
+// Max finds out the maximum value from the data stream. Uses MinGeneric. Note if
+// the data stream is empty (all data points are toggled off), this function
+// returns 0.
 func Max(ds *DataStream[Uint248]) Uint248 {
 	return MaxGeneric(ds, newU248(0), ds.api.Uint248.IsGreaterThan)
 }
