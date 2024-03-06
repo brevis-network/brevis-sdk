@@ -349,7 +349,7 @@ func Min(ds *DataStream[Uint248]) Uint248 {
 	return MinGeneric(ds, newU248(MaxUint248), ds.api.Uint248.IsLessThan)
 }
 
-// Max finds out the maximum value from the data stream. Uses MinGeneric. Note if
+// Max finds out the maximum value from the data stream. Uses MaxGeneric. Note if
 // the data stream is empty (all data points are toggled off), this function
 // returns 0.
 func Max(ds *DataStream[Uint248]) Uint248 {
