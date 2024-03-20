@@ -16,7 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 type ReceiptData struct {
@@ -47,7 +46,7 @@ type LogFieldData struct {
 type StorageData struct {
 	BlockNum *big.Int       `json:"block_num,omitempty"`
 	Address  common.Address `json:"address,omitempty"`
-	Key      common.Hash    `json:"key,omitempty"`
+	Slot     common.Hash    `json:"slot,omitempty"`
 	Value    common.Hash    `json:"value,omitempty"`
 }
 
@@ -511,7 +510,7 @@ func buildStorageSlot(s StorageData) StorageSlot {
 	return StorageSlot{
 		BlockNum: newU248(s.BlockNum),
 		Contract: ConstUint248(s.Address),
-		Key:      ConstBytes32(crypto.Keccak256(s.Key[:])),
+		Slot:     ConstBytes32(s.Slot[:]),
 		Value:    ConstBytes32(s.Value[:]),
 	}
 }

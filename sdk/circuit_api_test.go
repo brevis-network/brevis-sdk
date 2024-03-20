@@ -2,14 +2,15 @@ package sdk
 
 import (
 	"fmt"
+	"math/big"
+	"testing"
+
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/test"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"math/big"
-	"testing"
 )
 
 func TestCircuitAPI(t *testing.T) {
@@ -32,9 +33,8 @@ func (c *TestCircuitAPICircuit) Define(g frontend.API) error {
 
 	c.testCasting()
 	c.testOutput()
-	c.testStorageKey()
-	c.testMappingStorageKey()
-	c.testStorageKeyOfArrayElement()
+	c.testMappingStorageSlot()
+	c.testStorageSlotOfArrayElement()
 
 	return nil
 }
@@ -107,49 +107,33 @@ func (c *TestCircuitAPICircuit) testOutput() {
 	}
 }
 
-func (c *TestCircuitAPICircuit) testMappingStorageKey() {
+func (c *TestCircuitAPICircuit) testMappingStorageSlot() {
 	api := c.api
-	mapKey := common.FromHex("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFCEE6A")
-	storageMptKey := api.StorageKeyOfStructFieldInMapping(6, 1, ConstBytes32(mapKey))
-	fmt.Printf("storage mpt key %s\n", storageMptKey)
+	slot := common.FromHex("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFCEE6A")
+	storageSlot := api.SlotOfStructFieldInMapping(6, 1, ConstBytes32(slot))
+	fmt.Printf("storage slot %s\n", storageSlot)
 
 	preimage := common.FromHex("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFCEE6A")
 	preimage = append(preimage, common.LeftPadBytes([]byte{6}, 32)...)
 	h := crypto.Keccak256(preimage)
 	expected := new(big.Int).SetBytes(h)
 	expected.Add(expected, big.NewInt(1))
-	expectedKey := expected.Bytes()
-	expectedKey = crypto.Keccak256(expectedKey)
-	fmt.Printf("expected: %x\n", expectedKey)
+	expectedSlot := expected.Bytes()
+	fmt.Printf("expected: %x\n", expectedSlot)
 
-	api.Bytes32.AssertIsEqual(storageMptKey, ConstBytes32(expectedKey))
-
-	// TODO add tests for nested mapping cases
+	api.Bytes32.AssertIsEqual(storageSlot, ConstBytes32(expectedSlot))
 }
 
-func (c *TestCircuitAPICircuit) testStorageKeyOfArrayElement() {
+func (c *TestCircuitAPICircuit) testStorageSlotOfArrayElement() {
 	api := c.api
 
 	preimage := common.FromHex("0x0000000000000000000000000000000000000000000000000000000000000002")
-	arrSlotKey := crypto.Keccak256(preimage)
+	arrSlot := crypto.Keccak256(preimage)
 
-	elMptKey := api.StorageKeyOfArrayElement(ConstBytes32(arrSlotKey), 2, ConstUint248(1175), ConstUint248(1))
+	elSlot := api.SlotOfArrayElement(ConstBytes32(arrSlot), 2, ConstUint248(1175), ConstUint248(1))
 
 	expected := new(big.Int).SetBytes(common.FromHex("0x405787fa12a823e0f2b7631cc41b3ba8828b3321ca811111fa75cd3aa3bb63fd"))
-	expectedKey := expected.Bytes()
-	expectedKey = crypto.Keccak256(expectedKey)
+	expectedSlot := expected.Bytes()
 
-	api.Bytes32.AssertIsEqual(elMptKey, ConstBytes32(expectedKey))
-}
-
-func (c *TestCircuitAPICircuit) testStorageKey() {
-	api := c.api
-
-	preimage := common.FromHex("0x0000000000000000000000000000000000000000000000000000000000000002")
-	mptKey := api.StorageKey(ConstBytes32(preimage))
-
-	expected := crypto.Keccak256(preimage)
-	expected = crypto.Keccak256(expected)
-
-	api.Bytes32.AssertIsEqual(mptKey, ConstBytes32(expected))
+	api.Bytes32.AssertIsEqual(elSlot, ConstBytes32(expectedSlot))
 }

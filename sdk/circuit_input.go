@@ -307,8 +307,8 @@ type StorageSlot struct {
 	BlockNum Uint248
 	// The contract to which the storage slot belong
 	Contract Uint248
-	// The key of the slot
-	Key Bytes32
+	// The storage slot
+	Slot Bytes32
 	// The storage slot value
 	Value Bytes32
 }
@@ -317,7 +317,7 @@ func defaultStorageSlot() StorageSlot {
 	return StorageSlot{
 		BlockNum: newU248(0),
 		Contract: newU248(0),
-		Key:      ConstBytes32([]byte{}),
+		Slot:     ConstBytes32([]byte{}),
 		Value:    ConstBytes32([]byte{}),
 	}
 }
@@ -328,7 +328,7 @@ func (s StorageSlot) Values() []frontend.Variable {
 	var ret []frontend.Variable
 	ret = append(ret, s.BlockNum.Values()...)
 	ret = append(ret, s.Contract.Values()...)
-	ret = append(ret, s.Key.Values()...)
+	ret = append(ret, s.Slot.Values()...)
 	ret = append(ret, s.Value.Values()...)
 	return ret
 }
@@ -342,8 +342,8 @@ func (s StorageSlot) FromValues(vs ...frontend.Variable) CircuitVariable {
 	start, end = end, end+s.Contract.NumVars()
 	nr.Contract = s.Contract.FromValues(vs[start:end]...).(Uint248)
 
-	start, end = end, end+s.Key.NumVars()
-	nr.Key = s.Key.FromValues(vs[start:end]...).(Bytes32)
+	start, end = end, end+s.Slot.NumVars()
+	nr.Slot = s.Slot.FromValues(vs[start:end]...).(Bytes32)
 
 	start, end = end, end+s.Value.NumVars()
 	nr.Value = s.Value.FromValues(vs[start:end]...).(Bytes32)
@@ -352,7 +352,7 @@ func (s StorageSlot) FromValues(vs ...frontend.Variable) CircuitVariable {
 }
 
 func (s StorageSlot) NumVars() uint32 {
-	return s.BlockNum.NumVars() + s.Contract.NumVars() + s.Key.NumVars() + s.Value.NumVars()
+	return s.BlockNum.NumVars() + s.Contract.NumVars() + s.Slot.NumVars() + s.Value.NumVars()
 }
 
 func (s StorageSlot) String() string { return "" }
@@ -366,7 +366,7 @@ func (s StorageSlot) pack(api frontend.API) []frontend.Variable {
 	var bits []frontend.Variable
 	bits = append(bits, api.ToBinary(s.BlockNum.Val, 8*4)...)
 	bits = append(bits, api.ToBinary(s.Contract.Val, 8*20)...)
-	bits = append(bits, s.Key.toBinaryVars(api)...)
+	bits = append(bits, s.Slot.toBinaryVars(api)...)
 	bits = append(bits, s.Value.toBinaryVars(api)...)
 	return packBitsToFr(api, bits)
 }
@@ -375,7 +375,7 @@ func (s StorageSlot) goPack() []*big.Int {
 	var bits []uint
 	bits = append(bits, decomposeBits(fromInterface(s.BlockNum.Val), 8*4)...)
 	bits = append(bits, decomposeBits(fromInterface(s.Contract.Val), 8*20)...)
-	bits = append(bits, s.Key.toBinary()...)
+	bits = append(bits, s.Slot.toBinary()...)
 	bits = append(bits, s.Value.toBinary()...)
 	return packBitsToInt(bits, bls12377_fr.Bits-1)
 }

@@ -1,11 +1,12 @@
 package sdk
 
 import (
+	"testing"
+
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/test"
-	"testing"
 )
 
 func TestHostCircuit_assertInputUniqueness(t *testing.T) {
@@ -33,6 +34,6 @@ type TestInputUniqueness struct {
 }
 
 func (c *TestInputUniqueness) Define(api frontend.API) error {
-	assertUnique(api, c.In)
+	assertInputUniqueness(api, c.In, 1)
 	return nil
 }

@@ -2,6 +2,7 @@ package sdk
 
 import (
 	"fmt"
+
 	"github.com/brevis-network/brevis-sdk/sdk/proto"
 	"github.com/consensys/gnark/backend/plonk"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -51,7 +52,7 @@ func buildStorageQueryInfos(r rawData[StorageData], max int) (infos []*proto.Sto
 	for _, d := range r.list(max) {
 		infos = append(infos, &proto.StorageQueryInfo{
 			Account:     d.Address.Hex(),
-			StorageKeys: []string{d.Key.Hex()},
+			StorageKeys: []string{d.Slot.Hex()},
 			BlkNum:      d.BlockNum.Uint64(),
 		})
 	}
