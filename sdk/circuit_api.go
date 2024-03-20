@@ -99,18 +99,10 @@ func (api *CircuitAPI) StorageKey(slot Bytes32) Bytes32 {
 func (api *CircuitAPI) StorageKeyOfArrayElement(arrStorageKey Bytes32, elementSize int, index, offset Uint248) Bytes32 {
 	//api.Uint248.AssertIsLessOrEqual(offset, ConstUint248(elementSize))
 	o := api.g.Mul(index.Val, elementSize)
-	ak := Bytes32{Val: [2]variable{
+	return Bytes32{Val: [2]variable{
 		api.g.Add(arrStorageKey.Val[0], o, offset.Val),
 		arrStorageKey.Val[1],
 	}}
-
-	// mpt key
-	arrKeyBitsLE := api.Bytes32.ToBinary(ak)
-	padded := keccak.PadBits101(api.g, flipByGroups(arrKeyBitsLE.Values(), 8), 1)
-	res := keccak.Keccak256Bits(api.g, 1, 0, padded)
-
-	hash := flipByGroups(res[:], 8)
-	return api.Bytes32.FromBinary(newU248s(hash...)...)
 }
 
 // TODO: support storage key for plain value in mapping
