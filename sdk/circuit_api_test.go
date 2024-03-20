@@ -110,7 +110,7 @@ func (c *TestCircuitAPICircuit) testOutput() {
 func (c *TestCircuitAPICircuit) testMappingStorageSlot() {
 	api := c.api
 	slot := common.FromHex("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFCEE6A")
-	storageSlot := api.StorageSlotOfStructFieldInMapping(6, 1, ConstBytes32(slot))
+	storageSlot := api.SlotOfStructFieldInMapping(6, 1, ConstBytes32(slot))
 	fmt.Printf("storage slot %s\n", storageSlot)
 
 	preimage := common.FromHex("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFCEE6A")

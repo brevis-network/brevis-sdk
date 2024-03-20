@@ -95,20 +95,17 @@ func (api *CircuitAPI) SlotOfArrayElement(arrSlot Bytes32, elementSize int, inde
 	}}
 }
 
-// StorageSlotOfStructFieldInMapping computes the storage slot for a struct field
+// SlotOfStructFieldInMapping computes the slot for a struct field
 // stored in a solidity mapping. Implements keccak256(h(k) | p) for computing
-// mapping or nested mapping's storage slot where the value is a struct The
+// mapping or nested mapping's slot where the value is a struct The
 // mapping slots are of the order which you would access the solidity mapping. For
 // example, to access nested mapping at slot 1 value with m[a][b] and
 // subsequently the 4th index of the struct value, use
-// StorageSlotOfStructFieldInMapping(1, 4, a, b). If your a and b are not of
+// SlotOfStructFieldInMapping(1, 4, a, b). If your a and b are not of
 // Bytes32 type, cast them to Bytes32 first using api.ToBytes32.
 //
 // https://docs.soliditylang.org/en/v0.8.24/internals/layout_in_storage.html#mappings-and-dynamic-arrays
-//
-// IMPORTANT NOTE: the result hash is actually the slot of the storage.
-// So the final formula is keccak256(h(k) | p).
-func (api *CircuitAPI) StorageSlotOfStructFieldInMapping(
+func (api *CircuitAPI) SlotOfStructFieldInMapping(
 	slot, offset int, valueSlot Bytes32, nestedMappingSlots ...Bytes32) Bytes32 {
 
 	slotBits := decomposeBig(big.NewInt(int64(slot)), 1, 256)
@@ -124,12 +121,12 @@ func (api *CircuitAPI) StorageSlotOfStructFieldInMapping(
 		valueSlotBits = keccak.Keccak256Bits(api.g, 1, 0, preimagePadded)
 	}
 
-	res := api.offsetStorageSlot(valueSlotBits, offset)
+	res := api.offsetSlot(valueSlotBits, offset)
 	hashByteWiseLE := newU248s(flipByGroups(res[:], 8)...)
 	return api.Bytes32.FromBinary(hashByteWiseLE...)
 }
 
-func (api *CircuitAPI) offsetStorageSlot(slotBits [256]variable, offset int) [256]variable {
+func (api *CircuitAPI) offsetSlot(slotBits [256]variable, offset int) [256]variable {
 	if offset <= 0 {
 		return slotBits
 	}
