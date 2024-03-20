@@ -21,7 +21,7 @@ func TestCircuit(t *testing.T) {
 	app.AddStorage(sdk.StorageData{
 		BlockNum: big.NewInt(18233760),
 		Address:  account,
-		Key:      common.BytesToHash(slot),
+		Slot:     common.BytesToHash(slot),
 		Value:    common.HexToHash("0xf380166f8490f24af32bf47d1aa217fba62b6575"),
 	}, 1)
 	// More slots can be added to be batch proven, but in this example we use only
@@ -56,7 +56,7 @@ func TestE2E(t *testing.T) {
 	app.AddStorage(sdk.StorageData{
 		BlockNum: big.NewInt(18233760),
 		Address:  account,
-		Key:      common.BytesToHash(slot),
+		Slot:     common.BytesToHash(slot),
 		Value:    common.HexToHash("0xf380166f8490f24af32bf47d1aa217fba62b6575"),
 	}, 1)
 	// More slots can be added to be batch proven, but in this example we use only

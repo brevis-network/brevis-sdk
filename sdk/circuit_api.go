@@ -2,9 +2,10 @@ package sdk
 
 import (
 	"fmt"
+	"math/big"
+
 	"github.com/brevis-network/zk-utils/circuits/gadgets/keccak"
 	"github.com/consensys/gnark/frontend"
-	"math/big"
 )
 
 // CircuitAPI contains a set of APIs that can only be used in circuit to perform
@@ -86,7 +87,9 @@ func (api *CircuitAPI) StorageKey(slot Bytes32) Bytes32 {
 	s := api.Bytes32.ToBinary(slot)
 	padded := keccak.PadBits101(api.g, flipByGroups(s.Values(), 8), 1)
 	key := keccak.Keccak256Bits(api.g, 1, 0, padded)
-	return api.hashKeccakOutputAgain(key)
+
+	hashByteWiseLE := newU248s(flipByGroups(key[:], 8)...)
+	return api.Bytes32.FromBinary(hashByteWiseLE...)
 }
 
 // StorageKeyOfArrayElement computes the storage key for an element in a solidity
@@ -143,15 +146,6 @@ func (api *CircuitAPI) StorageKeyOfStructFieldInMapping(
 	}
 
 	res := api.offsetStorageKey(key, offset)
-	return api.hashKeccakOutputAgain(res)
-}
-
-func (api *CircuitAPI) hashKeccakOutputAgain(bits [256]frontend.Variable) Bytes32 {
-	padded := keccak.PadBits101(api.g, bits[:], 1)
-	res := keccak.Keccak256Bits(api.g, 1, 0, padded)
-
-	// keccak output has the same byte wise endianness as input. reversing the bits
-	// by group of 8 to make it little-endian
 	hashByteWiseLE := newU248s(flipByGroups(res[:], 8)...)
 	return api.Bytes32.FromBinary(hashByteWiseLE...)
 }

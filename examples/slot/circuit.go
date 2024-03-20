@@ -2,7 +2,6 @@ package slot
 
 import (
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/brevis-network/brevis-sdk/sdk"
 )
@@ -23,7 +22,6 @@ func (c *AppCircuit) Allocate() (maxReceipts, maxSlots, maxTransactions int) {
 //
 // [solidity doc]: https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html
 var slot = common.LeftPadBytes([]byte{0}, 32)
-var expectedKey = sdk.ConstBytes32(crypto.Keccak256(slot))
 
 func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 	slots := sdk.NewDataStream(api, in.StorageSlots)
@@ -32,8 +30,6 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 	// specifically requested index "1" for storage slots to be our "special" data.
 	// We can access this special index directly and use it in circuit.
 	s := sdk.GetUnderlying(slots, 1)
-	api.Bytes32.AssertIsEqual(s.Key, expectedKey)
-
 	owner := api.ToUint248(s.Value)
 	// Output will be reflected in our contract in the form of
 	// abi.encodePacked(address,address,uint64)
