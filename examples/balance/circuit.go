@@ -10,7 +10,7 @@ type AppCircuit struct{}
 var _ sdk.AppCircuit = &AppCircuit{}
 
 func (c *AppCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions int) {
-	// Our app is only ever going to use one storage data at a time so
+	// This demo app is only going to use two storage data at a time so
 	// we can simply limit the max number of data for storage to 1 and
 	// 0 for all others
 	return 0, 2, 0
