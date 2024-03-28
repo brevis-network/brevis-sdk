@@ -186,7 +186,7 @@ func (r Receipt) NumVars() uint32 {
 	return sum
 }
 
-func (r Receipt) String() string { return "" }
+func (r Receipt) String() string { return "Receipt" }
 
 // LogField represents a single field of an event.
 type LogField struct {
@@ -355,7 +355,7 @@ func (s StorageSlot) NumVars() uint32 {
 	return s.BlockNum.NumVars() + s.Contract.NumVars() + s.Slot.NumVars() + s.Value.NumVars()
 }
 
-func (s StorageSlot) String() string { return "" }
+func (s StorageSlot) String() string { return "StorageSlot" }
 
 // pack packs the storage slots into BLS12377 scalars
 // 4 bytes for block num + 84 bytes for each slot = 672 bits, fits into 3 BLS12377 fr vars:
@@ -470,7 +470,7 @@ func (t Transaction) NumVars() uint32 {
 	return sum
 }
 
-func (t Transaction) String() string { return "" }
+func (t Transaction) String() string { return "Transaction" }
 
 // pack packs the transactions into BLS12377 scalars
 // chain_id - 4 bytes
