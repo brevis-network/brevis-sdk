@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
 	"hash"
 	"math/big"
 	"time"
 
-	"github.com/brevis-network/brevis-sdk/sdk/proto"
 	"github.com/brevis-network/zk-utils/common/eth"
 	bls12377_fr "github.com/consensys/gnark-crypto/ecc/bls12-377/fr"
 	"github.com/consensys/gnark-crypto/ecc/bls12-377/fr/mimc"
@@ -222,7 +222,7 @@ func (q *BrevisApp) PrepareRequest(
 	q.srcChainId = srcChainId
 	q.dstChainId = dstChainId
 
-	req := &proto.PrepareQueryRequest{
+	req := &gwproto.PrepareQueryRequest{
 		ChainId:           srcChainId,
 		TargetChainId:     dstChainId,
 		ReceiptInfos:      buildReceiptInfos(q.receipts, q.maxReceipts),
@@ -288,7 +288,7 @@ func WithContext(ctx context.Context) SubmitProofOption {
 }
 
 func (q *BrevisApp) SubmitProofWithQueryId(queryId string, dstChainId uint64, proof []byte) error {
-	res, err := q.gc.SubmitProof(&proto.SubmitAppCircuitProofRequest{
+	res, err := q.gc.SubmitProof(&gwproto.SubmitAppCircuitProofRequest{
 		QueryHash:     queryId,
 		TargetChainId: dstChainId,
 		Proof:         hexutil.Encode(proof),
@@ -314,7 +314,7 @@ func (q *BrevisApp) SubmitProof(proof plonk.Proof, options ...SubmitProofOption)
 	if err != nil {
 		return fmt.Errorf("error writing proof to bytes: %s", err.Error())
 	}
-	res, err := q.gc.SubmitProof(&proto.SubmitAppCircuitProofRequest{
+	res, err := q.gc.SubmitProof(&gwproto.SubmitAppCircuitProofRequest{
 		QueryHash:     hexutil.Encode(q.queryId),
 		TargetChainId: q.dstChainId,
 		Proof:         hexutil.Encode(buf.Bytes()),
@@ -354,17 +354,17 @@ func (q *BrevisApp) waitFinalProofSubmitted(cancel <-chan struct{}) (common.Hash
 	for {
 		select {
 		case <-t.C:
-			res, err := q.gc.GetQueryStatus(&proto.GetQueryStatusRequest{
+			res, err := q.gc.GetQueryStatus(&gwproto.GetQueryStatusRequest{
 				QueryHash:     hexutil.Encode(q.queryId),
 				TargetChainId: q.dstChainId,
 			})
 			if err != nil {
 				return common.Hash{}, fmt.Errorf("error querying proof status: %s", err.Error())
 			}
-			if res.Status == proto.QueryStatus_QS_COMPLETE {
+			if res.Status == gwproto.QueryStatus_QS_COMPLETE {
 				fmt.Printf("final proof for query %x submitted: tx %s\n", q.queryId, res.TxHash)
 				return common.HexToHash(res.TxHash), nil
-			} else if res.Status == proto.QueryStatus_QS_FAILED {
+			} else if res.Status == gwproto.QueryStatus_QS_FAILED {
 				return common.Hash{}, fmt.Errorf("proof submission status Failure")
 			} else {
 				fmt.Printf("polling for final proof submission: status %s\n", res.Status)

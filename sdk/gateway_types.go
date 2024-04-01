@@ -2,13 +2,14 @@ package sdk
 
 import (
 	"fmt"
+	"github.com/brevis-network/brevis-sdk/sdk/proto/commonproto"
 
-	"github.com/brevis-network/brevis-sdk/sdk/proto"
+	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
 	"github.com/consensys/gnark/backend/plonk"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
-func buildAppCircuitInfo(in CircuitInput, vk plonk.VerifyingKey) *proto.AppCircuitInfo {
+func buildAppCircuitInfo(in CircuitInput, vk plonk.VerifyingKey) *commonproto.AppCircuitInfo {
 	inputCommitments := make([]string, len(in.InputCommitments))
 	for i, value := range in.InputCommitments {
 		inputCommitments[i] = fmt.Sprintf("0x%x", value)
@@ -19,7 +20,7 @@ func buildAppCircuitInfo(in CircuitInput, vk plonk.VerifyingKey) *proto.AppCircu
 		toggles[i] = fmt.Sprintf("%x", value) == "1"
 	}
 
-	return &proto.AppCircuitInfo{
+	return &commonproto.AppCircuitInfo{
 		OutputCommitment:  hexutil.Encode(in.OutputCommitment.Hash().Bytes()),
 		Vk:                hexutil.Encode(mustWriteToBytes(vk)),
 		InputCommitments:  inputCommitments,
@@ -30,17 +31,17 @@ func buildAppCircuitInfo(in CircuitInput, vk plonk.VerifyingKey) *proto.AppCircu
 	}
 }
 
-func buildReceiptInfos(r rawData[ReceiptData], max int) (infos []*proto.ReceiptInfo) {
+func buildReceiptInfos(r rawData[ReceiptData], max int) (infos []*gwproto.ReceiptInfo) {
 	for _, d := range r.list(max) {
-		var logExtractInfo []*proto.LogExtractInfo
+		var logExtractInfo []*gwproto.LogExtractInfo
 		for _, f := range d.Fields {
-			logExtractInfo = append(logExtractInfo, &proto.LogExtractInfo{
+			logExtractInfo = append(logExtractInfo, &gwproto.LogExtractInfo{
 				LogIndex:       uint64(f.LogIndex),
 				ValueFromTopic: f.IsTopic,
 				ValueIndex:     uint64(f.FieldIndex),
 			})
 		}
-		infos = append(infos, &proto.ReceiptInfo{
+		infos = append(infos, &gwproto.ReceiptInfo{
 			TransactionHash: d.TxHash.Hex(),
 			LogExtractInfos: logExtractInfo,
 		})
@@ -48,9 +49,9 @@ func buildReceiptInfos(r rawData[ReceiptData], max int) (infos []*proto.ReceiptI
 	return
 }
 
-func buildStorageQueryInfos(r rawData[StorageData], max int) (infos []*proto.StorageQueryInfo) {
+func buildStorageQueryInfos(r rawData[StorageData], max int) (infos []*gwproto.StorageQueryInfo) {
 	for _, d := range r.list(max) {
-		infos = append(infos, &proto.StorageQueryInfo{
+		infos = append(infos, &gwproto.StorageQueryInfo{
 			Account:     d.Address.Hex(),
 			StorageKeys: []string{d.Slot.Hex()},
 			BlkNum:      d.BlockNum.Uint64(),
@@ -59,9 +60,9 @@ func buildStorageQueryInfos(r rawData[StorageData], max int) (infos []*proto.Sto
 	return
 }
 
-func buildTxInfos(r rawData[TransactionData], max int) (infos []*proto.TransactionInfo) {
+func buildTxInfos(r rawData[TransactionData], max int) (infos []*gwproto.TransactionInfo) {
 	for _, d := range r.list(max) {
-		infos = append(infos, &proto.TransactionInfo{
+		infos = append(infos, &gwproto.TransactionInfo{
 			TransactionHash: d.Hash.Hex(),
 		})
 	}

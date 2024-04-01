@@ -1,0 +1,3 @@
+[submodule "brevis-proto"]
+	path = brevis-proto
+	url = https://github.com/brevis-network/brevis-proto.git
