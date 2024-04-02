@@ -8,16 +8,11 @@ import (
 	"net"
 
 	"github.com/brevis-network/brevis-sdk/sdk"
-	"github.com/brevis-network/brevis-sdk/sdk/proto"
-	"github.com/brevis-network/brevis-sdk/sdk/proto/commonproto"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto"
-	"github.com/celer-network/goutils/big"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/plonk"
 	"github.com/consensys/gnark/constraint"
-	"github.com/consensys/gnark/frontend"
 	replonk "github.com/consensys/gnark/std/recursion/plonk"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"google.golang.org/grpc"
 )
 
@@ -90,7 +85,7 @@ func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkpro
 	}
 
 	for _, receipt := range req.Receipts {
-		sdkReceipt, err := ConvertProtoReceiptToSdkReceipt(receipt.Data)
+		sdkReceipt, err := convertProtoReceiptToSdkReceipt(receipt.Data)
 		if err != nil {
 			return nil, err
 		}
@@ -98,39 +93,34 @@ func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkpro
 	}
 
 	for _, storage := range req.Storages {
-		brevisApp.AddStorage(ConvertProtoStorageToSdkStorage(storage.Data), int(storage.Index))
+		brevisApp.AddStorage(convertProtoStorageToSdkStorage(storage.Data), int(storage.Index))
 	}
 
 	for _, transaction := range req.Transactions {
-		brevisApp.AddTransaction(ConvertProtoTxToSdkTx(transaction.Data), int(transaction.Index))
+		brevisApp.AddTransaction(convertProtoTxToSdkTx(transaction.Data), int(transaction.Index))
 	}
 
-	/// TODO: Use actual data to build input
-	guest := s.app
+	guest, err := assignCustomInput(s.app, req.CustomInput)
+	if err != nil {
+		return nil, err
+	}
+
 	input, err := brevisApp.BuildCircuitInput(guest)
 	if err != nil {
 		return nil, err
 	}
 
-	assignment := sdk.NewHostCircuit(input.Clone(), guest)
-
-	witness, err := frontend.NewWitness(assignment, ecc.BLS12_377.ScalarField())
-
+	witness, publicWitness, err := sdk.NewFullWitness(guest, input)
 	if err != nil {
 		return nil, err
 	}
 
-	proof, err := plonk.Prove(s.ccs, s.pk, witness, replonk.GetNativeProverOptions(ecc.BW6_761.ScalarField(), ecc.BLS12_377.ScalarField()))
+	proof, err := sdk.Prove(s.ccs, s.pk, witness)
 	if err != nil {
 		return nil, err
 	}
 
-	witnessPublic, err := witness.Public()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get public witness %s", err.Error())
-	}
-
-	err = plonk.Verify(proof, s.vk, witnessPublic, replonk.GetNativeVerifierOptions(ecc.BW6_761.ScalarField(), ecc.BLS12_377.ScalarField()))
+	err = plonk.Verify(proof, s.vk, publicWitness, replonk.GetNativeVerifierOptions(ecc.BW6_761.ScalarField(), ecc.BLS12_377.ScalarField()))
 	if err != nil {
 		return nil, fmt.Errorf("proof verification failed: %s", err.Error())
 	}
@@ -143,84 +133,6 @@ func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkpro
 
 	return &sdkproto.ProveResponse{
 		Proof:       fmt.Sprintf("0x%x", buf.Bytes()),
-		CircuitInfo: BuildAppCircuitInfo(input, s.vkBytes),
+		CircuitInfo: buildAppCircuitInfo(input, s.vkBytes),
 	}, nil
-}
-
-func BuildAppCircuitInfo(in sdk.CircuitInput, vk string) *commonproto.AppCircuitInfo {
-	inputCommitments := make([]string, len(in.InputCommitments))
-	for i, value := range in.InputCommitments {
-		inputCommitments[i] = fmt.Sprintf("0x%x", value)
-	}
-
-	toggles := make([]bool, len(in.Toggles()))
-	for i, value := range in.Toggles() {
-		toggles[i] = fmt.Sprintf("%x", value) == "1"
-	}
-
-	return &proto.AppCircuitInfo{
-		OutputCommitment:  hexutil.Encode(in.OutputCommitment.Hash().Bytes()),
-		Vk:                vk,
-		InputCommitments:  inputCommitments,
-		TogglesCommitment: fmt.Sprintf("0x%x", in.TogglesCommitment),
-		Toggles:           toggles,
-		UseCallback:       true,
-		Output:            hexutil.Encode(in.GetAbiPackedOutput()),
-	}
-}
-
-func ConvertProtoReceiptToSdkReceipt(in *sdkproto.ReceiptData) (sdk.ReceiptData, error) {
-	var fields [sdk.NumMaxLogFields]sdk.LogFieldData
-	if len(in.Fields) == 0 {
-		return sdk.ReceiptData{}, fmt.Errorf("invalid log field")
-	}
-
-	for i := range fields {
-		if i < len(in.Fields) {
-			fields[i] = ConvertProtoFieldToSdkLog(in.Fields[i])
-		} else {
-			fields[i] = fields[len(in.Fields)-1]
-		}
-	}
-
-	return sdk.ReceiptData{
-		BlockNum: new(big.Int).SetUint64(in.BlockNum),
-		TxHash:   Hex2Hash(in.TxHash),
-		Fields:   fields,
-	}, nil
-}
-
-func ConvertProtoFieldToSdkLog(in *sdkproto.Field) sdk.LogFieldData {
-	return sdk.LogFieldData{
-		Contract:   Hex2Addr(in.Contract),
-		LogIndex:   uint(in.LogIndex),
-		EventID:    Hex2Hash(in.EventId),
-		IsTopic:    in.IsTopic,
-		FieldIndex: uint(in.FieldIndex),
-		Value:      Hex2Hash(in.Value),
-	}
-}
-
-func ConvertProtoStorageToSdkStorage(in *sdkproto.StorageData) sdk.StorageData {
-	return sdk.StorageData{
-		BlockNum: new(big.Int).SetUint64(in.BlockNum),
-		Address:  Hex2Addr(in.Address),
-		Slot:     Hex2Hash(in.Slot),
-		Value:    Hex2Hash(in.Value),
-	}
-}
-
-func ConvertProtoTxToSdkTx(in *sdkproto.TransactionData) sdk.TransactionData {
-	return sdk.TransactionData{
-		Hash:                Hex2Hash(in.Hash),
-		ChainId:             new(big.Int).SetUint64(in.ChainId),
-		BlockNum:            new(big.Int).SetUint64(in.BlockNum),
-		Nonce:               in.Nonce,
-		GasTipCapOrGasPrice: new(big.Int).SetBytes(Hex2Bytes(in.GasTipCapOrGasPrice)),
-		GasFeeCap:           new(big.Int).SetBytes(Hex2Bytes(in.GasFeeCap)),
-		GasLimit:            in.GasLimit,
-		From:                Hex2Addr(in.From),
-		To:                  Hex2Addr(in.To),
-		Value:               new(big.Int).SetBytes(Hex2Bytes(in.Value)),
-	}
 }

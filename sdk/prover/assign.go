@@ -1,9 +1,10 @@
 package prover
 
 import (
+	"reflect"
+
 	"github.com/brevis-network/brevis-sdk/sdk"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto"
-	"reflect"
 )
 
 func assignCustomInput(app sdk.AppCircuit, input *sdkproto.CustomInput) (sdk.AppCircuit, error) {
