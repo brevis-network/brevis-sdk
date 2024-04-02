@@ -106,3 +106,13 @@ func openFile(filename string) (reader io.Reader, err error) {
 	reader = f
 	return
 }
+
+func GetVKBytes(vk plonk.VerifyingKey) ([]byte, error) {
+	var buf bytes.Buffer
+	_, err := vk.WriteRawTo(&buf)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write proof to bytes %s", err.Error())
+	}
+
+	return buf.Bytes(), nil
+}
