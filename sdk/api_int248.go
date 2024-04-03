@@ -61,11 +61,14 @@ func (v Int248) FromValues(vs ...frontend.Variable) CircuitVariable {
 func (v Int248) NumVars() uint32 { return 1 }
 
 func (v Int248) String() string {
-	b := fromInterface(v)
+	b, ok := v.Val.(*big.Int)
+	if !ok {
+		return ""
+	}
 	bits := decompose[uint](b, 1, 248)
-	signBit := bits[len(bits)]
+	signBit := bits[len(bits)-1]
 
-	abs := new(big.Int)
+	abs := new(big.Int).Set(b)
 	sign := ""
 	if signBit == 1 {
 		abs = recompose(twosComplement(bits, 248), 1)
