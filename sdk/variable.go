@@ -7,6 +7,13 @@ import (
 	"strings"
 )
 
+const (
+	Uint248Type = "Uint248"
+	Uint521Type = "Uint521"
+	Int248Type  = "Int248"
+	Bytes32Type = "Bytes32"
+)
+
 // MaxUint248 is the largest safe number for uint248 type
 var MaxUint248 = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 248), big.NewInt(1))
 
