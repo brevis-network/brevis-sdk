@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"log"
 	"net"
 
@@ -17,28 +18,25 @@ import (
 )
 
 type Service struct {
-	*server
+	svr *server
 }
 
 // NewService creates a new prover server instance that automatically manages
 // compilation & setup, and serves as a GRPC server that interoperates with
-// brevis sdk in other languages
+// brevis sdk in other languages.
 func NewService(app sdk.AppCircuit, config ServiceConfig) (*Service, error) {
-	setupMan := newSetupManager(config.SetupDir, config.SrsDir)
-	pk, vk, ccs, err := setupMan.readOrSetup(app)
+	pk, vk, ccs, err := readOrSetup(app, config.SetupDir, config.GetSrsDir())
 	if err != nil {
 		return nil, err
 	}
-	vkBytes, err := GetVKBytes(vk)
-	if err != nil {
-		return nil, err
-	}
-	return &Service{server: newServer(app, pk, vk, ccs, fmt.Sprintf("0x%x", vkBytes))}, nil
+	return &Service{
+		svr: newServer(app, pk, vk, ccs),
+	}, nil
 }
 
 func (s *Service) Serve(port uint) error {
 	grpcServer := grpc.NewServer()
-	sdkproto.RegisterProverServer(grpcServer, s.server)
+	sdkproto.RegisterProverServer(grpcServer, s.svr)
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
 	if err != nil {
 		log.Fatalf("failed to start prover server: %v", err)
@@ -55,9 +53,10 @@ type server struct {
 
 	app sdk.AppCircuit
 
-	pk      plonk.ProvingKey
-	vk      plonk.VerifyingKey
-	ccs     constraint.ConstraintSystem
+	pk  plonk.ProvingKey
+	vk  plonk.VerifyingKey
+	ccs constraint.ConstraintSystem
+
 	vkBytes string
 }
 
@@ -66,14 +65,18 @@ func newServer(
 	pk plonk.ProvingKey,
 	vk plonk.VerifyingKey,
 	ccs constraint.ConstraintSystem,
-	vkBytes string,
 ) *server {
+	var buf bytes.Buffer
+	_, err := vk.WriteRawTo(&buf)
+	if err != nil {
+		log.Fatal(err)
+	}
 	return &server{
 		app:     app,
 		pk:      pk,
 		vk:      vk,
 		ccs:     ccs,
-		vkBytes: vkBytes,
+		vkBytes: hexutil.Encode(buf.Bytes()),
 	}
 }
 
@@ -132,7 +135,7 @@ func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkpro
 	}
 
 	return &sdkproto.ProveResponse{
-		Proof:       fmt.Sprintf("0x%x", buf.Bytes()),
+		Proof:       hexutil.Encode(buf.Bytes()),
 		CircuitInfo: buildAppCircuitInfo(input, s.vkBytes),
 	}, nil
 }

@@ -24,7 +24,7 @@ import (
 
 func Compile(app AppCircuit, compileOutDir, srsDir string) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, error) {
 	fmt.Println(">> compile")
-	ccs, err := CompileCircuitOnly(app, compileOutDir)
+	ccs, err := CompileOnly(app)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -61,10 +61,8 @@ func NewFullWitness(assign AppCircuit, in CircuitInput) (w, wpub witness.Witness
 	return
 }
 
-func CompileCircuitOnly(app AppCircuit, compileOutDir string) (constraint.ConstraintSystem, error) {
-	if len(compileOutDir) == 0 {
-		return nil, fmt.Errorf("must provide a directory to save compilation output")
-	}
+// CompileOnly is like Compile, but it does not automatically save the compilation output
+func CompileOnly(app AppCircuit) (constraint.ConstraintSystem, error) {
 	host := DefaultHostCircuit(app)
 
 	before := time.Now()

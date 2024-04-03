@@ -12,3 +12,10 @@ type ServiceConfig struct {
 	// The port on localhost to host the prover service on
 	Port string
 }
+
+func (c ServiceConfig) GetSrsDir() string {
+	if len(c.SrsDir) == 0 {
+		return c.SetupDir
+	}
+	return c.SrsDir
+}
