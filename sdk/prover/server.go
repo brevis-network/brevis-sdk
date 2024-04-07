@@ -85,15 +85,17 @@ func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkpro
 	brevisApp, err := sdk.NewBrevisApp()
 
 	if err != nil {
-		fmt.Println("failed to new brevis app: ", err.Error())
-		return prepareErrorResponse(sdkproto.ErrCode_ERROR_DEFAULT), nil
+		msg := "failed to new brevis app: " + err.Error()
+		fmt.Println(msg)
+		return prepareErrorResponse(sdkproto.ErrCode_ERROR_DEFAULT, msg), nil
 	}
 
 	for _, receipt := range req.Receipts {
 		sdkReceipt, err := convertProtoReceiptToSdkReceipt(receipt.Data)
 		if err != nil {
-			fmt.Println("invalid sdk receipt: ", receipt.Data, err.Error())
-			return prepareErrorResponse(sdkproto.ErrCode_ERROR_INVALID_INPUT), nil
+			msg := fmt.Sprintf("invalid sdk receipt: %+v, %s", receipt.Data, err.Error())
+			fmt.Println(msg)
+			return prepareErrorResponse(sdkproto.ErrCode_ERROR_INVALID_INPUT, msg), nil
 		}
 		brevisApp.AddReceipt(sdkReceipt, int(receipt.Index))
 	}
@@ -101,8 +103,9 @@ func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkpro
 	for _, storage := range req.Storages {
 		sdkStorage, err := convertProtoStorageToSdkStorage(storage.Data)
 		if err != nil {
-			fmt.Println("invalid sdk storage: ", storage.Data, err.Error())
-			return prepareErrorResponse(sdkproto.ErrCode_ERROR_INVALID_INPUT), nil
+			msg := fmt.Sprintf("invalid sdk storage: %+v, %s", storage.Data, err.Error())
+			fmt.Println(msg)
+			return prepareErrorResponse(sdkproto.ErrCode_ERROR_INVALID_INPUT, msg), nil
 		}
 
 		brevisApp.AddStorage(sdkStorage, int(storage.Index))
@@ -111,8 +114,9 @@ func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkpro
 	for _, transaction := range req.Transactions {
 		sdkTx, err := convertProtoTxToSdkTx(transaction.Data)
 		if err != nil {
-			fmt.Println("invalid sdk transaction: ", transaction.Data, err.Error())
-			return prepareErrorResponse(sdkproto.ErrCode_ERROR_INVALID_INPUT), nil
+			msg := fmt.Sprintf("invalid sdk transaction: %+v, %s", transaction.Data, err.Error())
+			fmt.Println(msg)
+			return prepareErrorResponse(sdkproto.ErrCode_ERROR_INVALID_INPUT, msg), nil
 		}
 
 		brevisApp.AddTransaction(sdkTx, int(transaction.Index))
@@ -120,39 +124,45 @@ func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkpro
 
 	guest, err := assignCustomInput(s.app, req.CustomInput)
 	if err != nil {
-		fmt.Println("invalid sdk custom input: ", req.CustomInput, err.Error())
-		return prepareErrorResponse(sdkproto.ErrCode_ERROR_INVALID_CUSTOM_INPUT), nil
+		msg := fmt.Sprintf("invalid sdk custom input: %+v, %s", req.CustomInput, err.Error())
+		fmt.Println(msg)
+		return prepareErrorResponse(sdkproto.ErrCode_ERROR_INVALID_CUSTOM_INPUT, msg), nil
 	}
 
 	input, err := brevisApp.BuildCircuitInput(guest)
 	if err != nil {
-		fmt.Println("failed to build circuit input: ", req, err.Error())
-		return prepareErrorResponse(sdkproto.ErrCode_ERROR_CIRCUIT_INPUT_FAILURE), nil
+		msg := fmt.Sprintf("failed to build circuit input: %+v, %s", req, err.Error())
+		fmt.Println(msg)
+		return prepareErrorResponse(sdkproto.ErrCode_ERROR_CIRCUIT_INPUT_FAILURE, msg), nil
 	}
 
 	witness, publicWitness, err := sdk.NewFullWitness(guest, input)
 	if err != nil {
-		fmt.Println("failed to get full witness: ", req, err.Error())
-		return prepareErrorResponse(sdkproto.ErrCode_ERROR_INVALID_WITNESS), nil
+		msg := fmt.Sprintf("failed to get full witness: %+v, %s", req, err.Error())
+		fmt.Println(msg)
+		return prepareErrorResponse(sdkproto.ErrCode_ERROR_INVALID_WITNESS, msg), nil
 	}
 
 	proof, err := sdk.Prove(s.ccs, s.pk, witness)
 	if err != nil {
-		fmt.Println("failed to prove: ", req, err.Error())
-		return prepareErrorResponse(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE), nil
+		msg := fmt.Sprintf("failed to prove: %+v, %s", req, err.Error())
+		fmt.Println(msg)
+		return prepareErrorResponse(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, msg), nil
 	}
 
 	err = sdk.Verify(s.vk, publicWitness, proof)
 	if err != nil {
-		fmt.Println("failed to verify: ", req, err.Error())
-		return prepareErrorResponse(sdkproto.ErrCode_ERROR_FAILED_TO_VERIFY), nil
+		msg := fmt.Sprintf("failed to verify: %+v, %s", req, err.Error())
+		fmt.Println(msg)
+		return prepareErrorResponse(sdkproto.ErrCode_ERROR_FAILED_TO_VERIFY, msg), nil
 	}
 
 	var buf bytes.Buffer
 	_, err = proof.WriteRawTo(&buf)
 	if err != nil {
-		fmt.Println("failed to write proof bytes: ", req, err.Error())
-		return prepareErrorResponse(sdkproto.ErrCode_ERROR_FAILED_TO_WRITE_PROOF), nil
+		msg := fmt.Sprintf("failed to write proof bytes: %+v, %s", req, err.Error())
+		fmt.Println(msg)
+		return prepareErrorResponse(sdkproto.ErrCode_ERROR_FAILED_TO_WRITE_PROOF, msg), nil
 	}
 
 	return &sdkproto.ProveResponse{
@@ -161,7 +171,7 @@ func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkpro
 	}, nil
 }
 
-func prepareErrorResponse(code sdkproto.ErrCode) *sdkproto.ProveResponse {
+func prepareErrorResponse(code sdkproto.ErrCode, errorMessage string) *sdkproto.ProveResponse {
 	msg := ""
 	switch code {
 	case sdkproto.ErrCode_ERROR_UNDEFINED:
@@ -190,7 +200,7 @@ func prepareErrorResponse(code sdkproto.ErrCode) *sdkproto.ProveResponse {
 	return &sdkproto.ProveResponse{
 		Err: &sdkproto.Err{
 			Code: code,
-			Msg:  msg,
+			Msg:  msg + ": " + errorMessage,
 		},
 	}
 }
