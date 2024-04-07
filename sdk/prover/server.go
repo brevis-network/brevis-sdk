@@ -37,10 +37,12 @@ func NewService(app sdk.AppCircuit, config ServiceConfig) (*Service, error) {
 func (s *Service) Serve(port uint) error {
 	grpcServer := grpc.NewServer()
 	sdkproto.RegisterProverServer(grpcServer, s.svr)
-	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+	address := fmt.Sprintf("localhost:%d", port)
+	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		log.Fatalf("failed to start prover server: %v", err)
 	}
+	fmt.Println("\n>> serving prover at", address)
 	err = grpcServer.Serve(lis)
 	if err != nil {
 		return err

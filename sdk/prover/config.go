@@ -1,5 +1,7 @@
 package prover
 
+import "os"
+
 type ServiceConfig struct {
 	// Required. Dir to save the circuit compilation outputs (proving key, verifying
 	// key, verifying key hash)
@@ -8,14 +10,15 @@ type ServiceConfig struct {
 	// Optional. Dir to save the srs (structured reference string) file. Default to
 	// use the same dir as SetupDir
 	SrsDir string
+}
 
-	// The port on localhost to host the prover service on
-	Port string
+func (c ServiceConfig) GetSetupDir() string {
+	return os.ExpandEnv(c.SetupDir)
 }
 
 func (c ServiceConfig) GetSrsDir() string {
 	if len(c.SrsDir) == 0 {
-		return c.SetupDir
+		return c.GetSetupDir()
 	}
-	return c.SrsDir
+	return os.ExpandEnv(c.SrsDir)
 }

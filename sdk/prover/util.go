@@ -55,6 +55,18 @@ func buildAppCircuitInfo(in sdk.CircuitInput, vk string) *commonproto.AppCircuit
 	}
 }
 
+func parseValue(encoded string) (common.Hash, error) {
+	value, ok := new(big.Int).SetString(encoded, 0)
+	if !ok {
+		return common.Hash{}, fmt.Errorf("%s is not a valid value", value)
+	}
+	bs := value.Bytes()
+	if len(bs) > 32 {
+		return common.Hash{}, fmt.Errorf("%s exceeds 32 bytes", value)
+	}
+	return common.BytesToHash(bs), nil
+}
+
 func convertProtoReceiptToSdkReceipt(in *sdkproto.ReceiptData) (sdk.ReceiptData, error) {
 	var fields [sdk.NumMaxLogFields]sdk.LogFieldData
 	if len(in.Fields) == 0 {

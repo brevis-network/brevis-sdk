@@ -247,6 +247,12 @@ func ensureNotCircuitVariable(v any) {
 	}
 }
 
+func dbgPrint(condition bool, format string, args ...interface{}) {
+	if condition {
+		fmt.Printf(format, args...)
+	}
+}
+
 func check(err error) {
 	if err != nil {
 		panic(err)

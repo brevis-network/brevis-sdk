@@ -41,12 +41,15 @@ func NewCircuitAPI(gapi frontend.API) *CircuitAPI {
 func (api *CircuitAPI) OutputBytes32(v Bytes32) {
 	b := v.toBinaryVars(api.g)
 	api.addOutput(b)
-	fmt.Printf("added uint256 output: %s\n", v)
+	_, ok := v.Val[0].(*big.Int)
+	dbgPrint(ok, "added bytes32 output: %s\n", v)
 }
 
 // OutputBool adds an output of solidity bool type
 func (api *CircuitAPI) OutputBool(v Uint248) {
 	api.addOutput(api.g.ToBinary(v.Val, 8))
+	_, ok := v.Val.(*big.Int)
+	dbgPrint(ok, "added bool output: %d\n", v.Val)
 }
 
 // OutputUint adds an output of solidity uint_bitSize type where N is in range [8, 248]
@@ -59,13 +62,15 @@ func (api *CircuitAPI) OutputUint(bitSize int, v Uint248) {
 	}
 	b := api.g.ToBinary(v.Val, bitSize)
 	api.addOutput(b)
-	fmt.Printf("added uint%d output: %d\n", bitSize, v.Val)
+	_, ok := v.Val.(*big.Int)
+	dbgPrint(ok, "added uint%d output: %d\n", bitSize, v.Val)
 }
 
 // OutputAddress adds an output of solidity address type.
 func (api *CircuitAPI) OutputAddress(v Uint248) {
 	api.addOutput(api.g.ToBinary(v.Val, 20*8))
-	fmt.Printf("added address output: %x\n", v.Val)
+	_, ok := v.Val.(*big.Int)
+	dbgPrint(ok, "added address output: %x\n", v.Val)
 }
 
 func (api *CircuitAPI) addOutput(bits []variable) {

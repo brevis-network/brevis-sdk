@@ -31,13 +31,14 @@ func readOrSetup(circuit sdk.AppCircuit, setupDir, srsDir string) (pk plonk.Prov
 	pkFilepath := filepath.Join(setupDir, fmt.Sprintf("0x%x", ccsDigest), "pk")
 	vkFilepath := filepath.Join(setupDir, fmt.Sprintf("0x%x", ccsDigest), "vk")
 
+	fmt.Println("trying to read setup from cache...")
 	var found bool
 	pk, vk, found = readSetup(pkFilepath, vkFilepath)
 	if found {
 		return
 	}
 
-	fmt.Printf(">> no setup matching circuit digest 0x%x is found in %s\n", ccsDigest, setupDir)
+	fmt.Printf("no setup matching circuit digest 0x%x is found in %s\n", ccsDigest, setupDir)
 	fmt.Println(">> setup")
 
 	pk, vk, err = sdk.Setup(ccs, srsDir)
