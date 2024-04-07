@@ -3,11 +3,11 @@ package prover
 import (
 	"encoding/hex"
 	"fmt"
+	"math/big"
 
 	"github.com/brevis-network/brevis-sdk/sdk"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/commonproto"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto"
-	"github.com/celer-network/goutils/big"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
@@ -55,7 +55,7 @@ func buildAppCircuitInfo(in sdk.CircuitInput, vk string) *commonproto.AppCircuit
 	}
 }
 
-func parseValue(encoded string) (common.Hash, error) {
+func parseHash(encoded string) (common.Hash, error) {
 	value, ok := new(big.Int).SetString(encoded, 0)
 	if !ok {
 		return common.Hash{}, fmt.Errorf("%s is not a valid value", value)
@@ -65,6 +65,18 @@ func parseValue(encoded string) (common.Hash, error) {
 		return common.Hash{}, fmt.Errorf("%s exceeds 32 bytes", value)
 	}
 	return common.BytesToHash(bs), nil
+}
+
+func parseBig(encoded string) (*big.Int, error) {
+	value, ok := new(big.Int).SetString(encoded, 0)
+	if !ok {
+		return nil, fmt.Errorf("%s is not a valid value", value)
+	}
+	bs := value.Bytes()
+	if len(bs) > 32 {
+		return nil, fmt.Errorf("%s exceeds 32 bytes", value)
+	}
+	return value, nil
 }
 
 func convertProtoReceiptToSdkReceipt(in *sdkproto.ReceiptData) (sdk.ReceiptData, error) {
@@ -93,7 +105,7 @@ func convertProtoReceiptToSdkReceipt(in *sdkproto.ReceiptData) (sdk.ReceiptData,
 }
 
 func convertProtoFieldToSdkLogField(in *sdkproto.Field) (sdk.LogFieldData, error) {
-	value, err := parseValue(in.Value)
+	value, err := parseHash(in.Value)
 	if err != nil {
 		return sdk.LogFieldData{}, err
 	}
@@ -108,7 +120,7 @@ func convertProtoFieldToSdkLogField(in *sdkproto.Field) (sdk.LogFieldData, error
 }
 
 func convertProtoStorageToSdkStorage(in *sdkproto.StorageData) (sdk.StorageData, error) {
-	value, err := parseValue(in.Value)
+	value, err := parseHash(in.Value)
 	if err != nil {
 		return sdk.StorageData{}, err
 	}
@@ -121,17 +133,25 @@ func convertProtoStorageToSdkStorage(in *sdkproto.StorageData) (sdk.StorageData,
 }
 
 func convertProtoTxToSdkTx(in *sdkproto.TransactionData) (sdk.TransactionData, error) {
-	value, ok := new(big.Int).SetString(in.Value, 0)
-	if !ok {
-		return sdk.TransactionData{}, fmt.Errorf("%s is not a valid value", value)
+	value, err := parseBig(in.Value)
+	if err != nil {
+		return sdk.TransactionData{}, err
+	}
+	gasTipCapOrGasPrice, err := parseBig(in.GasTipCapOrGasPrice)
+	if err != nil {
+		return sdk.TransactionData{}, err
+	}
+	gasFeeCap, err := parseBig(in.GasFeeCap)
+	if err != nil {
+		return sdk.TransactionData{}, err
 	}
 	return sdk.TransactionData{
 		Hash:                hex2Hash(in.Hash),
 		ChainId:             new(big.Int).SetUint64(in.ChainId),
 		BlockNum:            new(big.Int).SetUint64(in.BlockNum),
 		Nonce:               in.Nonce,
-		GasTipCapOrGasPrice: new(big.Int).SetBytes(hex2Bytes(in.GasTipCapOrGasPrice)),
-		GasFeeCap:           new(big.Int).SetBytes(hex2Bytes(in.GasFeeCap)),
+		GasTipCapOrGasPrice: gasTipCapOrGasPrice,
+		GasFeeCap:           gasFeeCap,
 		GasLimit:            in.GasLimit,
 		From:                hex2Addr(in.From),
 		To:                  hex2Addr(in.To),
