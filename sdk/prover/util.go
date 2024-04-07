@@ -75,7 +75,11 @@ func convertProtoReceiptToSdkReceipt(in *sdkproto.ReceiptData) (sdk.ReceiptData,
 
 	for i := range fields {
 		if i < len(in.Fields) {
-			fields[i] = convertProtoFieldToSdkLog(in.Fields[i])
+			field, err := convertProtoFieldToSdkLogField(in.Fields[i])
+			if err != nil {
+				return sdk.ReceiptData{}, err
+			}
+			fields[i] = field
 		} else {
 			fields[i] = fields[len(in.Fields)-1]
 		}
@@ -88,27 +92,39 @@ func convertProtoReceiptToSdkReceipt(in *sdkproto.ReceiptData) (sdk.ReceiptData,
 	}, nil
 }
 
-func convertProtoFieldToSdkLog(in *sdkproto.Field) sdk.LogFieldData {
+func convertProtoFieldToSdkLogField(in *sdkproto.Field) (sdk.LogFieldData, error) {
+	value, err := parseValue(in.Value)
+	if err != nil {
+		return sdk.LogFieldData{}, err
+	}
 	return sdk.LogFieldData{
 		Contract:   hex2Addr(in.Contract),
 		LogIndex:   uint(in.LogIndex),
 		EventID:    hex2Hash(in.EventId),
 		IsTopic:    in.IsTopic,
 		FieldIndex: uint(in.FieldIndex),
-		Value:      hex2Hash(in.Value),
-	}
+		Value:      value,
+	}, nil
 }
 
-func convertProtoStorageToSdkStorage(in *sdkproto.StorageData) sdk.StorageData {
+func convertProtoStorageToSdkStorage(in *sdkproto.StorageData) (sdk.StorageData, error) {
+	value, err := parseValue(in.Value)
+	if err != nil {
+		return sdk.StorageData{}, err
+	}
 	return sdk.StorageData{
 		BlockNum: new(big.Int).SetUint64(in.BlockNum),
 		Address:  hex2Addr(in.Address),
 		Slot:     hex2Hash(in.Slot),
-		Value:    hex2Hash(in.Value),
-	}
+		Value:    value,
+	}, nil
 }
 
-func convertProtoTxToSdkTx(in *sdkproto.TransactionData) sdk.TransactionData {
+func convertProtoTxToSdkTx(in *sdkproto.TransactionData) (sdk.TransactionData, error) {
+	value, ok := new(big.Int).SetString(in.Value, 0)
+	if !ok {
+		return sdk.TransactionData{}, fmt.Errorf("%s is not a valid value", value)
+	}
 	return sdk.TransactionData{
 		Hash:                hex2Hash(in.Hash),
 		ChainId:             new(big.Int).SetUint64(in.ChainId),
@@ -119,6 +135,6 @@ func convertProtoTxToSdkTx(in *sdkproto.TransactionData) sdk.TransactionData {
 		GasLimit:            in.GasLimit,
 		From:                hex2Addr(in.From),
 		To:                  hex2Addr(in.To),
-		Value:               new(big.Int).SetBytes(hex2Bytes(in.Value)),
-	}
+		Value:               value,
+	}, nil
 }

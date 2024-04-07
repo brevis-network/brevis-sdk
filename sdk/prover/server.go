@@ -4,16 +4,15 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"log"
 	"net"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
+
 	"github.com/brevis-network/brevis-sdk/sdk"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto"
-	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/plonk"
 	"github.com/consensys/gnark/constraint"
-	replonk "github.com/consensys/gnark/std/recursion/plonk"
 	"google.golang.org/grpc"
 )
 
@@ -86,58 +85,112 @@ func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkpro
 	brevisApp, err := sdk.NewBrevisApp()
 
 	if err != nil {
-		return nil, err
+		fmt.Println("failed to new brevis app: ", err.Error())
+		return prepareErrorResponse(sdkproto.ErrCode_ERROR_DEFAULT), nil
 	}
 
 	for _, receipt := range req.Receipts {
 		sdkReceipt, err := convertProtoReceiptToSdkReceipt(receipt.Data)
 		if err != nil {
-			return nil, err
+			fmt.Println("invalid sdk receipt: ", receipt.Data, err.Error())
+			return prepareErrorResponse(sdkproto.ErrCode_ERROR_INVALID_INPUT), nil
 		}
 		brevisApp.AddReceipt(sdkReceipt, int(receipt.Index))
 	}
 
 	for _, storage := range req.Storages {
-		brevisApp.AddStorage(convertProtoStorageToSdkStorage(storage.Data), int(storage.Index))
+		sdkStorage, err := convertProtoStorageToSdkStorage(storage.Data)
+		if err != nil {
+			fmt.Println("invalid sdk storage: ", storage.Data, err.Error())
+			return prepareErrorResponse(sdkproto.ErrCode_ERROR_INVALID_INPUT), nil
+		}
+
+		brevisApp.AddStorage(sdkStorage, int(storage.Index))
 	}
 
 	for _, transaction := range req.Transactions {
-		brevisApp.AddTransaction(convertProtoTxToSdkTx(transaction.Data), int(transaction.Index))
+		sdkTx, err := convertProtoTxToSdkTx(transaction.Data)
+		if err != nil {
+			fmt.Println("invalid sdk transaction: ", transaction.Data, err.Error())
+			return prepareErrorResponse(sdkproto.ErrCode_ERROR_INVALID_INPUT), nil
+		}
+
+		brevisApp.AddTransaction(sdkTx, int(transaction.Index))
 	}
 
 	guest, err := assignCustomInput(s.app, req.CustomInput)
 	if err != nil {
-		return nil, err
+		fmt.Println("invalid sdk custom input: ", req.CustomInput, err.Error())
+		return prepareErrorResponse(sdkproto.ErrCode_ERROR_INVALID_CUSTOM_INPUT), nil
 	}
 
 	input, err := brevisApp.BuildCircuitInput(guest)
 	if err != nil {
-		return nil, err
+		fmt.Println("failed to build circuit input: ", req, err.Error())
+		return prepareErrorResponse(sdkproto.ErrCode_ERROR_CIRCUIT_INPUT_FAILURE), nil
 	}
 
 	witness, publicWitness, err := sdk.NewFullWitness(guest, input)
 	if err != nil {
-		return nil, err
+		fmt.Println("failed to get full witness: ", req, err.Error())
+		return prepareErrorResponse(sdkproto.ErrCode_ERROR_INVALID_WITNESS), nil
 	}
 
 	proof, err := sdk.Prove(s.ccs, s.pk, witness)
 	if err != nil {
-		return nil, err
+		fmt.Println("failed to prove: ", req, err.Error())
+		return prepareErrorResponse(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE), nil
 	}
 
-	err = plonk.Verify(proof, s.vk, publicWitness, replonk.GetNativeVerifierOptions(ecc.BW6_761.ScalarField(), ecc.BLS12_377.ScalarField()))
+	err = sdk.Verify(s.vk, publicWitness, proof)
 	if err != nil {
-		return nil, fmt.Errorf("proof verification failed: %s", err.Error())
+		fmt.Println("failed to verify: ", req, err.Error())
+		return prepareErrorResponse(sdkproto.ErrCode_ERROR_FAILED_TO_VERIFY), nil
 	}
 
 	var buf bytes.Buffer
 	_, err = proof.WriteRawTo(&buf)
 	if err != nil {
-		return nil, fmt.Errorf("failed to write proof to bytes %s", err.Error())
+		fmt.Println("failed to write proof bytes: ", req, err.Error())
+		return prepareErrorResponse(sdkproto.ErrCode_ERROR_FAILED_TO_WRITE_PROOF), nil
 	}
 
 	return &sdkproto.ProveResponse{
 		Proof:       hexutil.Encode(buf.Bytes()),
 		CircuitInfo: buildAppCircuitInfo(input, s.vkBytes),
 	}, nil
+}
+
+func prepareErrorResponse(code sdkproto.ErrCode) *sdkproto.ProveResponse {
+	msg := ""
+	switch code {
+	case sdkproto.ErrCode_ERROR_UNDEFINED:
+		msg = "unknown error"
+	case sdkproto.ErrCode_ERROR_DEFAULT:
+		msg = "internal server error"
+	case sdkproto.ErrCode_ERROR_INVALID_INPUT:
+		msg = "invalid input"
+	case sdkproto.ErrCode_ERROR_INVALID_CUSTOM_INPUT:
+		msg = "invalid custom input"
+	case sdkproto.ErrCode_ERROR_CIRCUIT_INPUT_FAILURE:
+		msg = "cannot generate brevis circuit input"
+	case sdkproto.ErrCode_ERROR_INVALID_WITNESS:
+		msg = "cannot generate circuit witness"
+	case sdkproto.ErrCode_ERROR_FAILED_TO_PROVE:
+		msg = "failed to prove"
+	case sdkproto.ErrCode_ERROR_FAILED_TO_VERIFY:
+		msg = "failed to verify proof"
+	case sdkproto.ErrCode_ERROR_FAILED_TO_WRITE_PROOF:
+		msg = "failed to serialize proof"
+	default:
+		fmt.Sprintln("found unknown code usage", code)
+		msg = "unknown error"
+	}
+
+	return &sdkproto.ProveResponse{
+		Err: &sdkproto.Err{
+			Code: code,
+			Msg:  msg,
+		},
+	}
 }
