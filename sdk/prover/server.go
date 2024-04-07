@@ -124,23 +124,22 @@ func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkpro
 
 	guest, err := assignCustomInput(s.app, req.CustomInput)
 	if err != nil {
-		msg := fmt.Sprintf("invalid sdk custom input: %+v, %s", req.CustomInput, err.Error())
-		fmt.Println(msg)
-		return prepareErrorResponse(sdkproto.ErrCode_ERROR_INVALID_CUSTOM_INPUT, msg), nil
+		fmt.Printf("invalid custom input %s\n", err.Error())
+		return prepareErrorResponse(sdkproto.ErrCode_ERROR_INVALID_CUSTOM_INPUT, err.Error()), nil
 	}
 
 	input, err := brevisApp.BuildCircuitInput(guest)
 	if err != nil {
 		msg := fmt.Sprintf("failed to build circuit input: %+v, %s", req, err.Error())
 		fmt.Println(msg)
-		return prepareErrorResponse(sdkproto.ErrCode_ERROR_CIRCUIT_INPUT_FAILURE, msg), nil
+		return prepareErrorResponse(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, msg), nil
 	}
 
 	witness, publicWitness, err := sdk.NewFullWitness(guest, input)
 	if err != nil {
 		msg := fmt.Sprintf("failed to get full witness: %+v, %s", req, err.Error())
 		fmt.Println(msg)
-		return prepareErrorResponse(sdkproto.ErrCode_ERROR_INVALID_WITNESS, msg), nil
+		return prepareErrorResponse(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, msg), nil
 	}
 
 	proof, err := sdk.Prove(s.ccs, s.pk, witness)
@@ -152,9 +151,9 @@ func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkpro
 
 	err = sdk.Verify(s.vk, publicWitness, proof)
 	if err != nil {
-		msg := fmt.Sprintf("failed to verify: %+v, %s", req, err.Error())
+		msg := fmt.Sprintf("failed to test verifying after proving: %+v, %s", req, err.Error())
 		fmt.Println(msg)
-		return prepareErrorResponse(sdkproto.ErrCode_ERROR_FAILED_TO_VERIFY, msg), nil
+		return prepareErrorResponse(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, msg), nil
 	}
 
 	var buf bytes.Buffer
@@ -162,7 +161,7 @@ func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkpro
 	if err != nil {
 		msg := fmt.Sprintf("failed to write proof bytes: %+v, %s", req, err.Error())
 		fmt.Println(msg)
-		return prepareErrorResponse(sdkproto.ErrCode_ERROR_FAILED_TO_WRITE_PROOF, msg), nil
+		return prepareErrorResponse(sdkproto.ErrCode_ERROR_DEFAULT, msg), nil
 	}
 
 	return &sdkproto.ProveResponse{
@@ -182,16 +181,8 @@ func prepareErrorResponse(code sdkproto.ErrCode, errorMessage string) *sdkproto.
 		msg = "invalid input"
 	case sdkproto.ErrCode_ERROR_INVALID_CUSTOM_INPUT:
 		msg = "invalid custom input"
-	case sdkproto.ErrCode_ERROR_CIRCUIT_INPUT_FAILURE:
-		msg = "cannot generate brevis circuit input"
-	case sdkproto.ErrCode_ERROR_INVALID_WITNESS:
-		msg = "cannot generate circuit witness"
 	case sdkproto.ErrCode_ERROR_FAILED_TO_PROVE:
 		msg = "failed to prove"
-	case sdkproto.ErrCode_ERROR_FAILED_TO_VERIFY:
-		msg = "failed to verify proof"
-	case sdkproto.ErrCode_ERROR_FAILED_TO_WRITE_PROOF:
-		msg = "failed to serialize proof"
 	default:
 		fmt.Sprintln("found unknown code usage", code)
 		msg = "unknown error"
