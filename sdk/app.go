@@ -472,8 +472,16 @@ func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
 }
 
 func buildLogFields(fs [NumMaxLogFields]LogFieldData) (fields [NumMaxLogFields]LogField) {
-	for j, f := range fs {
-		fields[j] = LogField{
+	empty := LogFieldData{}
+	for i, f := range fs {
+		// Due to backend circuit's limitations, we must fill []LogField with valid data
+		// up to NumMaxLogFields. If the user actually only wants less NumMaxLogFields
+		// log fields, then we simply copy the previous log field in the list to fill the
+		// empty spots.
+		if i > 0 && f == empty {
+			f = fs[i-1]
+		}
+		fields[i] = LogField{
 			Contract: ConstUint248(f.Contract),
 			// we only constrain the first 6 bytes of EventID in circuit for performance reasons
 			// 6 bytes give us 1/2^48 chance of two logs of different IDs clashing per contract.
