@@ -82,6 +82,7 @@ func newServer(
 }
 
 func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkproto.ProveResponse, error) {
+	fmt.Println(req.String())
 	brevisApp, err := sdk.NewBrevisApp()
 
 	if err != nil {

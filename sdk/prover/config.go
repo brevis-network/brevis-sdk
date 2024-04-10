@@ -3,12 +3,14 @@ package prover
 import "os"
 
 type ServiceConfig struct {
-	// Required. Dir to save the circuit compilation outputs (proving key, verifying
-	// key, verifying key hash)
+	// SetupDir saves the circuit compilation outputs (proving key, verifying key,
+	// verifying key hash)
 	SetupDir string
 
-	// Optional. Dir to save the srs (structured reference string) file. Default to
-	// use the same dir as SetupDir
+	// SrsDir saves the SRS files that will be automatically downloaded. These files
+	// can be shared across different circuits. So the best practice is to have them
+	// in a shared directory for all projects. Default to use the same dir as
+	// SetupDir if not specified
 	SrsDir string
 }
 
