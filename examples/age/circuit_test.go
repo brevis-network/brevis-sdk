@@ -28,7 +28,7 @@ func TestCircuit(t *testing.T) {
 	from, err := types.Sender(types.NewLondonSigner(tx.ChainId()), tx)
 	check(err)
 
-	app.AddTransaction(sdk.TransactionData{
+	txData := sdk.TransactionData{
 		Hash:                txHash,
 		ChainId:             tx.ChainId(),
 		BlockNum:            receipt.BlockNumber,
@@ -39,7 +39,9 @@ func TestCircuit(t *testing.T) {
 		From:                from,
 		To:                  *tx.To(),
 		Value:               tx.Value(),
-	})
+	}
+	fmt.Printf("%+v\n", txData)
+	app.AddTransaction(txData)
 
 	appCircuit := &AppCircuit{}
 	appCircuitAssignment := &AppCircuit{}

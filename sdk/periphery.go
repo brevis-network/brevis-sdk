@@ -2,6 +2,11 @@ package sdk
 
 import (
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"time"
+
 	"github.com/brevis-network/brevis-sdk/common/utils"
 	"github.com/brevis-network/brevis-sdk/sdk/srs"
 	"github.com/consensys/gnark-crypto/ecc"
@@ -15,20 +20,19 @@ import (
 	"github.com/consensys/gnark/std/algebra/native/sw_bls12377"
 	replonk "github.com/consensys/gnark/std/recursion/plonk"
 	"github.com/ethereum/go-ethereum/common"
-	"io"
-	"os"
-	"path/filepath"
-	"time"
 )
 
 func Compile(app AppCircuit, compileOutDir, srsDir string) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, error) {
 	fmt.Println(">> compile")
-	ccs, err := compile(app, compileOutDir)
+	ccs, err := CompileOnly(app)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	fmt.Println(">> setup")
-	pk, vk, err := setup(ccs, srsDir)
+	pk, vk, err := Setup(ccs, srsDir)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	err = WriteTo(ccs, filepath.Join(compileOutDir, "compiledCircuit"))
 	if err != nil {
 		return nil, nil, nil, err
@@ -57,10 +61,8 @@ func NewFullWitness(assign AppCircuit, in CircuitInput) (w, wpub witness.Witness
 	return
 }
 
-func compile(app AppCircuit, compileOutDir string) (constraint.ConstraintSystem, error) {
-	if len(compileOutDir) == 0 {
-		return nil, fmt.Errorf("must provide a directory to save compilation output")
-	}
+// CompileOnly is like Compile, but it does not automatically save the compilation output
+func CompileOnly(app AppCircuit) (constraint.ConstraintSystem, error) {
 	host := DefaultHostCircuit(app)
 
 	before := time.Now()
@@ -73,7 +75,7 @@ func compile(app AppCircuit, compileOutDir string) (constraint.ConstraintSystem,
 	return ccs, nil
 }
 
-func setup(ccs constraint.ConstraintSystem, cacheDir string) (pk plonk.ProvingKey, vk plonk.VerifyingKey, err error) {
+func Setup(ccs constraint.ConstraintSystem, cacheDir string) (pk plonk.ProvingKey, vk plonk.VerifyingKey, err error) {
 	if len(cacheDir) == 0 {
 		return nil, nil, fmt.Errorf("must provide a directory to save SRS")
 	}

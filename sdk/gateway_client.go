@@ -4,14 +4,14 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
 
-	"github.com/brevis-network/brevis-sdk/sdk/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
 
 type GatewayClient struct {
-	c proto.WebClient
+	c gwproto.GatewayClient
 }
 
 func NewGatewayClient(url ...string) (*GatewayClient, error) {
@@ -28,12 +28,12 @@ func NewGatewayClient(url ...string) (*GatewayClient, error) {
 		return nil, err
 	}
 	gc := &GatewayClient{
-		c: proto.NewWebClient(conn),
+		c: gwproto.NewGatewayClient(conn),
 	}
 	return gc, nil
 }
 
-func (c *GatewayClient) PrepareQuery(req *proto.PrepareQueryRequest) (resp *proto.PrepareQueryResponse, err error) {
+func (c *GatewayClient) PrepareQuery(req *gwproto.PrepareQueryRequest) (resp *gwproto.PrepareQueryResponse, err error) {
 	resp, err = c.c.PrepareQuery(context.Background(), req)
 	if err != nil {
 		return nil, err
@@ -44,7 +44,7 @@ func (c *GatewayClient) PrepareQuery(req *proto.PrepareQueryRequest) (resp *prot
 	return
 }
 
-func (c *GatewayClient) GetQueryStatus(req *proto.GetQueryStatusRequest) (resp *proto.GetQueryStatusResponse, err error) {
+func (c *GatewayClient) GetQueryStatus(req *gwproto.GetQueryStatusRequest) (resp *gwproto.GetQueryStatusResponse, err error) {
 	resp, err = c.c.GetQueryStatus(context.Background(), req)
 	if err != nil {
 		return nil, err
@@ -55,7 +55,7 @@ func (c *GatewayClient) GetQueryStatus(req *proto.GetQueryStatusRequest) (resp *
 	return
 }
 
-func (c *GatewayClient) SubmitProof(req *proto.SubmitAppCircuitProofRequest) (resp *proto.SubmitAppCircuitProofResponse, err error) {
+func (c *GatewayClient) SubmitProof(req *gwproto.SubmitAppCircuitProofRequest) (resp *gwproto.SubmitAppCircuitProofResponse, err error) {
 	resp, err = c.c.SubmitAppCircuitProof(context.Background(), req)
 	if err != nil {
 		return nil, err
