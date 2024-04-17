@@ -17,8 +17,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = proverService.Serve(33247); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	proverService.Serve(33247)
 }

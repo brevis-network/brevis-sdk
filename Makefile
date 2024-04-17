@@ -17,3 +17,10 @@ protoc:
 		./brevis-proto/common/circuit_data.proto \
 		./brevis-proto/brevis/*.proto \
 		./brevis-proto/sdk/*.proto
+
+protoc-grpc-gateway:
+	protoc -I ./brevis-proto \
+		--grpc-gateway_out . \
+		--grpc-gateway_opt=module=github.com/brevis-network/brevis-sdk  \
+		--grpc-gateway_opt=Msdk/prover.proto=github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto \
+		./brevis-proto/sdk/*.proto

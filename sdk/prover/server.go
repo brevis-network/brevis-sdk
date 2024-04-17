@@ -4,8 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/rs/cors"
+	"google.golang.org/grpc/credentials/insecure"
 	"net"
+	"net/http"
+	"os"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 
@@ -33,20 +37,49 @@ func NewService(app sdk.AppCircuit, config ServiceConfig) (*Service, error) {
 	}, nil
 }
 
-func (s *Service) Serve(port uint) error {
+func (s *Service) Serve(port uint) {
+	go s.serveGrpc(port)
+	s.serveGrpcGateway(port, port+10)
+}
+
+func (s *Service) serveGrpc(port uint) {
 	grpcServer := grpc.NewServer()
 	sdkproto.RegisterProverServer(grpcServer, s.svr)
 	address := fmt.Sprintf("localhost:%d", port)
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
-		log.Fatalf("failed to start prover server: %v", err)
+		fmt.Println("failed to start prover server:", err)
+		os.Exit(1)
 	}
-	fmt.Println("\n>> serving prover at", address)
-	err = grpcServer.Serve(lis)
+	fmt.Println(">> serving prover GRPC at port", port)
+	if err = grpcServer.Serve(lis); err != nil {
+		fmt.Println("grpc server crashed", err)
+		os.Exit(1)
+	}
+}
+
+func (s *Service) serveGrpcGateway(grpcPort, restPort uint) {
+	mux := runtime.NewServeMux()
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+	endpoint := fmt.Sprintf("localhost:%d", grpcPort)
+
+	err := sdkproto.RegisterProverHandlerFromEndpoint(context.Background(), mux, endpoint, opts)
 	if err != nil {
-		return err
+		fmt.Println("failed to start prover server:", err)
+		os.Exit(1)
 	}
-	return nil
+
+	handler := cors.New(cors.Options{
+		AllowedHeaders:   []string{"*"},
+		AllowedOrigins:   []string{"*"},
+		AllowCredentials: true,
+	}).Handler(mux)
+
+	fmt.Println(">> serving prover REST API at port", restPort)
+	if err = http.ListenAndServe(fmt.Sprintf(":%d", restPort), handler); err != nil {
+		fmt.Println("REST server crashed", err)
+		os.Exit(1)
+	}
 }
 
 type server struct {
@@ -70,7 +103,8 @@ func newServer(
 	var buf bytes.Buffer
 	_, err := vk.WriteRawTo(&buf)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 	return &server{
 		app:     app,
