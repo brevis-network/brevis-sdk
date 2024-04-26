@@ -2,11 +2,12 @@ package tradingvolume
 
 import (
 	"fmt"
+	"math/big"
+	"testing"
+
 	"github.com/brevis-network/brevis-sdk/sdk"
 	"github.com/brevis-network/brevis-sdk/test"
 	"github.com/ethereum/go-ethereum/common"
-	"math/big"
-	"testing"
 )
 
 // In this example, we want to analyze the `Swap` events emitted by Uniswap's
@@ -29,7 +30,7 @@ func TestCircuit(t *testing.T) {
 	app.AddReceipt(sdk.ReceiptData{
 		BlockNum: big.NewInt(18064070),
 		TxHash:   common.HexToHash("53b37ec7975d217295f4bdadf8043b261fc49dccc16da9b9fc8b9530845a5794"),
-		Fields: [3]sdk.LogFieldData{
+		Fields: [sdk.NumMaxLogFields]sdk.LogFieldData{
 			{Contract: usdcPool, LogIndex: 3, EventID: swapEvent, IsTopic: false, FieldIndex: 0, Value: amount0},  // field: USDCPool.Swap.amount0
 			{Contract: usdcPool, LogIndex: 3, EventID: swapEvent, IsTopic: true, FieldIndex: 2, Value: recipient}, // field: USDCPool.Swap.recipient (topic field)
 			{Contract: usdc, LogIndex: 2, EventID: transferEvent, IsTopic: true, FieldIndex: 1, Value: from},      // field: USDC.Transfer.from
@@ -77,7 +78,7 @@ func TestE2E(t *testing.T) {
 	app.AddReceipt(sdk.ReceiptData{
 		BlockNum: big.NewInt(18064070),
 		TxHash:   common.HexToHash("53b37ec7975d217295f4bdadf8043b261fc49dccc16da9b9fc8b9530845a5794"),
-		Fields: [3]sdk.LogFieldData{
+		Fields: [sdk.NumMaxLogFields]sdk.LogFieldData{
 			{Contract: usdcPool, LogIndex: 3, EventID: swapEvent, IsTopic: false, FieldIndex: 0, Value: amount0},  // field: USDCPool.Swap.amount0
 			{Contract: usdcPool, LogIndex: 3, EventID: swapEvent, IsTopic: true, FieldIndex: 2, Value: recipient}, // field: USDCPool.Swap.recipient (topic field)
 			{Contract: usdc, LogIndex: 2, EventID: transferEvent, IsTopic: true, FieldIndex: 1, Value: from},      // field: USDC.Transfer.from

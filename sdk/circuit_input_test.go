@@ -69,7 +69,7 @@ func (c *TestReceiptPackCircuit) Define(api frontend.API) error {
 func TestReceiptPack(t *testing.T) {
 	r := Receipt{
 		BlockNum: ConstUint248(1234567),
-		Fields: [3]LogField{
+		Fields: [NumMaxLogFields]LogField{
 			{
 				Contract: ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
 				EventID:  ParseEventID(hexutil.MustDecode("0xDEF171Fe48CF")),
@@ -195,7 +195,7 @@ func TestTransactionPack(t *testing.T) {
 func TestReceiptCircuitVariable(t *testing.T) {
 	r := Receipt{
 		BlockNum: ConstUint248(1234567),
-		Fields: [3]LogField{
+		Fields: [NumMaxLogFields]LogField{
 			{
 				Contract: ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
 				EventID:  ParseEventID(hexutil.MustDecode("0xDEF171Fe48CF")),

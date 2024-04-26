@@ -33,7 +33,7 @@ func TestDataMarshalUnmarshal(t *testing.T) {
 	receipt := ReceiptData{
 		BlockNum: big.NewInt(1),
 		TxHash:   tx.Hash,
-		Fields: [3]LogFieldData{
+		Fields: [NumMaxLogFields]LogFieldData{
 			{
 				Contract:   common.HexToAddress("0x1345c8a6b99536531F1fa3cfe37D8A5B7Fc859aA"),
 				LogIndex:   2,
