@@ -24,7 +24,7 @@ func TestCircuit(t *testing.T) {
 	app.AddReceipt(sdk.ReceiptData{
 		BlockNum: big.NewInt(18064070),
 		TxHash:   common.HexToHash("53b37ec7975d217295f4bdadf8043b261fc49dccc16da9b9fc8b9530845a5794"),
-		Fields: [3]sdk.LogFieldData{
+		Fields: [sdk.NumMaxLogFields]sdk.LogFieldData{
 			{Contract: usdcPool, LogIndex: 3, EventID: swapEvent, IsTopic: false, FieldIndex: 0, Value: amount0},
 			{Contract: usdcPool, LogIndex: 3, EventID: swapEvent, IsTopic: true, FieldIndex: 2, Value: recipient},
 			{Contract: usdc, LogIndex: 2, EventID: transferEvent, IsTopic: true, FieldIndex: 1, Value: from},
