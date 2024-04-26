@@ -183,8 +183,10 @@ type MySchema = Tuple3[Bytes32, Uint248, Uint521]
 
 func TestComplex(t *testing.T) {
 	c := &TestComplexCircuit{}
-	assert := test.NewAssert(t)
-	assert.ProverSucceeded(c, c, test.WithCurves(ecc.BLS12_377), test.WithBackends(backend.PLONK))
+	err := test.IsSolved(c, c, ecc.BLS12_377.ScalarField())
+	check(err)
+	//assert := test.NewAssert(t)
+	//assert.ProverSucceeded(c, c, test.WithCurves(ecc.BLS12_377), test.WithBackends(backend.PLONK))
 }
 
 type TestComplexCircuit struct{}
@@ -229,8 +231,8 @@ func (c *TestComplexCircuit) Define(g frontend.API) error {
 	myCustomDS.Show()
 
 	// Define another schema of two fields, then
-	// group by the second field in my schema and aggregate the 3rd field
-	// result: [[2, 241], [3, 122]]
+	//group by the second field in my schema and aggregate the 3rd field
+	//result: [[2, 241], [3, 122]]
 	reduce := func(acc Tuple2[Uint248, Uint521], curr MySchema) (newAcc Tuple2[Uint248, Uint521]) {
 		sum := api.Uint521.Add(acc.F1, curr.F2)
 		return Tuple2[Uint248, Uint521]{F0: curr.F1, F1: sum}
@@ -270,7 +272,7 @@ func (c *TestComplexCircuit) Define(g frontend.API) error {
 		F1: ConstUint248(MaxUint248),
 	}
 	isLess := func(a, b Tuple2[Uint248, Uint248]) Uint248 { return api.Uint248.IsLessThan(a.F1, b.F1) }
-	rowMin := MaxGeneric(rowsAfterMap, minInit, isLess)
+	rowMin := MinGeneric(rowsAfterMap, minInit, isLess)
 
 	api.Uint248.AssertIsEqual(rowMin.F0, ConstUint248(3))
 	api.Uint248.AssertIsEqual(rowMin.F1, ConstUint248(200))

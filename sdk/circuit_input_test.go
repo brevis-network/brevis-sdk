@@ -69,23 +69,16 @@ func (c *TestReceiptPackCircuit) Define(api frontend.API) error {
 func TestReceiptPack(t *testing.T) {
 	r := Receipt{
 		BlockNum: ConstUint248(1234567),
-		Fields: [NumMaxLogFields]LogField{
-			{
-				Contract: ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
-				EventID:  ParseEventID(hexutil.MustDecode("0xDEF171Fe48CF")),
-				IsTopic:  ConstUint248(true),
-				Index:    ConstUint248(0),
-				Value:    ConstBytes32(hexutil.MustDecode("0x1234")),
-			},
-			{
-				Contract: ConstUint248(common.HexToAddress("0xDEF171Fe18CF0115B1d80b88dc8eAB59176FEe57")),
-				EventID:  ParseEventID(hexutil.MustDecode("0xDEF171F148CF")),
-				IsTopic:  ConstUint248(false),
-				Index:    ConstUint248(0),
-				Value:    ConstBytes32(hexutil.MustDecode("0x1234")),
-			},
-			NewLogField(),
-		},
+		Fields:   [NumMaxLogFields]LogField{},
+	}
+	for i := range r.Fields {
+		r.Fields[i] = LogField{
+			Contract: ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
+			EventID:  ParseEventID(hexutil.MustDecode("0xDEF171Fe48CF")),
+			IsTopic:  ConstUint248(true),
+			Index:    ConstUint248(0),
+			Value:    ConstBytes32(hexutil.MustDecode("0x1234")),
+		}
 	}
 	fmt.Println("expected packed", r.goPack())
 

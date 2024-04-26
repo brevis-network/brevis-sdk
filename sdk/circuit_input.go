@@ -148,10 +148,14 @@ type Receipt struct {
 }
 
 func defaultReceipt() Receipt {
-	return Receipt{
+	r := Receipt{
 		BlockNum: newU248(0),
-		Fields:   [NumMaxLogFields]LogField{NewLogField(), NewLogField(), NewLogField()},
+		Fields:   [NumMaxLogFields]LogField{},
 	}
+	for i := range r.Fields {
+		r.Fields[i] = defaultLogField()
+	}
+	return r
 }
 
 var _ CircuitVariable = Receipt{}
@@ -203,7 +207,7 @@ type LogField struct {
 	Value Bytes32
 }
 
-func NewLogField() LogField {
+func defaultLogField() LogField {
 	return LogField{
 		Contract: newU248(0),
 		EventID:  newU248(0),
