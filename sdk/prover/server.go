@@ -4,17 +4,20 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/hashicorp/go-uuid"
 	"github.com/rs/cors"
 	"google.golang.org/grpc/credentials/insecure"
 	"net"
 	"net/http"
 	"os"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 
 	"github.com/brevis-network/brevis-sdk/sdk"
-	"github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto"
+
 	"github.com/consensys/gnark/backend/plonk"
 	"github.com/consensys/gnark/constraint"
 	"google.golang.org/grpc"
@@ -82,6 +85,11 @@ func (s *Service) serveGrpcGateway(grpcPort, restPort uint) {
 	}
 }
 
+type proofRes struct {
+	proof string
+	err   string
+}
+
 type server struct {
 	sdkproto.UnimplementedProverServer
 
@@ -92,6 +100,9 @@ type server struct {
 	ccs constraint.ConstraintSystem
 
 	vkBytes string
+
+	proofs map[string]proofRes
+	lock   sync.RWMutex
 }
 
 func newServer(
@@ -112,25 +123,96 @@ func newServer(
 		vk:      vk,
 		ccs:     ccs,
 		vkBytes: hexutil.Encode(buf.Bytes()),
+		proofs:  make(map[string]proofRes),
 	}
 }
 
 func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkproto.ProveResponse, error) {
 	fmt.Println(req.String())
-	brevisApp, err := sdk.NewBrevisApp()
 
+	errRes := func(protoErr *sdkproto.Err) (*sdkproto.ProveResponse, error) {
+		return &sdkproto.ProveResponse{Err: protoErr, CircuitInfo: nil}, nil
+	}
+
+	input, guest, protoErr := s.buildInput(req)
+	if protoErr != nil {
+		return errRes(protoErr)
+	}
+
+	proof, err := s.prove(input, guest)
 	if err != nil {
-		msg := "failed to new brevis app: " + err.Error()
-		fmt.Println(msg)
-		return prepareErrorResponse(sdkproto.ErrCode_ERROR_DEFAULT, msg), nil
+		return errRes(newErr(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, "failed to prove: %s", err.Error()))
+	}
+
+	return &sdkproto.ProveResponse{
+		Proof:       proof,
+		CircuitInfo: buildAppCircuitInfo(*input, s.vkBytes),
+	}, nil
+}
+
+func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (res *sdkproto.ProveAsyncResponse, err error) {
+	errRes := func(protoErr *sdkproto.Err) (*sdkproto.ProveAsyncResponse, error) {
+		return &sdkproto.ProveAsyncResponse{Err: protoErr, ProofId: "", CircuitInfo: nil}, nil
+	}
+
+	uid, err := uuid.GenerateUUID()
+	if err != nil {
+		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to generate uuid %s", err.Error()))
+	}
+
+	input, guest, protoErr := s.buildInput(req)
+	if protoErr != nil {
+		return errRes(protoErr)
+	}
+
+	go func() {
+		proof, err := s.prove(input, guest)
+		if err != nil {
+			fmt.Println("failed to prove:", err.Error())
+			s.setProof(uid, "", err.Error())
+			return
+		}
+		s.setProof(uid, proof, "")
+	}()
+
+	return &sdkproto.ProveAsyncResponse{
+		Err:         nil,
+		ProofId:     uid,
+		CircuitInfo: buildAppCircuitInfo(*input, s.vkBytes),
+	}, nil
+}
+
+func (s *server) GetProof(ctx context.Context, req *sdkproto.GetProofRequest) (res *sdkproto.GetProofResponse, err error) {
+	id := req.ProofId
+	proof := s.getProof(id)
+	if proof.err != "" {
+		return &sdkproto.GetProofResponse{
+			Err:   newErr(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, "failed to prove: %s", err.Error()),
+			Proof: "",
+		}, nil
+	}
+
+	return &sdkproto.GetProofResponse{
+		Proof: proof.proof,
+	}, nil
+}
+
+func (s *server) buildInput(req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.AppCircuit, *sdkproto.Err) {
+	makeErr := func(code sdkproto.ErrCode, format string, args ...any) (*sdk.CircuitInput, sdk.AppCircuit, *sdkproto.Err) {
+		fmt.Printf(format, args...)
+		fmt.Println()
+		return nil, nil, newErr(code, format, args...)
+	}
+
+	brevisApp, err := sdk.NewBrevisApp()
+	if err != nil {
+		return makeErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to new brevis app: %s", err.Error())
 	}
 
 	for _, receipt := range req.Receipts {
 		sdkReceipt, err := convertProtoReceiptToSdkReceipt(receipt.Data)
 		if err != nil {
-			msg := fmt.Sprintf("invalid sdk receipt: %+v, %s", receipt.Data, err.Error())
-			fmt.Println(msg)
-			return prepareErrorResponse(sdkproto.ErrCode_ERROR_INVALID_INPUT, msg), nil
+			return makeErr(sdkproto.ErrCode_ERROR_INVALID_INPUT, "invalid sdk receipt: %+v, %s", receipt.Data, err.Error())
 		}
 		brevisApp.AddReceipt(sdkReceipt, int(receipt.Index))
 	}
@@ -138,20 +220,15 @@ func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkpro
 	for _, storage := range req.Storages {
 		sdkStorage, err := convertProtoStorageToSdkStorage(storage.Data)
 		if err != nil {
-			msg := fmt.Sprintf("invalid sdk storage: %+v, %s", storage.Data, err.Error())
-			fmt.Println(msg)
-			return prepareErrorResponse(sdkproto.ErrCode_ERROR_INVALID_INPUT, msg), nil
+			return makeErr(sdkproto.ErrCode_ERROR_INVALID_INPUT, "invalid sdk storage: %+v, %s", storage.Data, err.Error())
 		}
-
 		brevisApp.AddStorage(sdkStorage, int(storage.Index))
 	}
 
 	for _, transaction := range req.Transactions {
 		sdkTx, err := convertProtoTxToSdkTx(transaction.Data)
 		if err != nil {
-			msg := fmt.Sprintf("invalid sdk transaction: %+v, %s", transaction.Data, err.Error())
-			fmt.Println(msg)
-			return prepareErrorResponse(sdkproto.ErrCode_ERROR_INVALID_INPUT, msg), nil
+			return makeErr(sdkproto.ErrCode_ERROR_INVALID_INPUT, "invalid sdk transaction: %+v, %s", transaction.Data, err.Error())
 		}
 
 		brevisApp.AddTransaction(sdkTx, int(transaction.Index))
@@ -159,74 +236,56 @@ func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkpro
 
 	guest, err := assignCustomInput(s.app, req.CustomInput)
 	if err != nil {
-		fmt.Printf("invalid custom input %s\n", err.Error())
-		return prepareErrorResponse(sdkproto.ErrCode_ERROR_INVALID_CUSTOM_INPUT, err.Error()), nil
+		return makeErr(sdkproto.ErrCode_ERROR_INVALID_CUSTOM_INPUT, "invalid custom input %s\n", err.Error())
 	}
 
 	input, err := brevisApp.BuildCircuitInput(guest)
 	if err != nil {
-		msg := fmt.Sprintf("failed to build circuit input: %+v, %s", req, err.Error())
-		fmt.Println(msg)
-		return prepareErrorResponse(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, msg), nil
+		return makeErr(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, "failed to build circuit input: %+v, %s", req, err.Error())
 	}
+	return &input, guest, nil
+}
 
-	witness, publicWitness, err := sdk.NewFullWitness(guest, input)
+func (s *server) prove(input *sdk.CircuitInput, guest sdk.AppCircuit) (string, error) {
+	witness, publicWitness, err := sdk.NewFullWitness(guest, *input)
 	if err != nil {
-		msg := fmt.Sprintf("failed to get full witness: %+v, %s", req, err.Error())
-		fmt.Println(msg)
-		return prepareErrorResponse(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, msg), nil
+		return "", fmt.Errorf("failed to get full witness: %s", err.Error())
 	}
 
 	proof, err := sdk.Prove(s.ccs, s.pk, witness)
 	if err != nil {
-		msg := fmt.Sprintf("failed to prove: %+v, %s", req, err.Error())
-		fmt.Println(msg)
-		return prepareErrorResponse(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, msg), nil
+		return "", fmt.Errorf("failed to prove: %s", err.Error())
 	}
 
 	err = sdk.Verify(s.vk, publicWitness, proof)
 	if err != nil {
-		msg := fmt.Sprintf("failed to test verifying after proving: %+v, %s", req, err.Error())
-		fmt.Println(msg)
-		return prepareErrorResponse(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, msg), nil
+		return "", fmt.Errorf("failed to test verifying after proving: %s", err.Error())
 	}
 
 	var buf bytes.Buffer
 	_, err = proof.WriteRawTo(&buf)
 	if err != nil {
-		msg := fmt.Sprintf("failed to write proof bytes: %+v, %s", req, err.Error())
-		fmt.Println(msg)
-		return prepareErrorResponse(sdkproto.ErrCode_ERROR_DEFAULT, msg), nil
+		return "", fmt.Errorf("failed to write proof bytes: %s", err.Error())
 	}
 
-	return &sdkproto.ProveResponse{
-		Proof:       hexutil.Encode(buf.Bytes()),
-		CircuitInfo: buildAppCircuitInfo(input, s.vkBytes),
-	}, nil
+	return hexutil.Encode(buf.Bytes()), nil
 }
 
-func prepareErrorResponse(code sdkproto.ErrCode, errorMessage string) *sdkproto.ProveResponse {
-	msg := ""
-	switch code {
-	case sdkproto.ErrCode_ERROR_UNDEFINED:
-		msg = "unknown error"
-	case sdkproto.ErrCode_ERROR_DEFAULT:
-		msg = "internal server error"
-	case sdkproto.ErrCode_ERROR_INVALID_INPUT:
-		msg = "invalid input"
-	case sdkproto.ErrCode_ERROR_INVALID_CUSTOM_INPUT:
-		msg = "invalid custom input"
-	case sdkproto.ErrCode_ERROR_FAILED_TO_PROVE:
-		msg = "failed to prove"
-	default:
-		fmt.Sprintln("found unknown code usage", code)
-		msg = "unknown error"
-	}
+func (s *server) setProof(id, proof, err string) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	s.proofs[id] = proofRes{proof, err}
+}
 
-	return &sdkproto.ProveResponse{
-		Err: &sdkproto.Err{
-			Code: code,
-			Msg:  msg + ": " + errorMessage,
-		},
+func (s *server) getProof(id string) proofRes {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	return s.proofs[id]
+}
+
+func newErr(code sdkproto.ErrCode, format string, args ...any) *sdkproto.Err {
+	return &sdkproto.Err{
+		Code: code,
+		Msg:  fmt.Sprintf(format, args...),
 	}
 }
