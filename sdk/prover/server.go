@@ -192,6 +192,9 @@ func (s *server) GetProof(ctx context.Context, req *sdkproto.GetProofRequest) (r
 		}, nil
 	}
 
+	if len(proof.proof) > 0 {
+		s.deleteProof(id)
+	}
 	return &sdkproto.GetProofResponse{
 		Proof: proof.proof,
 	}, nil
@@ -281,6 +284,12 @@ func (s *server) getProof(id string) proofRes {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	return s.proofs[id]
+}
+
+func (s *server) deleteProof(id string) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	delete(s.proofs, id)
 }
 
 func newErr(code sdkproto.ErrCode, format string, args ...any) *sdkproto.Err {
