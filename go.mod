@@ -9,6 +9,7 @@ require (
 	github.com/ethereum/go-ethereum v1.13.8
 	github.com/golang/protobuf v1.5.4
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
+	github.com/hashicorp/go-uuid v1.0.1
 	github.com/jedib0t/go-pretty/v6 v6.5.4
 	github.com/rs/cors v1.7.0
 	github.com/stretchr/testify v1.8.4
