@@ -123,6 +123,7 @@ func newServer(
 		vk:      vk,
 		ccs:     ccs,
 		vkBytes: hexutil.Encode(buf.Bytes()),
+		proofs:  make(map[string]proofRes),
 	}
 }
 
