@@ -21,14 +21,17 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// ReceiptData is a request for proof for some data under an EVM receipt
 type ReceiptData struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	BlockNum uint64   `protobuf:"varint,1,opt,name=block_num,json=blockNum,proto3" json:"block_num,omitempty"`
-	TxHash   string   `protobuf:"bytes,2,opt,name=tx_hash,json=txHash,proto3" json:"tx_hash,omitempty"`
-	Fields   []*Field `protobuf:"bytes,3,rep,name=fields,proto3" json:"fields,omitempty"`
+	BlockNum uint64 `protobuf:"varint,1,opt,name=block_num,json=blockNum,proto3" json:"block_num,omitempty"`
+	// hex encoded tx hash
+	TxHash string `protobuf:"bytes,2,opt,name=tx_hash,json=txHash,proto3" json:"tx_hash,omitempty"`
+	// must at least contain one field
+	Fields []*Field `protobuf:"bytes,3,rep,name=fields,proto3" json:"fields,omitempty"`
 }
 
 func (x *ReceiptData) Reset() {
@@ -84,16 +87,23 @@ func (x *ReceiptData) GetFields() []*Field {
 	return nil
 }
 
+// Field represents a field in an EVM log that we want the validity to be proven by Brevis
 type Field struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Contract   string `protobuf:"bytes,1,opt,name=contract,proto3" json:"contract,omitempty"`
-	LogIndex   uint32 `protobuf:"varint,2,opt,name=log_index,json=logIndex,proto3" json:"log_index,omitempty"`
-	EventId    string `protobuf:"bytes,3,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	Value      string `protobuf:"bytes,4,opt,name=value,proto3" json:"value,omitempty"`
-	IsTopic    bool   `protobuf:"varint,5,opt,name=is_topic,json=isTopic,proto3" json:"is_topic,omitempty"`
+	// address. the contract which emitted the log
+	Contract string `protobuf:"bytes,1,opt,name=contract,proto3" json:"contract,omitempty"`
+	// the index of the log in the transaction receipt, starting from 0.
+	LogIndex uint32 `protobuf:"varint,2,opt,name=log_index,json=logIndex,proto3" json:"log_index,omitempty"`
+	// the event id (aka topic[0]) of the log
+	EventId string `protobuf:"bytes,3,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	// the value of the field we want to prove
+	Value string `protobuf:"bytes,4,opt,name=value,proto3" json:"value,omitempty"`
+	// true if the field is a topic, false if the field is in log data
+	IsTopic bool `protobuf:"varint,5,opt,name=is_topic,json=isTopic,proto3" json:"is_topic,omitempty"`
+	// the index of the field in the log
 	FieldIndex uint32 `protobuf:"varint,6,opt,name=field_index,json=fieldIndex,proto3" json:"field_index,omitempty"`
 }
 
@@ -171,15 +181,22 @@ func (x *Field) GetFieldIndex() uint32 {
 	return 0
 }
 
+// StorageData is a request for proof for some data in an EVM storage slot
 type StorageData struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// from which block to fetch the storage value
 	BlockNum uint64 `protobuf:"varint,1,opt,name=block_num,json=blockNum,proto3" json:"block_num,omitempty"`
-	Address  string `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
-	Slot     string `protobuf:"bytes,3,opt,name=slot,proto3" json:"slot,omitempty"`
-	Value    string `protobuf:"bytes,4,opt,name=value,proto3" json:"value,omitempty"`
+	// hex encoded address of the account
+	Address string `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
+	// the hex encoded "slot" of a storage.
+	// see https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html
+	Slot string `protobuf:"bytes,3,opt,name=slot,proto3" json:"slot,omitempty"`
+	// the value stored in the storage slot. decoding is based on Go's big.Int SetString.
+	// must not exceed 32 bytes
+	Value string `protobuf:"bytes,4,opt,name=value,proto3" json:"value,omitempty"`
 }
 
 func (x *StorageData) Reset() {
@@ -242,21 +259,29 @@ func (x *StorageData) GetValue() string {
 	return ""
 }
 
+// TransactionData is a request for proof for some EVM transaction
+// Only transaction type 0 and 2 are supported
 type TransactionData struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Hash                string `protobuf:"bytes,1,opt,name=hash,proto3" json:"hash,omitempty"`
-	ChainId             uint64 `protobuf:"varint,2,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
-	BlockNum            uint64 `protobuf:"varint,3,opt,name=block_num,json=blockNum,proto3" json:"block_num,omitempty"`
-	Nonce               uint64 `protobuf:"varint,4,opt,name=nonce,proto3" json:"nonce,omitempty"`
+	// hex encoded tx hash
+	Hash     string `protobuf:"bytes,1,opt,name=hash,proto3" json:"hash,omitempty"`
+	ChainId  uint64 `protobuf:"varint,2,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
+	BlockNum uint64 `protobuf:"varint,3,opt,name=block_num,json=blockNum,proto3" json:"block_num,omitempty"`
+	Nonce    uint64 `protobuf:"varint,4,opt,name=nonce,proto3" json:"nonce,omitempty"`
+	// this field represents `GasPrice` for legacy tx (type 0) and `GasTipCap` for dynamic fee tx (type 2)
 	GasTipCapOrGasPrice string `protobuf:"bytes,5,opt,name=gas_tip_cap_or_gas_price,json=gasTipCapOrGasPrice,proto3" json:"gas_tip_cap_or_gas_price,omitempty"`
-	GasFeeCap           string `protobuf:"bytes,6,opt,name=gas_fee_cap,json=gasFeeCap,proto3" json:"gas_fee_cap,omitempty"`
-	GasLimit            uint64 `protobuf:"varint,7,opt,name=gas_limit,json=gasLimit,proto3" json:"gas_limit,omitempty"`
-	From                string `protobuf:"bytes,8,opt,name=from,proto3" json:"from,omitempty"`
-	To                  string `protobuf:"bytes,9,opt,name=to,proto3" json:"to,omitempty"`
-	Value               string `protobuf:"bytes,10,opt,name=value,proto3" json:"value,omitempty"`
+	// this field is ignored for legacy tx (type 0) and represents `GasFeeCap` for dynamic fee tx (type 2)
+	GasFeeCap string `protobuf:"bytes,6,opt,name=gas_fee_cap,json=gasFeeCap,proto3" json:"gas_fee_cap,omitempty"`
+	GasLimit  uint64 `protobuf:"varint,7,opt,name=gas_limit,json=gasLimit,proto3" json:"gas_limit,omitempty"`
+	// address
+	From string `protobuf:"bytes,8,opt,name=from,proto3" json:"from,omitempty"`
+	// address
+	To string `protobuf:"bytes,9,opt,name=to,proto3" json:"to,omitempty"`
+	// decoding is based on Go's big.Int SetString. must be less than uint256 max
+	Value string `protobuf:"bytes,10,opt,name=value,proto3" json:"value,omitempty"`
 }
 
 func (x *TransactionData) Reset() {
