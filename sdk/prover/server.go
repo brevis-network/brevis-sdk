@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net"
+	"net/http"
+	"os"
+	"sync"
+
 	"github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/hashicorp/go-uuid"
 	"github.com/rs/cors"
 	"google.golang.org/grpc/credentials/insecure"
-	"net"
-	"net/http"
-	"os"
-	"sync"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 
@@ -40,15 +41,15 @@ func NewService(app sdk.AppCircuit, config ServiceConfig) (*Service, error) {
 	}, nil
 }
 
-func (s *Service) Serve(port uint) {
-	go s.serveGrpc(port)
-	s.serveGrpcGateway(port, port+10)
+func (s *Service) Serve(bind string, port uint) {
+	go s.serveGrpc(bind, port)
+	s.serveGrpcGateway(bind, port, port+10)
 }
 
-func (s *Service) serveGrpc(port uint) {
+func (s *Service) serveGrpc(bind string, port uint) {
 	grpcServer := grpc.NewServer()
 	sdkproto.RegisterProverServer(grpcServer, s.svr)
-	address := fmt.Sprintf("localhost:%d", port)
+	address := fmt.Sprintf("%s:%d", bind, port)
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		fmt.Println("failed to start prover server:", err)
@@ -61,10 +62,10 @@ func (s *Service) serveGrpc(port uint) {
 	}
 }
 
-func (s *Service) serveGrpcGateway(grpcPort, restPort uint) {
+func (s *Service) serveGrpcGateway(bind string, grpcPort, restPort uint) {
 	mux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-	endpoint := fmt.Sprintf("localhost:%d", grpcPort)
+	endpoint := fmt.Sprintf("%s:%d", bind, grpcPort)
 
 	err := sdkproto.RegisterProverHandlerFromEndpoint(context.Background(), mux, endpoint, opts)
 	if err != nil {
