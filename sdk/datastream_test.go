@@ -176,6 +176,16 @@ func (c *TestSimpleCircuit) Define(g frontend.API) error {
 	})
 
 	AssertSorted(b, func(a, b Uint248) Uint248 { return u248.IsEqual(u248.Sub(b, a), newU248(1)) })
+
+	unsorted := NewDataStream(api, DataPoints[Uint248]{
+		Raw:     newU248s([]frontend.Variable{1, 2, 10, 4, 5, 6, 20, 1}...),
+		Toggles: []frontend.Variable{1, 1, 1, 1, 1, 1, 0, 0},
+	})
+	isSorted := IsSorted(unsorted, func(a, b Uint248) Uint248 {
+		return u248.Or(u248.IsLessThan(a, b), u248.IsEqual(a, b))
+	})
+	u248.AssertIsEqual(isSorted, ConstUint248(0))
+
 	return nil
 }
 

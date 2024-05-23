@@ -118,7 +118,7 @@ func IsSorted[T CircuitVariable](ds *DataStream[T], sortFunc SortFunc[T]) Uint24
 	// where this method is called. if it has not been touched, we probably don't
 	// need to use prev and prevValid signals.
 	api := ds.api.g
-	var sorted frontend.Variable
+	var sorted frontend.Variable = 1
 	prev := ds.underlying[0]
 	prevValid := ds.toggles[0]
 
@@ -126,16 +126,18 @@ func IsSorted[T CircuitVariable](ds *DataStream[T], sortFunc SortFunc[T]) Uint24
 		curr := ds.underlying[i]
 		currValid := ds.toggles[i]
 
-		sorted = sortFunc(prev, curr).Val
-		sorted = api.Select(api.And(prevValid, currValid), sorted, 1)
+		newSorted := sortFunc(prev, curr).Val
+		// if we found anything unsorted, then the rest of the sorted check is effectively useless
+		useNewSorted := api.And(sorted, api.And(prevValid, currValid))
+		sorted = api.Select(useNewSorted, newSorted, sorted)
 
 		prev = Select(ds.api, newU248(currValid), curr, prev)
-		prevValid = currValid
+		prevValid = api.Select(currValid, currValid, prevValid)
 	}
 	return newU248(sorted)
 }
 
-// AssertSorted Performs the sortFunc on each valid pair of data points and assert the result to be 1.
+// AssertSorted Performs the sortFunc on each valid pair of data points and asserts the result to be 1.
 func AssertSorted[T CircuitVariable](ds *DataStream[T], sortFunc SortFunc[T]) {
 	ds.api.Uint248.AssertIsEqual(IsSorted(ds, sortFunc), newU248(1))
 }
