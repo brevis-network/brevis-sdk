@@ -50,11 +50,11 @@ func (c *HostCircuit) Define(gapi frontend.API) error {
 	if err != nil {
 		return err
 	}
-	assertInputUniqueness(gapi, c.Input.InputCommitments, api.checkInputUniqueness)
 	err = c.Guest.Define(api, c.Input.DataInput)
 	if err != nil {
 		return fmt.Errorf("error building user-defined circuit %s", err.Error())
 	}
+	assertInputUniqueness(gapi, c.Input.InputCommitments, api.checkInputUniqueness)
 	outputCommit := c.commitOutput(api.output)
 	dryRunOutputCommit = outputCommit
 	gapi.AssertIsEqual(outputCommit[0], c.Input.OutputCommitment[0])
