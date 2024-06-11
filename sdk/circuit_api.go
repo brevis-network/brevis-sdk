@@ -5,7 +5,9 @@ import (
 	"math/big"
 
 	"github.com/brevis-network/zk-utils/circuits/gadgets/keccak"
+	"github.com/consensys/gnark/constraint/solver"
 	"github.com/consensys/gnark/frontend"
+	"github.com/consensys/gnark/std/hash/mimc"
 )
 
 // CircuitAPI contains a set of APIs that can only be used in circuit to perform
@@ -262,4 +264,12 @@ func (api *CircuitAPI) ToInt248(i interface{}) Int248 {
 
 func (api *CircuitAPI) isEqual(a, b variable) variable {
 	return api.g.IsZero(api.g.Sub(a, b))
+}
+
+func (api *CircuitAPI) NewHint(f solver.Hint, nbOutputs int, inputs ...frontend.Variable) ([]frontend.Variable, error) {
+	return api.g.Compiler().NewHint(f, nbOutputs, inputs)
+}
+
+func (api *CircuitAPI) NewMiMC() (mimc.MiMC, error) {
+	return mimc.NewMiMC(api.g)
 }
