@@ -250,13 +250,17 @@ func (s *server) buildInput(req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.
 	return &input, guest, nil
 }
 
+var ProveProcessorLock sync.Mutex
+
 func (s *server) prove(input *sdk.CircuitInput, guest sdk.AppCircuit) (string, error) {
 	witness, publicWitness, err := sdk.NewFullWitness(guest, *input)
 	if err != nil {
 		return "", fmt.Errorf("failed to get full witness: %s", err.Error())
 	}
 
+	ProveProcessorLock.Lock()
 	proof, err := sdk.Prove(s.ccs, s.pk, witness)
+	ProveProcessorLock.Unlock()
 	if err != nil {
 		return "", fmt.Errorf("failed to prove: %s", err.Error())
 	}
