@@ -7,6 +7,7 @@ import (
 	"github.com/brevis-network/zk-utils/circuits/gadgets/keccak"
 	"github.com/consensys/gnark/constraint/solver"
 	"github.com/consensys/gnark/frontend"
+	"github.com/consensys/gnark/std/hash/mimc"
 )
 
 // CircuitAPI contains a set of APIs that can only be used in circuit to perform
@@ -267,4 +268,8 @@ func (api *CircuitAPI) isEqual(a, b variable) variable {
 
 func (api *CircuitAPI) NewHint(f solver.Hint, nbOutputs int, inputs ...frontend.Variable) ([]frontend.Variable, error) {
 	return api.g.Compiler().NewHint(f, nbOutputs, inputs)
+}
+
+func (api *CircuitAPI) NewMiMC() (mimc.MiMC, error) {
+	return mimc.NewMiMC(api.g)
 }
