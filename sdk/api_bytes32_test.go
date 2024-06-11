@@ -1,11 +1,13 @@
 package sdk
 
 import (
+	"math/big"
+	"testing"
+
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/test"
 	"github.com/ethereum/go-ethereum/common"
-	"testing"
 )
 
 func TestBytes32API(t *testing.T) {
@@ -27,7 +29,7 @@ func (c *TestBytes32APICircuit) Define(g frontend.API) error {
 	c.testEqual()
 	c.testSelect()
 	c.testIsZero()
-
+	c.testConvertFV()
 	return nil
 }
 
@@ -82,4 +84,14 @@ func (c *TestBytes32APICircuit) testIsZero() {
 
 	z = c.b32.IsZero(data2)
 	c.g.AssertIsEqual(z.Val, 1)
+}
+
+func (c *TestBytes32APICircuit) testConvertFV() {
+	var data = common.HexToHash("10dfb8b21ed74d6e66cb67031efc7a2df88a7214b32138f9e030253b2f4b3abc")
+
+	data1 := ConstBytes32(data[:])
+	b, _ := new(big.Int).SetString("7632287196224097183264877413309925498355733551937573486638448198370579921596", 10)
+	data2 := c.b32.FromFV(b)
+	c.g.AssertIsEqual(data1.Val[0], data2.Val[0])
+	c.g.AssertIsEqual(data1.Val[1], data2.Val[1])
 }
