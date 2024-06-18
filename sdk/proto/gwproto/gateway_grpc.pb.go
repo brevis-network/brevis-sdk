@@ -80,17 +80,16 @@ func (c *gatewayClient) GetQueryInfoForOP(ctx context.Context, in *GetQueryInfoF
 }
 
 // GatewayServer is the server API for Gateway service.
-// All implementations must embed UnimplementedGatewayServer
+// All implementations should embed UnimplementedGatewayServer
 // for forward compatibility
 type GatewayServer interface {
 	PrepareQuery(context.Context, *PrepareQueryRequest) (*PrepareQueryResponse, error)
 	SubmitAppCircuitProof(context.Context, *SubmitAppCircuitProofRequest) (*SubmitAppCircuitProofResponse, error)
 	GetQueryStatus(context.Context, *GetQueryStatusRequest) (*GetQueryStatusResponse, error)
 	GetQueryInfoForOP(context.Context, *GetQueryInfoForOPRequest) (*GetQueryInfoForOPResponse, error)
-	mustEmbedUnimplementedGatewayServer()
 }
 
-// UnimplementedGatewayServer must be embedded to have forward compatible implementations.
+// UnimplementedGatewayServer should be embedded to have forward compatible implementations.
 type UnimplementedGatewayServer struct {
 }
 
@@ -106,7 +105,6 @@ func (UnimplementedGatewayServer) GetQueryStatus(context.Context, *GetQueryStatu
 func (UnimplementedGatewayServer) GetQueryInfoForOP(context.Context, *GetQueryInfoForOPRequest) (*GetQueryInfoForOPResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetQueryInfoForOP not implemented")
 }
-func (UnimplementedGatewayServer) mustEmbedUnimplementedGatewayServer() {}
 
 // UnsafeGatewayServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to GatewayServer will

@@ -14,6 +14,7 @@ protoc:
 		--go-grpc_opt=Mbrevis/types.proto=github.com/brevis-network/brevis-sdk/sdk/proto/gwproto  \
 		--go-grpc_opt=Msdk/prover.proto=github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto \
 		--go-grpc_opt=Msdk/types.proto=github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto \
+		--go-grpc_opt=require_unimplemented_servers=false \
 		./brevis-proto/common/circuit_data.proto \
 		./brevis-proto/brevis/*.proto \
 		./brevis-proto/sdk/*.proto

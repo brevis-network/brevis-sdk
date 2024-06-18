@@ -70,17 +70,16 @@ func (c *proverClient) GetProof(ctx context.Context, in *GetProofRequest, opts .
 }
 
 // ProverServer is the server API for Prover service.
-// All implementations must embed UnimplementedProverServer
+// All implementations should embed UnimplementedProverServer
 // for forward compatibility
 type ProverServer interface {
 	// Generates a proof with the given data and custom input assignments
 	Prove(context.Context, *ProveRequest) (*ProveResponse, error)
 	ProveAsync(context.Context, *ProveRequest) (*ProveAsyncResponse, error)
 	GetProof(context.Context, *GetProofRequest) (*GetProofResponse, error)
-	mustEmbedUnimplementedProverServer()
 }
 
-// UnimplementedProverServer must be embedded to have forward compatible implementations.
+// UnimplementedProverServer should be embedded to have forward compatible implementations.
 type UnimplementedProverServer struct {
 }
 
@@ -93,7 +92,6 @@ func (UnimplementedProverServer) ProveAsync(context.Context, *ProveRequest) (*Pr
 func (UnimplementedProverServer) GetProof(context.Context, *GetProofRequest) (*GetProofResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetProof not implemented")
 }
-func (UnimplementedProverServer) mustEmbedUnimplementedProverServer() {}
 
 // UnsafeProverServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to ProverServer will
