@@ -18,9 +18,16 @@ protoc:
 		./brevis-proto/brevis/*.proto \
 		./brevis-proto/sdk/*.proto
 
-protoc-grpc-gateway:
+protoc-prover-gateway:
 	protoc -I ./brevis-proto \
 		--grpc-gateway_out . \
 		--grpc-gateway_opt=module=github.com/brevis-network/brevis-sdk  \
 		--grpc-gateway_opt=Msdk/prover.proto=github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto \
 		./brevis-proto/sdk/*.proto
+
+protoc-brevis-gateway:
+	protoc -I ./brevis-proto \
+		--grpc-gateway_out . \
+		--grpc-gateway_opt=module=github.com/brevis-network/brevis-sdk  \
+		--grpc-gateway_opt=Mbrevis/gateway.proto=github.com/brevis-network/brevis-sdk/sdk/proto/gwproto \
+		./brevis-proto/brevis/*.proto
