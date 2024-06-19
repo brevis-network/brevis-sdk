@@ -81,8 +81,8 @@ func (in CircuitInput) Clone() CircuitInput {
 }
 
 func (in CircuitInput) GetAbiPackedOutput() []byte {
-	ret := make([]byte, len(dryRunOutput))
-	copy(ret, dryRunOutput)
+	ret := make([]byte, len(in.dryRunOutput))
+	copy(ret, in.dryRunOutput)
 	return ret
 }
 
