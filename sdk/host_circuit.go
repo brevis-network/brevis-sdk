@@ -9,6 +9,7 @@ import (
 	"github.com/consensys/gnark/std/hash/mimc"
 	"github.com/consensys/gnark/std/multicommit"
 	"github.com/consensys/gnark/test"
+	"sync"
 )
 
 type AppCircuit interface {
@@ -50,11 +51,11 @@ func (c *HostCircuit) Define(gapi frontend.API) error {
 	if err != nil {
 		return err
 	}
-	assertInputUniqueness(gapi, c.Input.InputCommitments, api.checkInputUniqueness)
 	err = c.Guest.Define(api, c.Input.DataInput)
 	if err != nil {
 		return fmt.Errorf("error building user-defined circuit %s", err.Error())
 	}
+	assertInputUniqueness(gapi, c.Input.InputCommitments, api.checkInputUniqueness)
 	outputCommit := c.commitOutput(api.output)
 	dryRunOutputCommit = outputCommit
 	gapi.AssertIsEqual(outputCommit[0], c.Input.OutputCommitment[0])
@@ -222,10 +223,15 @@ func bits2Bytes(data []frontend.Variable) []byte {
 	return bytes
 }
 
+// will be set when run solve.
+// be careful to use it with lock.
 var dryRunOutput []byte
 var dryRunOutputCommit OutputCommitment
+var dryRunLock sync.Mutex
 
 func dryRun(in CircuitInput, guest AppCircuit) (OutputCommitment, []byte, error) {
+	dryRunLock.Lock()
+	defer dryRunLock.Unlock()
 	// resetting state
 	dryRunOutputCommit = OutputCommitment{nil, nil}
 	dryRunOutput = nil

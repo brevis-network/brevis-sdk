@@ -173,6 +173,8 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (re
 			s.setProof(uid, "", err.Error())
 			return
 		}
+
+		fmt.Printf("prove success and set in map, uid: %s\n", uid)
 		s.setProof(uid, proof, "")
 	}()
 
@@ -250,13 +252,17 @@ func (s *server) buildInput(req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.
 	return &input, guest, nil
 }
 
+var ProveProcessorLock sync.Mutex
+
 func (s *server) prove(input *sdk.CircuitInput, guest sdk.AppCircuit) (string, error) {
 	witness, publicWitness, err := sdk.NewFullWitness(guest, *input)
 	if err != nil {
 		return "", fmt.Errorf("failed to get full witness: %s", err.Error())
 	}
 
+	ProveProcessorLock.Lock()
 	proof, err := sdk.Prove(s.ccs, s.pk, witness)
+	ProveProcessorLock.Unlock()
 	if err != nil {
 		return "", fmt.Errorf("failed to prove: %s", err.Error())
 	}
@@ -278,18 +284,21 @@ func (s *server) prove(input *sdk.CircuitInput, guest sdk.AppCircuit) (string, e
 func (s *server) setProof(id, proof, err string) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+	fmt.Printf("set proof: %s, %s\n", id, proof)
 	s.proofs[id] = proofRes{proof, err}
 }
 
 func (s *server) getProof(id string) proofRes {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
+	fmt.Printf("get proof: %s\n", id)
 	return s.proofs[id]
 }
 
 func (s *server) deleteProof(id string) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+	fmt.Printf("delete proof: %s\n", id)
 	delete(s.proofs, id)
 }
 

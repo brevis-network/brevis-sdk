@@ -2,9 +2,10 @@ package sdk
 
 import (
 	"fmt"
+	"math/big"
+
 	"github.com/consensys/gnark/frontend"
 	"github.com/ethereum/go-ethereum/common"
-	"math/big"
 )
 
 // Bytes32 is an in-circuit representation of the solidity bytes32 type.
@@ -94,6 +95,14 @@ func (api *Bytes32API) FromBinary(vs ...Uint248) Bytes32 {
 		values = append(values, 0)
 	}
 	res := Bytes32{}
+	res.Val[0] = api.g.FromBinary(values[:numBitsPerVar]...)
+	res.Val[1] = api.g.FromBinary(values[numBitsPerVar:]...)
+	return res
+}
+
+func (api *Bytes32API) FromFV(v frontend.Variable) Bytes32 {
+	res := Bytes32{}
+	values := api.g.ToBinary(v, 256)
 	res.Val[0] = api.g.FromBinary(values[:numBitsPerVar]...)
 	res.Val[1] = api.g.FromBinary(values[numBitsPerVar:]...)
 	return res
