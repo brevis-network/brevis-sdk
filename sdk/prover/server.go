@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/google/martian/log"
 	"net"
 	"net/http"
 	"os"
@@ -174,7 +173,8 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (re
 			s.setProof(uid, "", err.Error())
 			return
 		}
-		log.Infof("prove success and set in map, uid: %s", uid)
+
+		fmt.Printf("prove success and set in map, uid: %s\n", uid)
 		s.setProof(uid, proof, "")
 	}()
 
@@ -284,19 +284,21 @@ func (s *server) prove(input *sdk.CircuitInput, guest sdk.AppCircuit) (string, e
 func (s *server) setProof(id, proof, err string) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	log.Infof("set proof: %s, %s", id, proof)
+	fmt.Printf("set proof: %s, %s\n", id, proof)
 	s.proofs[id] = proofRes{proof, err}
 }
 
 func (s *server) getProof(id string) proofRes {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
+	fmt.Printf("get proof: %s\n", id)
 	return s.proofs[id]
 }
 
 func (s *server) deleteProof(id string) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+	fmt.Printf("delete proof: %s\n", id)
 	delete(s.proofs, id)
 }
 
