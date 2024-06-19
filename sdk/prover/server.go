@@ -284,6 +284,7 @@ func (s *server) prove(input *sdk.CircuitInput, guest sdk.AppCircuit) (string, e
 func (s *server) setProof(id, proof, err string) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+	log.Infof("set proof: %s, %s", id, proof)
 	s.proofs[id] = proofRes{proof, err}
 }
 
