@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/brevis-network/brevis-sdk/examples/dummy"
 	"github.com/brevis-network/brevis-sdk/sdk/prover"
-	"os"
 )
 
 func main() {
@@ -17,5 +18,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	proverService.Serve(33247)
+	proverService.Serve("localhost", 33247)
 }
