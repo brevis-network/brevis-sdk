@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/google/martian/log"
 	"net"
 	"net/http"
 	"os"
@@ -173,6 +174,7 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (re
 			s.setProof(uid, "", err.Error())
 			return
 		}
+		log.Infof("prove success and set in map, uid: %s", uid)
 		s.setProof(uid, proof, "")
 	}()
 
