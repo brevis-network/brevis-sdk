@@ -24,6 +24,7 @@ const (
 	Gateway_GetQueryStatus_FullMethodName        = "/brevis.Gateway/GetQueryStatus"
 	Gateway_GetQueryInfoForOP_FullMethodName     = "/brevis.Gateway/GetQueryInfoForOP"
 	Gateway_GetSingleRunParams_FullMethodName    = "/brevis.Gateway/GetSingleRunParams"
+	Gateway_SendBatchQueries_FullMethodName      = "/brevis.Gateway/SendBatchQueries"
 )
 
 // GatewayClient is the client API for Gateway service.
@@ -35,6 +36,7 @@ type GatewayClient interface {
 	GetQueryStatus(ctx context.Context, in *GetQueryStatusRequest, opts ...grpc.CallOption) (*GetQueryStatusResponse, error)
 	GetQueryInfoForOP(ctx context.Context, in *GetQueryInfoForOPRequest, opts ...grpc.CallOption) (*GetQueryInfoForOPResponse, error)
 	GetSingleRunParams(ctx context.Context, in *GetSingleRunParamsRequest, opts ...grpc.CallOption) (*GetSingleRunParamsResponse, error)
+	SendBatchQueries(ctx context.Context, in *SendBatchQueriesRequest, opts ...grpc.CallOption) (*SendBatchQueriesResponse, error)
 }
 
 type gatewayClient struct {
@@ -90,6 +92,15 @@ func (c *gatewayClient) GetSingleRunParams(ctx context.Context, in *GetSingleRun
 	return out, nil
 }
 
+func (c *gatewayClient) SendBatchQueries(ctx context.Context, in *SendBatchQueriesRequest, opts ...grpc.CallOption) (*SendBatchQueriesResponse, error) {
+	out := new(SendBatchQueriesResponse)
+	err := c.cc.Invoke(ctx, Gateway_SendBatchQueries_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GatewayServer is the server API for Gateway service.
 // All implementations should embed UnimplementedGatewayServer
 // for forward compatibility
@@ -99,6 +110,7 @@ type GatewayServer interface {
 	GetQueryStatus(context.Context, *GetQueryStatusRequest) (*GetQueryStatusResponse, error)
 	GetQueryInfoForOP(context.Context, *GetQueryInfoForOPRequest) (*GetQueryInfoForOPResponse, error)
 	GetSingleRunParams(context.Context, *GetSingleRunParamsRequest) (*GetSingleRunParamsResponse, error)
+	SendBatchQueries(context.Context, *SendBatchQueriesRequest) (*SendBatchQueriesResponse, error)
 }
 
 // UnimplementedGatewayServer should be embedded to have forward compatible implementations.
@@ -119,6 +131,9 @@ func (UnimplementedGatewayServer) GetQueryInfoForOP(context.Context, *GetQueryIn
 }
 func (UnimplementedGatewayServer) GetSingleRunParams(context.Context, *GetSingleRunParamsRequest) (*GetSingleRunParamsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetSingleRunParams not implemented")
+}
+func (UnimplementedGatewayServer) SendBatchQueries(context.Context, *SendBatchQueriesRequest) (*SendBatchQueriesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SendBatchQueries not implemented")
 }
 
 // UnsafeGatewayServer may be embedded to opt out of forward compatibility for this service.
@@ -222,6 +237,24 @@ func _Gateway_GetSingleRunParams_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Gateway_SendBatchQueries_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SendBatchQueriesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GatewayServer).SendBatchQueries(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Gateway_SendBatchQueries_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GatewayServer).SendBatchQueries(ctx, req.(*SendBatchQueriesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Gateway_ServiceDesc is the grpc.ServiceDesc for Gateway service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -248,6 +281,10 @@ var Gateway_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetSingleRunParams",
 			Handler:    _Gateway_GetSingleRunParams_Handler,
+		},
+		{
+			MethodName: "SendBatchQueries",
+			Handler:    _Gateway_SendBatchQueries_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

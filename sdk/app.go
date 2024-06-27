@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
 	"hash"
 	"math/big"
 	"time"
+
+	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
 
 	"github.com/brevis-network/zk-utils/common/eth"
 	bls12377_fr "github.com/consensys/gnark-crypto/ecc/bls12-377/fr"
@@ -112,6 +113,7 @@ type BrevisApp struct {
 	circuitInput                    CircuitInput
 	buildInputCalled                bool
 	queryId                         []byte
+	nonce                           uint64
 	srcChainId, dstChainId          uint64
 	maxReceipts, maxStorage, maxTxs int
 }
@@ -229,7 +231,6 @@ func (q *BrevisApp) PrepareRequest(
 		StorageQueryInfos: buildStorageQueryInfos(q.storageVals, q.maxStorage),
 		TransactionInfos:  buildTxInfos(q.txs, q.maxTxs),
 		AppCircuitInfo:    buildAppCircuitInfo(q.circuitInput, vk),
-		UseAppCircuitInfo: true,
 	}
 
 	fmt.Println("Calling Brevis gateway PrepareRequest...")
@@ -237,11 +238,12 @@ func (q *BrevisApp) PrepareRequest(
 	if err != nil {
 		return
 	}
-	queryId, err := hexutil.Decode(res.QueryHash)
+	queryId, err := hexutil.Decode(res.QueryKey.QueryHash)
 	if err != nil {
 		return
 	}
 	q.queryId = queryId
+	q.nonce = res.QueryKey.Nonce
 
 	feeValue, ok := new(big.Int).SetString(res.GetFee(), 10)
 	if !ok {
@@ -249,7 +251,7 @@ func (q *BrevisApp) PrepareRequest(
 		return
 	}
 
-	fmt.Printf("Brevis gateway responded with requestId %x, feeValue %d\n", queryId, feeValue)
+	fmt.Printf("Brevis gateway responded with requestId %x, nonce %d, feeValue %d\n", queryId, q.nonce, feeValue)
 
 	calldata, err = q.buildSendRequestCalldata(common.BytesToHash(queryId), refundee, appContract)
 	return calldata, common.BytesToHash(queryId), feeValue, err
@@ -287,9 +289,12 @@ func WithContext(ctx context.Context) SubmitProofOption {
 	return func(option submitProofOptions) { option.ctx = ctx }
 }
 
-func (q *BrevisApp) SubmitProofWithQueryId(queryId string, dstChainId uint64, proof []byte) error {
+func (q *BrevisApp) SubmitProofWithQueryId(queryId string, nonce uint64, dstChainId uint64, proof []byte) error {
 	res, err := q.gc.SubmitProof(&gwproto.SubmitAppCircuitProofRequest{
-		QueryHash:     queryId,
+		QueryKey: &gwproto.QueryKey{
+			QueryHash: queryId,
+			Nonce:     nonce,
+		},
 		TargetChainId: dstChainId,
 		Proof:         hexutil.Encode(proof),
 	})
@@ -315,7 +320,10 @@ func (q *BrevisApp) SubmitProof(proof plonk.Proof, options ...SubmitProofOption)
 		return fmt.Errorf("error writing proof to bytes: %s", err.Error())
 	}
 	res, err := q.gc.SubmitProof(&gwproto.SubmitAppCircuitProofRequest{
-		QueryHash:     hexutil.Encode(q.queryId),
+		QueryKey: &gwproto.QueryKey{
+			QueryHash: hexutil.Encode(q.queryId),
+			Nonce:     q.nonce,
+		},
 		TargetChainId: q.dstChainId,
 		Proof:         hexutil.Encode(buf.Bytes()),
 	})
@@ -355,7 +363,10 @@ func (q *BrevisApp) waitFinalProofSubmitted(cancel <-chan struct{}) (common.Hash
 		select {
 		case <-t.C:
 			res, err := q.gc.GetQueryStatus(&gwproto.GetQueryStatusRequest{
-				QueryHash:     hexutil.Encode(q.queryId),
+				QueryKey: &gwproto.QueryKey{
+					QueryHash: hexutil.Encode(q.queryId),
+					Nonce:     q.nonce,
+				},
 				TargetChainId: q.dstChainId,
 			})
 			if err != nil {
