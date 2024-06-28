@@ -100,7 +100,7 @@ func Setup(ccs constraint.ConstraintSystem, cacheDir string) (pk plonk.ProvingKe
 }
 
 func printVkHash(vk plonk.VerifyingKey) {
-	vkHash, err := computeVkHash(vk)
+	vkHash, err := ComputeVkHash(vk)
 	if err != nil {
 		fmt.Printf("error computing vk hash: %s", err.Error())
 		return
@@ -112,7 +112,7 @@ func printVkHash(vk plonk.VerifyingKey) {
 	fmt.Println()
 }
 
-func computeVkHash(vk plonk.VerifyingKey) (common.Hash, error) {
+func ComputeVkHash(vk plonk.VerifyingKey) (common.Hash, error) {
 	plonkCircuitVk, err := replonk.ValueOfVerifyingKey[sw_bls12377.ScalarField, sw_bls12377.G1Affine, sw_bls12377.G2Affine](vk)
 	if err != nil {
 		return common.Hash{}, err
