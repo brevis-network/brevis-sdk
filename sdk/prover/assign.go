@@ -3,14 +3,14 @@ package prover
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/brevis-network/brevis-sdk/sdk"
-	"github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/brevis-network/brevis-sdk/sdk"
+	"github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 func assignCustomInput(app sdk.AppCircuit, input *sdkproto.CustomInput) (sdk.AppCircuit, error) {
@@ -89,7 +89,7 @@ func assignCustomInput(app sdk.AppCircuit, input *sdkproto.CustomInput) (sdk.App
 
 func setListItemsWithCheck(field reflect.Value, values reflect.Value, name string) error {
 	if fl, vl := field.Len(), values.Len(); fl != vl {
-		log.Warn(fmt.Sprintf("inconsistent lengths: json has len %d but %s has len %d", fl, name, vl))
+		fmt.Printf("WARNING: inconsistent lengths: json has len %d but %s has len %d", fl, name, vl)
 	}
 	for i := 0; i < values.Len(); i++ {
 		if i >= field.Len() {
