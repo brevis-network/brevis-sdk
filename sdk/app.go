@@ -218,7 +218,8 @@ func (q *BrevisApp) PrepareRequest(
 	srcChainId, dstChainId uint64,
 	refundee, appContract common.Address,
 	callbackGasLimit uint64,
-) (calldata []byte, requestId common.Hash, feeValue *big.Int, err error) {
+	option *gwproto.QueryOption,
+) (calldata []byte, requestId common.Hash, nonce uint64, feeValue *big.Int, err error) {
 	if !q.buildInputCalled {
 		panic("must call BuildCircuitInput before PrepareRequest")
 	}
@@ -232,6 +233,7 @@ func (q *BrevisApp) PrepareRequest(
 		StorageQueryInfos: buildStorageQueryInfos(q.storageVals, q.maxStorage),
 		TransactionInfos:  buildTxInfos(q.txs, q.maxTxs),
 		AppCircuitInfo:    buildAppCircuitInfo(q.circuitInput, vk),
+		Option:            *option,
 	}
 
 	fmt.Println("Calling Brevis gateway PrepareRequest...")
@@ -258,7 +260,7 @@ func (q *BrevisApp) PrepareRequest(
 		Target: appContract,
 		Gas:    callbackGasLimit,
 	}, 0)
-	return calldata, common.BytesToHash(queryId), feeValue, err
+	return calldata, common.BytesToHash(queryId), nonce, feeValue, err
 }
 
 func (q *BrevisApp) buildSendRequestCalldata(args ...interface{}) ([]byte, error) {

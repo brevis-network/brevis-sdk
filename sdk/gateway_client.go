@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+
 	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
 
 	"google.golang.org/grpc"
@@ -18,7 +19,7 @@ func NewGatewayClient(url ...string) (*GatewayClient, error) {
 	if len(url) > 1 {
 		panic("must supply at most one url")
 	}
-	gatewayUrl := "appsdk.brevis.network:11080"
+	gatewayUrl := "appsdkv2.brevis.network:9094"
 	if len(url) > 0 {
 		gatewayUrl = url[0]
 	}
