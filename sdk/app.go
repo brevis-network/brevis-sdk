@@ -254,12 +254,12 @@ func (q *BrevisApp) PrepareRequest(
 		return
 	}
 
-	fmt.Printf("Brevis gateway responded with requestId %x, nonce %d, feeValue %d\n", queryId, q.nonce, feeValue)
+	fmt.Printf("Brevis gateway responded with proofId %x, nonce %d, feeValue %d\n", queryId, q.nonce, feeValue)
 
 	calldata, err = q.buildSendRequestCalldata(common.BytesToHash(queryId), res.QueryKey.Nonce, refundee, eth.IBrevisTypesCallback{
 		Target: appContract,
 		Gas:    callbackGasLimit,
-	}, 0)
+	}, uint8(0))
 	return calldata, common.BytesToHash(queryId), nonce, feeValue, err
 }
 
