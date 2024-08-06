@@ -4,6 +4,7 @@ go 1.20
 
 require (
 	github.com/brevis-network/zk-utils v0.0.0-20240223081048-7daf41d41dee
+	github.com/cbergoon/merkletree v0.2.0
 	github.com/consensys/gnark v0.0.0
 	github.com/consensys/gnark-crypto v0.12.2-0.20231221171913-5d5eded6bb15
 	github.com/ethereum/go-ethereum v1.13.8
