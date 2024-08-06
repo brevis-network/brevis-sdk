@@ -196,7 +196,7 @@ func (s *server) GetProof(ctx context.Context, req *sdkproto.GetProofRequest) (r
 	}
 	if proof.err != "" {
 		return &sdkproto.GetProofResponse{
-			Err:   newErr(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, "failed to prove: %s %s", id, err.Error()),
+			Err:   newErr(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, "failed to prove: %s %s", id, proof.err),
 			Proof: "",
 		}, nil
 	}
