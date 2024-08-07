@@ -260,7 +260,7 @@ func (q *BrevisApp) PrepareRequest(
 		Target: appContract,
 		Gas:    callbackGasLimit,
 	}, uint8(0))
-	return calldata, common.BytesToHash(queryId), nonce, feeValue, err
+	return calldata, common.BytesToHash(queryId), q.nonce, feeValue, err
 }
 
 func (q *BrevisApp) buildSendRequestCalldata(args ...interface{}) ([]byte, error) {
