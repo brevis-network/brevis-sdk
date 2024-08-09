@@ -187,13 +187,8 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (re
 
 func (s *server) GetProof(ctx context.Context, req *sdkproto.GetProofRequest) (res *sdkproto.GetProofResponse, err error) {
 	id := req.ProofId
-	proof, foundProof := s.getProof(id)
-	if !foundProof {
-		return &sdkproto.GetProofResponse{
-			Err:   newErr(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, "failed to find this prove: %s", id),
-			Proof: "",
-		}, nil
-	}
+	proof := s.getProof(id)
+
 	if proof.err != "" {
 		return &sdkproto.GetProofResponse{
 			Err:   newErr(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, "failed to prove: %s %s", id, proof.err),
@@ -294,12 +289,12 @@ func (s *server) setProof(id, proof, err string) {
 	s.proofs[id] = proofRes{proof, err}
 }
 
-func (s *server) getProof(id string) (proofRes, bool) {
+func (s *server) getProof(id string) proofRes {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	fmt.Printf("get proof: %s\n", id)
-	res, found := s.proofs[id]
-	return res, found
+	res := s.proofs[id]
+	return res
 }
 
 func (s *server) deleteProof(id string) {
