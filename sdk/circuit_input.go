@@ -18,9 +18,10 @@ type DataInput struct {
 
 func defaultDataInput(maxReceipts, maxStorage, maxTxs, maxReceiptStatuses int) DataInput {
 	return DataInput{
-		Receipts:     NewDataPoints(maxReceipts, defaultReceipt),
-		StorageSlots: NewDataPoints(maxStorage, defaultStorageSlot),
-		Transactions: NewDataPoints(maxTxs, defaultTransaction),
+		Receipts:        NewDataPoints(maxReceipts, defaultReceipt),
+		StorageSlots:    NewDataPoints(maxStorage, defaultStorageSlot),
+		Transactions:    NewDataPoints(maxTxs, defaultTransaction),
+		ReceiptStatuses: NewDataPoints(maxReceiptStatuses, defaultReceiptStatus),
 	}
 }
 
@@ -29,6 +30,7 @@ func (d DataInput) Toggles() []frontend.Variable {
 	toggles = append(toggles, d.Receipts.Toggles...)
 	toggles = append(toggles, d.StorageSlots.Toggles...)
 	toggles = append(toggles, d.Transactions.Toggles...)
+	toggles = append(toggles, d.ReceiptStatuses.Toggles...)
 	// pad the reset (the dummy part) with off toggles
 	for i := len(toggles); i < NumMaxDataPoints; i++ {
 		toggles = append(toggles, 0)
