@@ -70,9 +70,9 @@ type TransactionData struct {
 type ReceiptStatusData struct {
 	BlockNum             *big.Int    `json:"block_num,omitempty"`
 	ReceiptIndex         uint64      `json:"receipt_index,omitempty"`
-	BlockHeaderExtraData []byte      `json:"block_header_extra_data,omitempty"`
+	BlockHeaderExtraData *big.Int    `json:"block_header_extra_data,omitempty"`
 	TxHash               common.Hash `json:"tx_hash,omitempty"`
-	// 0: reverted 1: success
+	// // 0: reverted 1: success
 	Status int `json:"status,omitempty"`
 }
 
@@ -139,11 +139,12 @@ func NewBrevisApp(gatewayUrlOverride ...string) (*BrevisApp, error) {
 		return nil, err
 	}
 	return &BrevisApp{
-		gc:            gc,
-		brevisRequest: br,
-		receipts:      rawData[ReceiptData]{},
-		storageVals:   rawData[StorageData]{},
-		txs:           rawData[TransactionData]{},
+		gc:              gc,
+		brevisRequest:   br,
+		receipts:        rawData[ReceiptData]{},
+		storageVals:     rawData[StorageData]{},
+		txs:             rawData[TransactionData]{},
+		receiptStatuses: rawData[ReceiptStatusData]{},
 	}, nil
 }
 
@@ -201,6 +202,12 @@ func (q *BrevisApp) BuildCircuitInput(app AppCircuit) (CircuitInput, error) {
 
 	// transaction
 	err = q.assignTransactions(&in)
+	if err != nil {
+		return buildCircuitInputErr("failed to assign in from transaction queries", err)
+	}
+
+	// receipt status
+	err = q.assignReceiptStatues(&in)
 	if err != nil {
 		return buildCircuitInputErr("failed to assign in from transaction queries", err)
 	}
@@ -630,6 +637,6 @@ func buildReceiptStatus(s ReceiptStatusData) ReceiptStatus {
 		BlockNum:       newU248(s.BlockNum),
 		Status:         newU248(s.Status),
 		ReceiptIndex:   newU248(s.ReceiptIndex),
-		BlockExtraData: ConstBytes32(s.BlockHeaderExtraData[:]),
+		BlockExtraData: ConstBytes32(s.BlockHeaderExtraData.Bytes()[:]),
 	}
 }
