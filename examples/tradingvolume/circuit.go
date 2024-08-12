@@ -40,14 +40,14 @@ var UsdcAddress = sdk.ConstUint248(
 var Salt = sdk.ConstBytes32(
 	hexutil.MustDecode("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"))
 
-func (c *AppCircuit) Allocate() (maxReceipts, maxSlots, maxTransactions int) {
+func (c *AppCircuit) Allocate() (maxReceipts, maxSlots, maxTransactions, maxReceiptStatuses int) {
 	// Allocating regions for different source data. Here, we are allocating 5 data
 	// slots for "receipt" data, and none for other data types. Please note that if
 	// you allocate it this way and compile your circuit, the circuit structure will
 	// always have 5 processing "chips" for receipts and none for others. It means
 	// your compiled circuit will always be only able to process up to 5 receipts and
 	// cannot process other types unless you change the allocations and recompile.
-	return 5, 0, 0
+	return 5, 0, 0, 0
 }
 
 func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {

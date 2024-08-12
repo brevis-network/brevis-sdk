@@ -67,7 +67,16 @@ type TransactionData struct {
 	Value     *big.Int       `json:"value,omitempty"`
 }
 
-type rawData[T ReceiptData | StorageData | TransactionData] struct {
+type ReceiptStatusData struct {
+	BlockNum             *big.Int    `json:"block_num,omitempty"`
+	ReceiptIndex         uint64      `json:"receipt_index,omitempty"`
+	BlockHeaderExtraData []byte      `json:"block_header_extra_data,omitempty"`
+	TxHash               common.Hash `json:"tx_hash,omitempty"`
+	// 0: reverted 1: success
+	Status int `json:"status,omitempty"`
+}
+
+type rawData[T ReceiptData | StorageData | TransactionData | ReceiptStatusData] struct {
 	ordered []T
 	special map[int]T
 }
@@ -105,17 +114,18 @@ type BrevisApp struct {
 	gc            *GatewayClient
 	brevisRequest *abi.ABI
 
-	receipts    rawData[ReceiptData]
-	storageVals rawData[StorageData]
-	txs         rawData[TransactionData]
+	receipts        rawData[ReceiptData]
+	storageVals     rawData[StorageData]
+	txs             rawData[TransactionData]
+	receiptStatuses rawData[ReceiptStatusData]
 
 	// cache fields
-	circuitInput                    CircuitInput
-	buildInputCalled                bool
-	queryId                         []byte
-	nonce                           uint64
-	srcChainId, dstChainId          uint64
-	maxReceipts, maxStorage, maxTxs int
+	circuitInput                                        CircuitInput
+	buildInputCalled                                    bool
+	queryId                                             []byte
+	nonce                                               uint64
+	srcChainId, dstChainId                              uint64
+	maxReceipts, maxStorage, maxTxs, maxReceiptStatuses int
 }
 
 func NewBrevisApp(gatewayUrlOverride ...string) (*BrevisApp, error) {
@@ -157,6 +167,10 @@ func (q *BrevisApp) AddTransaction(data TransactionData, index ...int) {
 	q.txs.add(data, index...)
 }
 
+func (q *BrevisApp) AddReceiptStatus(data ReceiptStatusData, index ...int) {
+	q.receiptStatuses.add(data, index...)
+}
+
 // BuildCircuitInput executes all added queries and package the query results
 // into circuit assignment (the DataInput struct) The provided ctx is used
 // when performing network calls to the provided blockchain RPC.
@@ -165,13 +179,13 @@ func (q *BrevisApp) BuildCircuitInput(app AppCircuit) (CircuitInput, error) {
 	// 1. mimc hash data at each position to generate and assign input commitments and toggles commitment
 	// 2. dry-run user circuit to generate output and output commitment
 
-	q.maxReceipts, q.maxStorage, q.maxTxs = app.Allocate()
+	q.maxReceipts, q.maxStorage, q.maxTxs, q.maxReceiptStatuses = app.Allocate()
 	err := q.checkAllocations(app)
 	if err != nil {
 		return CircuitInput{}, err
 	}
 
-	in := defaultCircuitInput(q.maxReceipts, q.maxStorage, q.maxTxs)
+	in := defaultCircuitInput(q.maxReceipts, q.maxStorage, q.maxTxs, q.maxReceiptStatuses)
 
 	// receipt
 	err = q.assignReceipts(&in)
@@ -394,7 +408,7 @@ func (q *BrevisApp) waitFinalProofSubmitted(cancel <-chan struct{}) (common.Hash
 }
 
 func (q *BrevisApp) checkAllocations(cb AppCircuit) error {
-	maxReceipts, maxSlots, maxTxs := cb.Allocate()
+	maxReceipts, maxSlots, maxTxs, maxReceiptStatuses := cb.Allocate()
 
 	numReceipts := len(q.receipts.special) + len(q.receipts.ordered)
 	if numReceipts > maxReceipts {
@@ -408,7 +422,11 @@ func (q *BrevisApp) checkAllocations(cb AppCircuit) error {
 	if numTxs > maxTxs {
 		return allocationLenErr("transaction", numTxs, maxTxs)
 	}
-	total := maxReceipts + maxSlots + maxTxs
+	numReceiptStatuses := len(q.receiptStatuses.special) + len(q.receiptStatuses.ordered)
+	if numReceiptStatuses > maxReceiptStatuses {
+		return allocationLenErr("receipt status", numReceiptStatuses, maxReceiptStatuses)
+	}
+	total := maxReceipts + maxSlots + maxTxs + maxReceiptStatuses
 	if total > NumMaxDataPoints {
 		return allocationLenErr("total", total, NumMaxDataPoints)
 	}
@@ -585,4 +603,33 @@ func buildCircuitInputErr(m string, err error) (CircuitInput, error) {
 func allocationLenErr(name string, queryCount, maxCount int) error {
 	return fmt.Errorf("# of %s queries (%d) must not exceed the allocated max %s (%d), check your AppCircuit.Allocate() method",
 		name, queryCount, name, maxCount)
+}
+
+func (q *BrevisApp) assignReceiptStatues(in *CircuitInput) (err error) {
+	// assigning user appointed data at specific indices
+	for i, val := range q.receiptStatuses.special {
+		in.ReceiptStatuses.Raw[i] = buildReceiptStatus(val)
+		in.ReceiptStatuses.Toggles[i] = 1
+	}
+
+	// distribute other data in order to the rest of the unassigned spaces
+	j := 0
+	for i, val := range q.receiptStatuses.ordered {
+		for in.StorageSlots.Toggles[j] == 1 {
+			j++
+		}
+		in.ReceiptStatuses.Raw[i] = buildReceiptStatus(val)
+		in.ReceiptStatuses.Toggles[i] = 1
+		j++
+	}
+	return nil
+}
+
+func buildReceiptStatus(s ReceiptStatusData) ReceiptStatus {
+	return ReceiptStatus{
+		BlockNum:       newU248(s.BlockNum),
+		Status:         newU248(s.Status),
+		ReceiptIndex:   newU248(s.ReceiptIndex),
+		BlockExtraData: ConstBytes32(s.BlockHeaderExtraData[:]),
+	}
 }

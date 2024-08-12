@@ -1,9 +1,10 @@
 package dummy
 
 import (
+	"math/big"
+
 	"github.com/brevis-network/brevis-sdk/sdk"
 	"github.com/ethereum/go-ethereum/common"
-	"math/big"
 )
 
 type AppCircuit struct {
@@ -35,8 +36,8 @@ func DefaultAppCircuit() *AppCircuit {
 
 var _ sdk.AppCircuit = &AppCircuit{}
 
-func (c *AppCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions int) {
-	return 1, 1, 1
+func (c *AppCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions, maxReceiptStatuses int) {
+	return 1, 1, 1, 0
 }
 
 func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {

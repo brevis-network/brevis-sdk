@@ -2,6 +2,8 @@ package sdk
 
 import (
 	"fmt"
+	"sync"
+
 	"github.com/brevis-network/brevis-sdk/common/utils"
 	"github.com/brevis-network/zk-utils/circuits/gadgets/keccak"
 	"github.com/consensys/gnark-crypto/ecc"
@@ -9,12 +11,11 @@ import (
 	"github.com/consensys/gnark/std/hash/mimc"
 	"github.com/consensys/gnark/std/multicommit"
 	"github.com/consensys/gnark/test"
-	"sync"
 )
 
 type AppCircuit interface {
 	Define(api *CircuitAPI, in DataInput) error
-	Allocate() (maxReceipts, maxStorage, maxTransactions int)
+	Allocate() (maxReceipts, maxStorage, maxTransactions, maxReceiptStatuses int)
 }
 
 type HostCircuit struct {
@@ -25,13 +26,13 @@ type HostCircuit struct {
 }
 
 func DefaultHostCircuit(app AppCircuit) *HostCircuit {
-	maxReceipts, maxStorage, maxTxs := app.Allocate()
+	maxReceipts, maxStorage, maxTxs, maxReceiptStatuses := app.Allocate()
 	var inputCommits = make([]frontend.Variable, NumMaxDataPoints)
 	for i := 0; i < NumMaxDataPoints; i++ {
 		inputCommits[i] = 0
 	}
 	h := &HostCircuit{
-		Input: defaultCircuitInput(maxReceipts, maxStorage, maxTxs),
+		Input: defaultCircuitInput(maxReceipts, maxStorage, maxTxs, maxReceiptStatuses),
 		Guest: app,
 	}
 	return h
@@ -157,7 +158,7 @@ func (c *HostCircuit) validateInput() error {
 	if inputLen > NumMaxDataPoints {
 		return fmt.Errorf("input len must be less than %d", NumMaxDataPoints)
 	}
-	maxReceipts, maxSlots, maxTransactions := c.Guest.Allocate()
+	maxReceipts, maxSlots, maxTransactions, maxReceiptStatuses := c.Guest.Allocate()
 	if len(d.Receipts.Raw) != len(d.Receipts.Toggles) || len(d.Receipts.Raw) != maxReceipts {
 		return fmt.Errorf("receipt input/toggle len mismatch: %d vs %d",
 			len(d.Receipts.Raw), len(d.Receipts.Toggles))
@@ -169,6 +170,10 @@ func (c *HostCircuit) validateInput() error {
 	if len(d.Transactions.Raw) != len(d.Transactions.Toggles) || len(d.Transactions.Raw) != maxTransactions {
 		return fmt.Errorf("transaction input/toggle len mismatch: %d vs %d",
 			len(d.Transactions.Raw), len(d.Transactions.Toggles))
+	}
+	if len(d.ReceiptStatuses.Raw) != len(d.ReceiptStatuses.Toggles) || len(d.ReceiptStatuses.Raw) != maxReceiptStatuses {
+		return fmt.Errorf("receipt status input/toggle len mismatch: %d vs %d",
+			len(d.ReceiptStatuses.Raw), len(d.ReceiptStatuses.Toggles))
 	}
 	return nil
 }

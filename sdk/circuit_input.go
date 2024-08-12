@@ -10,12 +10,13 @@ import (
 )
 
 type DataInput struct {
-	Receipts     DataPoints[Receipt]
-	StorageSlots DataPoints[StorageSlot]
-	Transactions DataPoints[Transaction]
+	Receipts        DataPoints[Receipt]
+	StorageSlots    DataPoints[StorageSlot]
+	Transactions    DataPoints[Transaction]
+	ReceiptStatuses DataPoints[ReceiptStatus]
 }
 
-func defaultDataInput(maxReceipts, maxStorage, maxTxs int) DataInput {
+func defaultDataInput(maxReceipts, maxStorage, maxTxs, maxReceiptStatuses int) DataInput {
 	return DataInput{
 		Receipts:     NewDataPoints(maxReceipts, defaultReceipt),
 		StorageSlots: NewDataPoints(maxStorage, defaultStorageSlot),
@@ -51,13 +52,13 @@ type CircuitInput struct {
 	dryRunOutput []byte `gnark:"-"`
 }
 
-func defaultCircuitInput(maxReceipts, maxStorage, maxTxs int) CircuitInput {
+func defaultCircuitInput(maxReceipts, maxStorage, maxTxs, maxReceiptStatuses int) CircuitInput {
 	var inputCommits = make([]frontend.Variable, NumMaxDataPoints)
 	for i := 0; i < NumMaxDataPoints; i++ {
 		inputCommits[i] = 0
 	}
 	return CircuitInput{
-		DataInput:         defaultDataInput(maxReceipts, maxStorage, maxTxs),
+		DataInput:         defaultDataInput(maxReceipts, maxStorage, maxTxs, maxReceiptStatuses),
 		InputCommitments:  inputCommits,
 		TogglesCommitment: 0,
 		OutputCommitment:  OutputCommitment{0, 0},
@@ -510,5 +511,83 @@ func (t Transaction) goPack() []*big.Int {
 	bits = append(bits, decomposeBits(fromInterface(t.From.Val), 8*20)...)
 	bits = append(bits, decomposeBits(fromInterface(t.To.Val), 8*20)...)
 	bits = append(bits, t.Value.toBinary()...)
+	return packBitsToInt(bits, bls12377_fr.Bits-1)
+}
+
+type ReceiptStatus struct {
+	BlockNum Uint248
+	// Receipt status
+	Status Uint248
+	// Receipt index in block
+	ReceiptIndex Uint248
+	// The block extra data
+	BlockExtraData Bytes32
+}
+
+func defaultReceiptStatus() ReceiptStatus {
+	return ReceiptStatus{
+		BlockNum:       newU248(0),
+		Status:         newU248(0),
+		ReceiptIndex:   newU248(0),
+		BlockExtraData: ConstBytes32([]byte{}),
+	}
+}
+
+var _ CircuitVariable = StorageSlot{}
+
+func (s ReceiptStatus) Values() []frontend.Variable {
+	var ret []frontend.Variable
+	ret = append(ret, s.BlockNum.Values()...)
+	ret = append(ret, s.Status.Values()...)
+	ret = append(ret, s.ReceiptIndex.Values()...)
+	ret = append(ret, s.BlockExtraData.Values()...)
+	return ret
+}
+
+func (s ReceiptStatus) FromValues(vs ...frontend.Variable) CircuitVariable {
+	nr := ReceiptStatus{}
+
+	start, end := uint32(0), s.BlockNum.NumVars()
+	nr.BlockNum = s.BlockNum.FromValues(vs[start:end]...).(Uint248)
+
+	start, end = end, end+s.Status.NumVars()
+	nr.Status = s.Status.FromValues(vs[start:end]...).(Uint248)
+
+	start, end = end, end+s.ReceiptIndex.NumVars()
+	nr.ReceiptIndex = s.ReceiptIndex.FromValues(vs[start:end]...).(Uint248)
+
+	start, end = end, end+s.BlockExtraData.NumVars()
+	nr.BlockExtraData = s.BlockExtraData.FromValues(vs[start:end]...).(Bytes32)
+
+	return nr
+}
+
+func (s ReceiptStatus) NumVars() uint32 {
+	return s.BlockNum.NumVars() + s.Status.NumVars() + s.ReceiptIndex.NumVars() + s.BlockExtraData.NumVars()
+}
+
+func (s ReceiptStatus) String() string { return "StorageSlot" }
+
+// pack packs the storage slots into BLS12377 scalars
+// 4 bytes for block num + 84 bytes for each slot = 672 bits, fits into 3 BLS12377 fr vars:
+// - 20 bytes for contract address
+// - 32 bytes for slot key
+// - 32 bytes for slot value
+func (s ReceiptStatus) pack(api frontend.API) []frontend.Variable {
+	var bits []frontend.Variable
+	bits = append(bits, api.ToBinary(s.BlockNum.Val, 8*4)...)
+	bits = append(bits, api.ToBinary(s.ReceiptIndex.Val, 12)...)
+	bits = append(bits, api.ToBinary(s.Status.Val, 1)...)
+	bits = append(bits, s.BlockExtraData.toBinaryVars(api)...)
+	return packBitsToFr(api, bits)
+}
+
+func (s ReceiptStatus) goPack() []*big.Int {
+	var bits []uint
+	bits = append(bits, decomposeBits(fromInterface(s.BlockNum.Val), 8*4)...)
+	bits = append(bits, decomposeBits(fromInterface(s.ReceiptIndex.Val), 12)...)
+	bits = append(bits, decomposeBits(fromInterface(s.Status.Val), 11)...)
+	// bits = append(bits, decomposeBits(fromInterface(s.Status.Val, 1))
+	bits = append(bits, s.BlockExtraData.toBinary()...)
 	return packBitsToInt(bits, bls12377_fr.Bits-1)
 }

@@ -2,6 +2,7 @@ package sdk
 
 import (
 	"fmt"
+
 	"github.com/brevis-network/brevis-sdk/sdk/proto/commonproto"
 
 	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
@@ -67,4 +68,8 @@ func buildTxInfos(r rawData[TransactionData], max int) (infos []*gwproto.Transac
 		})
 	}
 	return
+}
+
+func buildReceiptStatusInfo(r rawData[ReceiptStatusData], max int) {
+
 }

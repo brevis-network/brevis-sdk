@@ -2,11 +2,12 @@ package prover
 
 import (
 	"fmt"
+	"math/big"
+	"testing"
+
 	"github.com/brevis-network/brevis-sdk/sdk"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto"
 	"github.com/stretchr/testify/assert"
-	"math/big"
-	"testing"
 )
 
 func TestAssignCustomInput(t *testing.T) {
@@ -54,8 +55,10 @@ func TestAssignCustomInput_Incorrect(t *testing.T) {
 
 type dummyImpl struct{}
 
-func (d dummyImpl) Allocate() (maxReceipts, maxStorage, maxTransactions int) { return 1, 2, 3 }
-func (d dummyImpl) Define(api *sdk.CircuitAPI, in sdk.DataInput) error       { return nil }
+func (d dummyImpl) Allocate() (maxReceipts, maxStorage, maxTransactions, maxReceiptStatuses int) {
+	return 1, 2, 3, 0
+}
+func (d dummyImpl) Define(api *sdk.CircuitAPI, in sdk.DataInput) error { return nil }
 
 type AppCircuit struct {
 	dummyImpl

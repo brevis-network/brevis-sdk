@@ -10,11 +10,11 @@ type AppCircuit struct{}
 
 var _ sdk.AppCircuit = &AppCircuit{}
 
-func (c *AppCircuit) Allocate() (maxReceipts, maxSlots, maxTransactions int) {
+func (c *AppCircuit) Allocate() (maxReceipts, maxSlots, maxTransactions, maxReceiptStatuses int) {
 	// Here we have allocated 2 circuit slots for proving storage slots, but in this
 	// example we will show that we can only use one of those slots. We will also
 	// show that you can "fixate" a piece of data at a specific index.
-	return 0, 2, 0
+	return 0, 2, 0, 0
 }
 
 // For simplicity, we assume that the storage at slot 0 is the `owner` field of
