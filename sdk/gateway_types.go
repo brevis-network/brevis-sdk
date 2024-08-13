@@ -70,6 +70,11 @@ func buildTxInfos(r rawData[TransactionData], max int) (infos []*gwproto.Transac
 	return
 }
 
-func buildReceiptStatusInfo(r rawData[ReceiptStatusData], max int) {
-
+func buildReceiptStatusInfo(r rawData[ReceiptStatusData], max int) (infos []*gwproto.ReceiptStatusInfo) {
+	for _, d := range r.list(max) {
+		infos = append(infos, &gwproto.ReceiptStatusInfo{
+			TransactionHash: d.TxHash.Hex(),
+		})
+	}
+	return
 }

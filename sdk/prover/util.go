@@ -158,3 +158,13 @@ func convertProtoTxToSdkTx(in *sdkproto.TransactionData) (sdk.TransactionData, e
 		Value:               value,
 	}, nil
 }
+
+func convertProtoReceiptStatusToSdkReceiptStatus(in *sdkproto.ReceiptStatusData) (sdk.ReceiptStatusData, error) {
+	return sdk.ReceiptStatusData{
+		BlockNum:             new(big.Int).SetUint64(in.BlockNum),
+		ReceiptIndex:         in.ReceiptIndex,
+		Status:               in.Status,
+		TxHash:               hex2Hash(in.TxHash),
+		BlockHeaderExtraData: new(big.Int).SetBytes(hex2Bytes(in.BlkHeaderExtraData)),
+	}, nil
+}

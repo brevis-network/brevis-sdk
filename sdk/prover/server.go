@@ -241,6 +241,15 @@ func (s *server) buildInput(req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.
 		brevisApp.AddTransaction(sdkTx, int(transaction.Index))
 	}
 
+	for _, receiptStatus := range req.ReceiptStatuses {
+		sdkReceiptStatus, err := convertProtoReceiptStatusToSdkReceiptStatus(receiptStatus.Data)
+		if err != nil {
+			return makeErr(sdkproto.ErrCode_ERROR_INVALID_INPUT, "invalid sdk receipt status: %+v, %s", receiptStatus.Data, err.Error())
+		}
+
+		brevisApp.AddReceiptStatus(sdkReceiptStatus, int(receiptStatus.Index))
+	}
+
 	guest, err := assignCustomInput(s.app, req.CustomInput)
 	if err != nil {
 		return makeErr(sdkproto.ErrCode_ERROR_INVALID_CUSTOM_INPUT, "invalid custom input %s\n", err.Error())

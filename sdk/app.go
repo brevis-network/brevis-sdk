@@ -73,7 +73,7 @@ type ReceiptStatusData struct {
 	BlockHeaderExtraData *big.Int    `json:"block_header_extra_data,omitempty"`
 	TxHash               common.Hash `json:"tx_hash,omitempty"`
 	// // 0: reverted 1: success
-	Status int `json:"status,omitempty"`
+	Status uint64 `json:"status,omitempty"`
 }
 
 type rawData[T ReceiptData | StorageData | TransactionData | ReceiptStatusData] struct {
@@ -248,13 +248,14 @@ func (q *BrevisApp) PrepareRequest(
 	q.dstChainId = dstChainId
 
 	req := &gwproto.PrepareQueryRequest{
-		ChainId:           srcChainId,
-		TargetChainId:     dstChainId,
-		ReceiptInfos:      buildReceiptInfos(q.receipts, q.maxReceipts),
-		StorageQueryInfos: buildStorageQueryInfos(q.storageVals, q.maxStorage),
-		TransactionInfos:  buildTxInfos(q.txs, q.maxTxs),
-		AppCircuitInfo:    buildAppCircuitInfo(q.circuitInput, vk),
-		Option:            *option,
+		ChainId:            srcChainId,
+		TargetChainId:      dstChainId,
+		ReceiptInfos:       buildReceiptInfos(q.receipts, q.maxReceipts),
+		StorageQueryInfos:  buildStorageQueryInfos(q.storageVals, q.maxStorage),
+		TransactionInfos:   buildTxInfos(q.txs, q.maxTxs),
+		AppCircuitInfo:     buildAppCircuitInfo(q.circuitInput, vk),
+		ReceiptStatusInfos: buildReceiptStatusInfo(q.receiptStatuses, q.maxReceiptStatuses),
+		Option:             *option,
 	}
 
 	fmt.Println("Calling Brevis gateway PrepareRequest...")
