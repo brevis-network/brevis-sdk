@@ -100,7 +100,8 @@ type server struct {
 	vk  plonk.VerifyingKey
 	ccs constraint.ConstraintSystem
 
-	vkBytes string
+	vkString string
+	vkHash   string
 
 	proofs map[string]proofRes
 	lock   sync.RWMutex
@@ -118,13 +119,20 @@ func newServer(
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	vkHash, err := sdk.ComputeVkHash(vk)
+	if err != nil {
+		fmt.Printf("failed to compute vk hash %s", err.Error())
+		os.Exit(1)
+	}
+
 	return &server{
-		app:     app,
-		pk:      pk,
-		vk:      vk,
-		ccs:     ccs,
-		vkBytes: hexutil.Encode(buf.Bytes()),
-		proofs:  make(map[string]proofRes),
+		app:      app,
+		pk:       pk,
+		vk:       vk,
+		ccs:      ccs,
+		vkString: hexutil.Encode(buf.Bytes()),
+		vkHash:   vkHash.Hex(),
+		proofs:   make(map[string]proofRes),
 	}
 }
 
@@ -147,7 +155,7 @@ func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkpro
 
 	return &sdkproto.ProveResponse{
 		Proof:       proof,
-		CircuitInfo: buildAppCircuitInfo(*input, s.vkBytes),
+		CircuitInfo: buildAppCircuitInfo(*input, s.vkString, s.vkHash),
 	}, nil
 }
 
@@ -181,7 +189,7 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (re
 	return &sdkproto.ProveAsyncResponse{
 		Err:         nil,
 		ProofId:     uid,
-		CircuitInfo: buildAppCircuitInfo(*input, s.vkBytes),
+		CircuitInfo: buildAppCircuitInfo(*input, s.vkString, s.vkHash),
 	}, nil
 }
 
