@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/brevis-network/brevis-sdk/sdk/proto/commonproto"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
 
 	"github.com/brevis-network/zk-utils/common/eth"
@@ -219,10 +220,18 @@ func (q *BrevisApp) PrepareRequest(
 	refundee, appContract common.Address,
 	callbackGasLimit uint64,
 	option *gwproto.QueryOption,
+	apiKey string, // used for brevis partner flow
 ) (calldata []byte, requestId common.Hash, nonce uint64, feeValue *big.Int, err error) {
 	if !q.buildInputCalled {
 		panic("must call BuildCircuitInput before PrepareRequest")
 	}
+	if len(apiKey) > 0 {
+		fmt.Println("Use Brevis Partner Flow to PrepareRequest...")
+		return q.prepareQueryForBrevisPartnerFlow(
+			vk, srcChainId, dstChainId, appContract, option, apiKey,
+		)
+	}
+
 	q.srcChainId = srcChainId
 	q.dstChainId = dstChainId
 
@@ -391,6 +400,73 @@ func (q *BrevisApp) waitFinalProofSubmitted(cancel <-chan struct{}) (common.Hash
 			return common.Hash{}, nil
 		}
 	}
+}
+
+func (q *BrevisApp) prepareQueryForBrevisPartnerFlow(
+	vk plonk.VerifyingKey,
+	srcChainId, dstChainId uint64,
+	appContract common.Address,
+	option *gwproto.QueryOption,
+	apiKey string, // used for brevis partner flow
+) (calldata []byte, requestId common.Hash, nonce uint64, feeValue *big.Int, err error) {
+	if !q.buildInputCalled {
+		panic("must call BuildCircuitInput before PrepareRequest")
+	}
+	q.srcChainId = srcChainId
+	q.dstChainId = dstChainId
+
+	appCircuitInfo := buildAppCircuitInfo(q.circuitInput, vk)
+
+	req := &gwproto.SendBatchQueriesRequest{
+		ChainId: srcChainId,
+		Queries: []*gwproto.Query{
+			{
+				ReceiptInfos:      buildReceiptInfos(q.receipts, q.maxReceipts),
+				StorageQueryInfos: buildStorageQueryInfos(q.storageVals, q.maxStorage),
+				TransactionInfos:  buildTxInfos(q.txs, q.maxTxs),
+				AppCircuitInfo: &commonproto.AppCirucitInfoWithProof{
+					OutputCommitment:  appCircuitInfo.OutputCommitment,
+					VkHash:            appCircuitInfo.Vk,
+					InputCommitments:  appCircuitInfo.InputCommitments,
+					TogglesCommitment: appCircuitInfo.TogglesCommitment,
+					Toggles:           appCircuitInfo.Toggles,
+					Output:            appCircuitInfo.Output,
+					CallbackAddr:      hexutil.Encode(appContract[:]),
+				},
+			},
+		},
+		TargetChainId: dstChainId,
+		Option:        *option,
+		ApiKey:        apiKey,
+	}
+	fmt.Println("Calling Brevis gateway PrepareRequest...")
+	res, err := q.gc.SendBatchQueries(req)
+	if err != nil {
+		return
+	}
+
+	if len(res.QueryKeys) == 0 {
+		err = fmt.Errorf("empty query info from brevis gateway")
+		return
+	}
+
+	queryKey := res.QueryKeys[0]
+	queryId, err := hexutil.Decode(queryKey.QueryHash)
+	if err != nil {
+		return
+	}
+	q.queryId = queryId
+	q.nonce = queryKey.Nonce
+
+	feeValue, ok := new(big.Int).SetString(res.GetFee(), 10)
+	if !ok {
+		err = fmt.Errorf("cannot parse fee value of %s", res.GetFee())
+		return
+	}
+
+	fmt.Printf("Brevis gateway responded with proofId %x, nonce %d, feeValue %d\n", queryId, q.nonce, feeValue)
+	fmt.Println("No need to submit on-chain tx for brevis partner flow")
+	return nil, common.BytesToHash(queryId), q.nonce, feeValue, err
 }
 
 func (q *BrevisApp) checkAllocations(cb AppCircuit) error {

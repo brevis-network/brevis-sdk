@@ -66,3 +66,14 @@ func (c *GatewayClient) SubmitProof(req *gwproto.SubmitAppCircuitProofRequest) (
 	}
 	return
 }
+
+func (c *GatewayClient) SendBatchQueries(req *gwproto.SendBatchQueriesRequest) (resp *gwproto.SendBatchQueriesResponse, err error) {
+	resp, err = c.c.SendBatchQueries(context.Background(), req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.Err != nil {
+		return nil, fmt.Errorf("invalid resp, err: %v", resp.Err)
+	}
+	return
+}
