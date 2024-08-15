@@ -417,6 +417,12 @@ func (q *BrevisApp) prepareQueryForBrevisPartnerFlow(
 
 	appCircuitInfo := buildAppCircuitInfo(q.circuitInput, vk)
 
+	vkHash, err := ComputeVkHash(vk)
+	if err != nil {
+		err = fmt.Errorf("failed to compute vk hash: %s", err.Error())
+		return
+	}
+
 	req := &gwproto.SendBatchQueriesRequest{
 		ChainId: srcChainId,
 		Queries: []*gwproto.Query{
@@ -426,7 +432,7 @@ func (q *BrevisApp) prepareQueryForBrevisPartnerFlow(
 				TransactionInfos:  buildTxInfos(q.txs, q.maxTxs),
 				AppCircuitInfo: &commonproto.AppCirucitInfoWithProof{
 					OutputCommitment:  appCircuitInfo.OutputCommitment,
-					VkHash:            appCircuitInfo.Vk,
+					VkHash:            vkHash.Hex(),
 					InputCommitments:  appCircuitInfo.InputCommitments,
 					TogglesCommitment: appCircuitInfo.TogglesCommitment,
 					Toggles:           appCircuitInfo.Toggles,
