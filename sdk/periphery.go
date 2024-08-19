@@ -13,8 +13,8 @@ import (
 	"github.com/consensys/gnark/backend/plonk"
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/consensys/gnark/constraint"
-	cs "github.com/consensys/gnark/constraint/bls12-377"
-	cs_12377 "github.com/consensys/gnark/constraint/bls12-377"
+	cs "github.com/consensys/gnark/constraint/bn254"
+	cs_bn254 "github.com/consensys/gnark/constraint/bn254"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/scs"
 	"github.com/consensys/gnark/std/algebra/native/sw_bls12377"
@@ -177,7 +177,7 @@ func ReadCircuitFrom(path string) (constraint.ConstraintSystem, error) {
 		return nil, err
 	}
 	defer f.Close()
-	ccs := new(cs_12377.R1CS)
+	ccs := new(cs_bn254.R1CS)
 	d, err := ccs.ReadFrom(f)
 	if err != nil {
 		return nil, err

@@ -276,6 +276,7 @@ func calMerkelRoot(gapi frontend.API, datas []frontend.Variable) (frontend.Varia
 	copy(leafs, datas)
 	for {
 		if elementCount == 1 {
+			log.Infof("in circuitnputCommitmentsRoot: %v", leafs[0])
 			return leafs[0], nil
 		}
 		log.Infof("calMerkelRoot with element size: %d", elementCount)

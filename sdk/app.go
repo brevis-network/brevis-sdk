@@ -528,6 +528,7 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 	for {
 		if elementCount == 1 {
 			w.InputCommitmentsRoot = leafs[0]
+			log.Infof("w.InputCommitmentsRoot: %v", w.InputCommitmentsRoot)
 			return
 		}
 		log.Infof("calMerkelRoot(no circuit) with element size: %d", elementCount)

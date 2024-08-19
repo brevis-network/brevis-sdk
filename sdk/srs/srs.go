@@ -19,7 +19,7 @@ import (
 	"sync"
 )
 
-const curveID = ecc.BLS12_377
+const curveID = ecc.BN254
 
 var (
 	cache           = make(map[string]CacheEntry)
@@ -94,7 +94,7 @@ func log2(num uint64) uint64 {
 }
 
 func Generate(canonicalSize uint64) (kzg.SRS, kzg.SRS, error) {
-	tau, err := rand.Int(rand.Reader, ecc.BLS12_377.ScalarField())
+	tau, err := rand.Int(rand.Reader, ecc.BN254.ScalarField())
 	if err != nil {
 		return nil, nil, err
 	}
