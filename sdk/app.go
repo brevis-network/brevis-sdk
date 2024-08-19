@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/celer-network/goutils/log"
+	mimc2 "github.com/consensys/gnark-crypto/ecc/bn254/fr/mimc"
 	"hash"
 	"math/big"
 	"time"
@@ -492,27 +494,56 @@ func (q *BrevisApp) checkAllocations(cb AppCircuit) error {
 }
 
 func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
+	leafs := make([]*big.Int, NumMaxDataPoints)
 	hasher := mimc.NewMiMC()
 	// assign 0 to input commit for dummy slots and actual data hash for non-dummies
 	j := 0
 	for i, receipt := range w.Receipts.Raw {
 		if fromInterface(w.Receipts.Toggles[i]).Sign() != 0 {
-			w.InputCommitments[j] = doHash(hasher, receipt.goPack())
+			leafs[j] = doHash(hasher, receipt.goPack())
+			w.InputCommitments[j] = leafs[j]
 		}
 		j++
 	}
 	for i, slot := range w.StorageSlots.Raw {
 		if fromInterface(w.StorageSlots.Toggles[i]).Sign() != 0 {
-			w.InputCommitments[j] = doHash(hasher, slot.goPack())
+			leafs[j] = doHash(hasher, slot.goPack())
+			w.InputCommitments[j] = leafs[j]
 		}
 		j++
 	}
 	for i, tx := range w.Transactions.Raw {
 		if fromInterface(w.Transactions.Toggles[i]).Sign() != 0 {
-			w.InputCommitments[j] = doHash(hasher, tx.goPack())
+			leafs[j] = doHash(hasher, tx.goPack())
+			w.InputCommitments[j] = leafs[j]
 		}
 		j++
 	}
+
+	for i := j; i < NumMaxDataPoints; i++ {
+		leafs[i] = new(big.Int).SetUint64(1)
+		w.InputCommitments[i] = leafs[i]
+	}
+
+	elementCount := len(w.InputCommitments)
+	for {
+		if elementCount == 1 {
+			w.InputCommitmentsRoot = leafs[0]
+			return
+		}
+		log.Infof("calMerkelRoot(no circuit) with element size: %d", elementCount)
+		for i := 0; i < elementCount/2; i++ {
+			var mimcBlockBuf0, mimcBlockBuf1 [mimc2.BlockSize]byte
+			leafs[2*i].FillBytes(mimcBlockBuf0[:])
+			leafs[2*i+1].FillBytes(mimcBlockBuf1[:])
+			hasher.Reset()
+			hasher.Write(mimcBlockBuf0[:])
+			hasher.Write(mimcBlockBuf1[:])
+			leafs[i] = new(big.Int).SetBytes(hasher.Sum(nil))
+		}
+		elementCount = elementCount / 2
+	}
+
 }
 
 func doHash(hasher hash.Hash, packed []*big.Int) *big.Int {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/brevis-network/brevis-sdk/common/utils"
 	"github.com/brevis-network/zk-utils/circuits/gadgets/keccak"
+	"github.com/celer-network/goutils/log"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/hash/mimc"
@@ -56,6 +57,11 @@ func (c *HostCircuit) Define(gapi frontend.API) error {
 		return fmt.Errorf("error building user-defined circuit %s", err.Error())
 	}
 	assertInputUniqueness(gapi, c.Input.InputCommitments, api.checkInputUniqueness)
+	inputCommitmentRoot, err := calMerkelRoot(gapi, c.Input.InputCommitments)
+	if err != nil {
+		return fmt.Errorf("error building user-defined circuit calMerkelRoot fail, %s", err.Error())
+	}
+	gapi.AssertIsEqual(inputCommitmentRoot, c.Input.InputCommitmentsRoot)
 	outputCommit := c.commitOutput(api.output)
 	dryRunOutputCommit = outputCommit
 	gapi.AssertIsEqual(outputCommit[0], c.Input.OutputCommitment[0])
@@ -255,4 +261,30 @@ func dryRun(in CircuitInput, guest AppCircuit) (OutputCommitment, []byte, error)
 	copy(commit[:], dryRunOutputCommit[:])
 
 	return commit, out, nil
+}
+
+// return merkel root hash,
+// must be a full binary tree
+// leafs is the InputCommitments list
+func calMerkelRoot(gapi frontend.API, datas []frontend.Variable) (frontend.Variable, error) {
+	hasher, err := mimc.NewMiMC(gapi)
+	if err != nil {
+		return nil, err
+	}
+	elementCount := len(datas)
+	leafs := make([]frontend.Variable, elementCount)
+	copy(leafs, datas)
+	for {
+		if elementCount == 1 {
+			return leafs[0], nil
+		}
+		log.Infof("calMerkelRoot with element size: %d", elementCount)
+		for i := 0; i < elementCount/2; i++ {
+			hasher.Reset()
+			hasher.Write(leafs[2*i])
+			hasher.Write(leafs[2*i+1])
+			leafs[i] = hasher.Sum()
+		}
+		elementCount = elementCount / 2
+	}
 }

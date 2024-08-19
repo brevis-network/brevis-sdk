@@ -41,8 +41,9 @@ type CircuitInput struct {
 	// InputCommitments is a list of hash commitment to each value of Raw. These
 	// commitments must match sub-prover circuit's commitment to its rlp decoded
 	// values
-	InputCommitments  []frontend.Variable `gnark:",public"`
-	TogglesCommitment frontend.Variable   `gnark:",public"`
+	InputCommitmentsRoot frontend.Variable `gnark:",public"`
+	InputCommitments     []frontend.Variable
+	TogglesCommitment    frontend.Variable `gnark:",public"`
 	// OutputCommitment is a keccak256 commitment to the computation results of the
 	// developer's circuit. The output of this commitment is revealed by the
 	// developer in their application contract.
@@ -57,10 +58,11 @@ func defaultCircuitInput(maxReceipts, maxStorage, maxTxs int) CircuitInput {
 		inputCommits[i] = 0
 	}
 	return CircuitInput{
-		DataInput:         defaultDataInput(maxReceipts, maxStorage, maxTxs),
-		InputCommitments:  inputCommits,
-		TogglesCommitment: 0,
-		OutputCommitment:  OutputCommitment{0, 0},
+		DataInput:            defaultDataInput(maxReceipts, maxStorage, maxTxs),
+		InputCommitmentsRoot: 0,
+		InputCommitments:     inputCommits,
+		TogglesCommitment:    0,
+		OutputCommitment:     OutputCommitment{0, 0},
 	}
 }
 
@@ -69,9 +71,10 @@ func (in CircuitInput) Clone() CircuitInput {
 	copy(inputCommits, in.InputCommitments)
 
 	return CircuitInput{
-		InputCommitments:  inputCommits,
-		TogglesCommitment: in.TogglesCommitment,
-		OutputCommitment:  in.OutputCommitment,
+		InputCommitmentsRoot: in.InputCommitmentsRoot,
+		InputCommitments:     inputCommits,
+		TogglesCommitment:    in.TogglesCommitment,
+		OutputCommitment:     in.OutputCommitment,
 		DataInput: DataInput{
 			Receipts:     in.Receipts.Clone(),
 			StorageSlots: in.StorageSlots.Clone(),
