@@ -50,7 +50,7 @@ func NewFullWitness(assign AppCircuit, in CircuitInput) (w, wpub witness.Witness
 	fmt.Println(">> generate full witness")
 	host := NewHostCircuit(in.Clone(), assign)
 
-	w, err = frontend.NewWitness(host, ecc.BLS12_377.ScalarField())
+	w, err = frontend.NewWitness(host, ecc.BN254.ScalarField())
 	if err != nil {
 		return
 	}
@@ -66,7 +66,7 @@ func CompileOnly(app AppCircuit) (constraint.ConstraintSystem, error) {
 	host := DefaultHostCircuit(app)
 
 	before := time.Now()
-	ccs, err := frontend.Compile(ecc.BLS12_377.ScalarField(), scs.NewBuilder, host)
+	ccs, err := frontend.Compile(ecc.BN254.ScalarField(), scs.NewBuilder, host)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile: %s", err.Error())
 	}

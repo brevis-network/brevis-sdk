@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/consensys/gnark-crypto/ecc"
-	mimc_native "github.com/consensys/gnark-crypto/ecc/bls12-377/fr/mimc"
+	mimc_native "github.com/consensys/gnark-crypto/ecc/bn254/fr/mimc"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/hash/mimc"
 	"github.com/consensys/gnark/test"
@@ -40,7 +40,7 @@ func TestPackBitsToFr(t *testing.T) {
 		Bits:         newVars(bits),
 		ExpectPacked: newVars(packed),
 	}
-	err := test.IsSolved(c, w, ecc.BLS12_377.ScalarField())
+	err := test.IsSolved(c, w, ecc.BN254.ScalarField())
 	if err != nil {
 		t.Error(err)
 	}
@@ -100,7 +100,7 @@ func TestReceiptPack(t *testing.T) {
 		ExpectHash:   h,
 	}
 
-	err := test.IsSolved(c, a, ecc.BLS12_377.ScalarField())
+	err := test.IsSolved(c, a, ecc.BN254.ScalarField())
 	if err != nil {
 		t.Error(err)
 	}
@@ -137,7 +137,7 @@ func TestStoragePack(t *testing.T) {
 		Packed: newVars(s.goPack()),
 	}
 
-	err := test.IsSolved(c, a, ecc.BLS12_377.ScalarField())
+	err := test.IsSolved(c, a, ecc.BN254.ScalarField())
 	if err != nil {
 		t.Error(err)
 	}
@@ -179,7 +179,7 @@ func TestTransactionPack(t *testing.T) {
 		Packed:      newVars(tx.goPack()),
 	}
 
-	err := test.IsSolved(c, a, ecc.BLS12_377.ScalarField())
+	err := test.IsSolved(c, a, ecc.BN254.ScalarField())
 	if err != nil {
 		t.Error(err)
 	}

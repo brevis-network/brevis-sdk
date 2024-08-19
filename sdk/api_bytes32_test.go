@@ -12,7 +12,7 @@ import (
 
 func TestBytes32API(t *testing.T) {
 	c := &TestBytes32APICircuit{}
-	err := test.IsSolved(c, c, ecc.BLS12_377.ScalarField())
+	err := test.IsSolved(c, c, ecc.BN254.ScalarField())
 	check(err)
 }
 

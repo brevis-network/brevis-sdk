@@ -17,7 +17,7 @@ func recompose[T uint | byte](data []T, bitSize int) *big.Int {
 	for i := 0; i < len(data); i++ {
 		d := big.NewInt(int64(data[i]))
 		r.Add(r, new(big.Int).Lsh(d, uint(i*bitSize)))
-		r.Mod(r, ecc.BLS12_377.ScalarField())
+		r.Mod(r, ecc.BN254.ScalarField())
 	}
 	return r
 }
@@ -39,7 +39,7 @@ func decompose[T uint | byte](data *big.Int, bitSize uint, length int) []T {
 }
 
 func PackBitsToInt(bits []uint) []*big.Int {
-	bitLen := ecc.BLS12_377.ScalarField().BitLen() - 1
+	bitLen := ecc.BN254.ScalarField().BitLen() - 1
 	var r []*big.Int
 	for i := 0; i < len(bits); i += bitLen {
 		end := i + bitLen

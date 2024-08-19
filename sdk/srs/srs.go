@@ -5,10 +5,10 @@ import (
 	"crypto/rand"
 	"fmt"
 	"github.com/consensys/gnark-crypto/ecc"
-	bls12377 "github.com/consensys/gnark-crypto/ecc/bls12-377"
-	fr_bls12377 "github.com/consensys/gnark-crypto/ecc/bls12-377/fr"
-	fft_bls12377 "github.com/consensys/gnark-crypto/ecc/bls12-377/fr/fft"
-	kzg_bls12377 "github.com/consensys/gnark-crypto/ecc/bls12-377/kzg"
+	"github.com/consensys/gnark-crypto/ecc/bn254"
+	fr_bn254 "github.com/consensys/gnark-crypto/ecc/bn254/fr"
+	fft_bn254 "github.com/consensys/gnark-crypto/ecc/bn254/fr/fft"
+	kzg_bn254 "github.com/consensys/gnark-crypto/ecc/bn254/kzg"
 	"github.com/consensys/gnark-crypto/kzg"
 	"github.com/consensys/gnark/constraint"
 	"math/big"
@@ -98,7 +98,7 @@ func Generate(canonicalSize uint64) (kzg.SRS, kzg.SRS, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	srs, err := kzg_bls12377.NewSRS(canonicalSize, tau)
+	srs, err := kzg_bn254.NewSRS(canonicalSize, tau)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -106,24 +106,24 @@ func Generate(canonicalSize uint64) (kzg.SRS, kzg.SRS, error) {
 }
 
 func toLagrange(canonical kzg.SRS, tau *big.Int) kzg.SRS {
-	srs := canonical.(*kzg_bls12377.SRS)
-	s := &kzg_bls12377.SRS{Vk: srs.Vk}
+	srs := canonical.(*kzg_bn254.SRS)
+	s := &kzg_bn254.SRS{Vk: srs.Vk}
 	size := uint64(len(srs.Pk.G1)) - 3
 
-	pAlpha := make([]fr_bls12377.Element, size)
+	pAlpha := make([]fr_bn254.Element, size)
 	pAlpha[0].SetUint64(1)
 	pAlpha[1].SetBigInt(tau)
 	for i := 2; i < len(pAlpha); i++ {
 		pAlpha[i].Mul(&pAlpha[i-1], &pAlpha[1])
 	}
 
-	d := fft_bls12377.NewDomain(size)
-	d.FFTInverse(pAlpha, fft_bls12377.DIF)
+	d := fft_bn254.NewDomain(size)
+	d.FFTInverse(pAlpha, fft_bn254.DIF)
 	fmt.Println("pAlpha len", len(pAlpha))
-	fft_bls12377.BitReverse(pAlpha)
+	fft_bn254.BitReverse(pAlpha)
 
-	_, _, g1gen, _ := bls12377.Generators()
-	s.Pk.G1 = bls12377.BatchScalarMultiplicationG1(&g1gen, pAlpha)
+	_, _, g1gen, _ := bn254.Generators()
+	s.Pk.G1 = bn254.BatchScalarMultiplicationG1(&g1gen, pAlpha)
 	var lagrange kzg.SRS
 	lagrange = s
 	return lagrange

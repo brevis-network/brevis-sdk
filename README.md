@@ -137,7 +137,7 @@ func TestAppCircuit(t *testing.T) {
 
 ### Compiling Circuit
 
-Your circuit needs to be compiled before you can generate a proof with it. sdk.Compile automatically downloads the SRS for your circuit size and saves a kzgsrs-bls12_377-xx file to the provided srsDir, then it compiles the circuit and saves the compiled circuit, poving key, and verifying key to outDir
+Your circuit needs to be compiled before you can generate a proof with it. sdk.Compile automatically downloads the SRS for your circuit size and saves a kzgsrs-bn254-xx file to the provided srsDir, then it compiles the circuit and saves the compiled circuit, poving key, and verifying key to outDir
 ```go
 outDir := "$HOME/circuitOut/myapp"
 srsDir := "$HOME/kzgsrs"

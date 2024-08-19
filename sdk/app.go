@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/celer-network/goutils/log"
-	mimc2 "github.com/consensys/gnark-crypto/ecc/bn254/fr/mimc"
+	mimc_bn254 "github.com/consensys/gnark-crypto/ecc/bn254/fr/mimc"
 	"hash"
 	"math/big"
 	"time"
@@ -14,8 +14,7 @@ import (
 	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
 
 	"github.com/brevis-network/zk-utils/common/eth"
-	bls12377_fr "github.com/consensys/gnark-crypto/ecc/bls12-377/fr"
-	"github.com/consensys/gnark-crypto/ecc/bls12-377/fr/mimc"
+	bn254_fr "github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/consensys/gnark/backend/plonk"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -495,7 +494,7 @@ func (q *BrevisApp) checkAllocations(cb AppCircuit) error {
 
 func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 	leafs := make([]*big.Int, NumMaxDataPoints)
-	hasher := mimc.NewMiMC()
+	hasher := mimc_bn254.NewMiMC()
 	// assign 0 to input commit for dummy slots and actual data hash for non-dummies
 	j := 0
 	for i, receipt := range w.Receipts.Raw {
@@ -533,7 +532,7 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 		}
 		log.Infof("calMerkelRoot(no circuit) with element size: %d", elementCount)
 		for i := 0; i < elementCount/2; i++ {
-			var mimcBlockBuf0, mimcBlockBuf1 [mimc2.BlockSize]byte
+			var mimcBlockBuf0, mimcBlockBuf1 [mimc_bn254.BlockSize]byte
 			leafs[2*i].FillBytes(mimcBlockBuf0[:])
 			leafs[2*i+1].FillBytes(mimcBlockBuf1[:])
 			hasher.Reset()
@@ -561,8 +560,8 @@ func (q *BrevisApp) assignToggleCommitment(in *CircuitInput) {
 	for _, t := range toggles {
 		toggleBits = append(toggleBits, uint(fromInterface(t).Uint64()))
 	}
-	packed := packBitsToInt(toggleBits, bls12377_fr.Bits-1)
-	hasher := mimc.NewMiMC()
+	packed := packBitsToInt(toggleBits, bn254_fr.Bits-1)
+	hasher := mimc_bn254.NewMiMC()
 	for _, v := range packed {
 		hasher.Write(common.LeftPadBytes(v.Bytes(), 32))
 	}

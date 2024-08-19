@@ -245,7 +245,7 @@ func dryRun(in CircuitInput, guest AppCircuit) (OutputCommitment, []byte, error)
 	circuit := &HostCircuit{Input: in, Guest: guest}
 	assignment := &HostCircuit{Input: in, Guest: guest}
 
-	err := test.IsSolved(circuit, assignment, ecc.BLS12_377.ScalarField())
+	err := test.IsSolved(circuit, assignment, ecc.BN254.ScalarField())
 	if err != nil {
 		// if dry out == 0 after dry run, means the run failed
 		if dryRunOutputCommit[0] == nil && dryRunOutputCommit[1] == nil {

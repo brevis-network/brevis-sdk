@@ -15,10 +15,8 @@ import (
 
 func TestCircuitAPI(t *testing.T) {
 	c := &TestCircuitAPICircuit{}
-	//err := test.IsSolved(c, c, ecc.BLS12_377.ScalarField())
-	//check(err)
 	assert := test.NewAssert(t)
-	assert.ProverSucceeded(c, c, test.WithCurves(ecc.BLS12_377), test.WithBackends(backend.PLONK))
+	assert.ProverSucceeded(c, c, test.WithCurves(ecc.BN254), test.WithBackends(backend.PLONK))
 }
 
 type TestCircuitAPICircuit struct {

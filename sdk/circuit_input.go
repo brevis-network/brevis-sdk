@@ -3,7 +3,7 @@ package sdk
 import (
 	"math/big"
 
-	bls12377_fr "github.com/consensys/gnark-crypto/ecc/bls12-377/fr"
+	bn254_fr "github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/consensys/gnark/frontend"
@@ -260,7 +260,7 @@ func (f LogField) NumVars() uint32 {
 		f.IsTopic.NumVars() + f.Index.NumVars() + f.Value.NumVars()
 }
 
-// pack packs the log fields into BLS12377 scalars
+// pack packs the log fields into Bn254 scalars
 // 4 + 3 * 59 = 181 bytes, fits into 6 fr vars
 // 59 bytes for each log field:
 //   - 20 bytes for contract address
@@ -293,7 +293,7 @@ func (r Receipt) goPack() []*big.Int {
 		bits = append(bits, decomposeBits(fromInterface(field.Index.Val), 7)...)
 		bits = append(bits, field.Value.toBinary()...)
 	}
-	return packBitsToInt(bits, bls12377_fr.Bits-1) // pack to ints of bit size of BLS12377Fr - 1, which is 252 bits
+	return packBitsToInt(bits, bn254_fr.Bits-1) // pack to ints of bit size of Bn254Fr - 1, which is 252 bits
 }
 
 func packBitsToFr(api frontend.API, bits []frontend.Variable) []frontend.Variable {
@@ -364,8 +364,8 @@ func (s StorageSlot) NumVars() uint32 {
 
 func (s StorageSlot) String() string { return "StorageSlot" }
 
-// pack packs the storage slots into BLS12377 scalars
-// 4 bytes for block num + 84 bytes for each slot = 672 bits, fits into 3 BLS12377 fr vars:
+// pack packs the storage slots into Bn254 scalars
+// 4 bytes for block num + 84 bytes for each slot = 672 bits, fits into 3 Bn254 fr vars:
 // - 20 bytes for contract address
 // - 32 bytes for slot key
 // - 32 bytes for slot value
@@ -384,7 +384,7 @@ func (s StorageSlot) goPack() []*big.Int {
 	bits = append(bits, decomposeBits(fromInterface(s.Contract.Val), 8*20)...)
 	bits = append(bits, s.Slot.toBinary()...)
 	bits = append(bits, s.Value.toBinary()...)
-	return packBitsToInt(bits, bls12377_fr.Bits-1)
+	return packBitsToInt(bits, bn254_fr.Bits-1)
 }
 
 type Transaction struct {
@@ -479,7 +479,7 @@ func (t Transaction) NumVars() uint32 {
 
 func (t Transaction) String() string { return "Transaction" }
 
-// pack packs the transactions into BLS12377 scalars
+// pack packs the transactions into Bn254 scalars
 // chain_id - 4 bytes
 // nonce - 4 bytes
 // max_priority_fee_per_gas, in Gwei - 8 bytes
@@ -513,5 +513,5 @@ func (t Transaction) goPack() []*big.Int {
 	bits = append(bits, decomposeBits(fromInterface(t.From.Val), 8*20)...)
 	bits = append(bits, decomposeBits(fromInterface(t.To.Val), 8*20)...)
 	bits = append(bits, t.Value.toBinary()...)
-	return packBitsToInt(bits, bls12377_fr.Bits-1)
+	return packBitsToInt(bits, bn254_fr.Bits-1)
 }

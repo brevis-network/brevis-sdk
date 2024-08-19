@@ -16,7 +16,7 @@ func ProverSucceeded(t *testing.T, circuit, assign sdk.AppCircuit, in sdk.Circui
 	assignment := sdk.NewHostCircuit(in.Clone(), assign)
 
 	assert := test.NewAssert(t)
-	assert.ProverSucceeded(host, assignment, test.WithBackends(backend.PLONK), test.WithCurves(ecc.BLS12_377))
+	assert.ProverSucceeded(host, assignment, test.WithBackends(backend.PLONK), test.WithCurves(ecc.BN254))
 }
 
 // ProverFailed checks:
@@ -26,7 +26,7 @@ func ProverFailed(t *testing.T, circuit, assign sdk.AppCircuit, in sdk.CircuitIn
 	assignment := sdk.NewHostCircuit(in.Clone(), assign)
 
 	assert := test.NewAssert(t)
-	assert.ProverFailed(host, assignment, test.WithBackends(backend.PLONK), test.WithCurves(ecc.BLS12_377))
+	assert.ProverFailed(host, assignment, test.WithBackends(backend.PLONK), test.WithCurves(ecc.BN254))
 }
 
 // IsSolved checks if the given application circuit/assignment and the input can be solved
@@ -34,7 +34,7 @@ func IsSolved(t *testing.T, circuit, assign sdk.AppCircuit, in sdk.CircuitInput)
 	host := sdk.DefaultHostCircuit(circuit)
 	assignment := sdk.NewHostCircuit(in.Clone(), assign)
 
-	err := test.IsSolved(host, assignment, ecc.BLS12_377.ScalarField())
+	err := test.IsSolved(host, assignment, ecc.BN254.ScalarField())
 	if err != nil {
 		t.Error(err)
 	}

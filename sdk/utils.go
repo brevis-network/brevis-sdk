@@ -28,7 +28,7 @@ func recomposeBig(data []*big.Int, bitSize int) *big.Int {
 	r := big.NewInt(0)
 	for i := 0; i < len(data); i++ {
 		r.Add(r, new(big.Int).Lsh(data[i], uint(i*bitSize)))
-		r.Mod(r, ecc.BLS12_377.ScalarField())
+		r.Mod(r, ecc.BN254.ScalarField())
 	}
 	return r
 }
