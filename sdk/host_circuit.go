@@ -109,6 +109,9 @@ func (c *HostCircuit) commitInput() error {
 	}
 
 	toggles := c.Input.Toggles()
+
+	log.Infof("toggles: %v", toggles)
+
 	// sanity check, this shouldn't happen
 	if len(toggles) != NumMaxDataPoints {
 		panic(fmt.Errorf("toggles len %d != NumMaxDataPoints %d", len(toggles), NumMaxDataPoints))
@@ -276,7 +279,7 @@ func calMerkelRoot(gapi frontend.API, datas []frontend.Variable) (frontend.Varia
 	copy(leafs, datas)
 	for {
 		if elementCount == 1 {
-			log.Infof("in circuitnputCommitmentsRoot: %v", leafs[0])
+			log.Infof("in circuitnputCommitmentsRoot: %x", leafs[0])
 			return leafs[0], nil
 		}
 		log.Infof("calMerkelRoot with element size: %d", elementCount)

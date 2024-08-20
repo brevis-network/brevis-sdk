@@ -197,7 +197,7 @@ func (q *BrevisApp) BuildCircuitInput(app AppCircuit) (CircuitInput, error) {
 	q.assignInputCommitment(&in)
 	q.assignToggleCommitment(&in)
 
-	fmt.Printf("input commits: %d\n", in.InputCommitments)
+	log.Infof("input commits: %x", in.InputCommitments)
 
 	// dry run without assigning the output commitment first to compute the output commitment using the user circuit
 	outputCommit, output, err := dryRun(in, app)
@@ -528,7 +528,7 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 	for {
 		if elementCount == 1 {
 			w.InputCommitmentsRoot = leafs[0]
-			log.Infof("w.InputCommitmentsRoot: %v", w.InputCommitmentsRoot)
+			log.Infof("w.InputCommitmentsRoot: %x", w.InputCommitmentsRoot)
 			return
 		}
 		log.Infof("calMerkelRoot(no circuit) with element size: %d", elementCount)
