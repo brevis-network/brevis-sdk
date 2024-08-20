@@ -283,6 +283,10 @@ func (r Receipt) pack(api frontend.API) []frontend.Variable {
 	return packBitsToFr(api, bits)
 }
 
+func (r Receipt) Pack(api frontend.API) []frontend.Variable {
+	return r.pack(api)
+}
+
 func (r Receipt) goPack() []*big.Int {
 	var bits []uint
 	bits = append(bits, decomposeBits(fromInterface(r.BlockNum.Val), 8*4)...)
@@ -294,6 +298,10 @@ func (r Receipt) goPack() []*big.Int {
 		bits = append(bits, field.Value.toBinary()...)
 	}
 	return packBitsToInt(bits, bn254_fr.Bits-1) // pack to ints of bit size of Bn254Fr - 1, which is 252 bits
+}
+
+func (r Receipt) GoPack() []*big.Int {
+	return r.goPack()
 }
 
 func packBitsToFr(api frontend.API, bits []frontend.Variable) []frontend.Variable {
