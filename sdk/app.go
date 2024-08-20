@@ -595,6 +595,10 @@ func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
 	return nil
 }
 
+func BuildLogFields(fs [NumMaxLogFields]LogFieldData) (fields [NumMaxLogFields]LogField) {
+	return buildLogFields(fs)
+}
+
 func buildLogFields(fs [NumMaxLogFields]LogFieldData) (fields [NumMaxLogFields]LogField) {
 	empty := LogFieldData{}
 
