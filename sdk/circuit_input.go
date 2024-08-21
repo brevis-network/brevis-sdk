@@ -150,6 +150,10 @@ type Receipt struct {
 	Fields   [NumMaxLogFields]LogField
 }
 
+func DefaultReceipt() Receipt {
+	return defaultReceipt()
+}
+
 func defaultReceipt() Receipt {
 	r := Receipt{
 		BlockNum: newU248(0),
