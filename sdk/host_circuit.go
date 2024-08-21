@@ -56,7 +56,7 @@ func (c *HostCircuit) Define(gapi frontend.API) error {
 	if err != nil {
 		return fmt.Errorf("error building user-defined circuit %s", err.Error())
 	}
-	assertInputUniqueness(gapi, c.Input.InputCommitments, api.checkInputUniqueness)
+	//assertInputUniqueness(gapi, c.Input.InputCommitments, api.checkInputUniqueness)
 	inputCommitmentRoot, err := calMerkelRoot(gapi, c.Input.InputCommitments)
 	if err != nil {
 		return fmt.Errorf("error building user-defined circuit calMerkelRoot fail, %s", err.Error())
@@ -88,10 +88,11 @@ func (c *HostCircuit) commitInput() error {
 
 	var inputCommits []frontend.Variable
 	receipts := c.Input.Receipts
-	for i, receipt := range receipts.Raw {
+	for _, receipt := range receipts.Raw {
 		packed := receipt.pack(c.api)
-		inputCommits = append(inputCommits, hashOrZero(receipts.Toggles[i], packed))
+		inputCommits = append(inputCommits, hashOrZero(1, packed))
 	}
+
 	storage := c.Input.StorageSlots
 	for i, slot := range storage.Raw {
 		packed := slot.pack(c.api)
@@ -103,12 +104,37 @@ func (c *HostCircuit) commitInput() error {
 		inputCommits = append(inputCommits, hashOrZero(txs.Toggles[i], packed))
 	}
 
-	// adding constraint for input commitments (both effective commitments and dummies)
-	for i := 0; i < c.dataLen(); i++ {
-		c.api.AssertIsEqual(c.Input.InputCommitments[i], inputCommits[i])
+	toggles := c.Input.Toggles()
+
+	log.Infof("toggles: %v", toggles)
+
+	for x := 0; x < NumMaxDataPoints; x = x + 16 {
+		firstNotEmptyIndex := -1
+		for y := 0; y < 16; y++ {
+			if toggles[x+y] != 0 {
+				if firstNotEmptyIndex == -1 {
+					firstNotEmptyIndex = x + y
+					break
+				}
+			}
+		}
+		if firstNotEmptyIndex == -1 {
+			// do noting
+		} else {
+			// fill empty with first no empty
+			for y := x; y < 16; y++ {
+				if toggles[x+y] == 0 {
+					inputCommits[x+y] = inputCommits[firstNotEmptyIndex]
+				}
+			}
+		}
 	}
 
-	toggles := c.Input.Toggles()
+	// adding constraint for input commitments (both effective commitments and dummies)
+	for i := 0; i < c.dataLen(); i++ {
+		log.Infof("%d %x == %x", i, c.Input.InputCommitments[i], inputCommits[i])
+		c.api.AssertIsEqual(c.Input.InputCommitments[i], inputCommits[i])
+	}
 
 	log.Infof("toggles: %v", toggles)
 

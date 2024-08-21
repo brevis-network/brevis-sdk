@@ -497,11 +497,14 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 	hasher := mimc_bn254.NewMiMC()
 	// assign 0 to input commit for dummy slots and actual data hash for non-dummies
 	j := 0
-	for i, receipt := range w.Receipts.Raw {
-		if fromInterface(w.Receipts.Toggles[i]).Sign() != 0 {
+
+	for _, receipt := range w.Receipts.Raw {
+		/*if fromInterface(w.Receipts.Toggles[i]).Sign() != 0 {
 			leafs[j] = doHash(hasher, receipt.goPack())
 			w.InputCommitments[j] = leafs[j]
-		}
+		}*/
+		leafs[j] = doHash(hasher, receipt.goPack())
+		w.InputCommitments[j] = leafs[j]
 		j++
 	}
 	for i, slot := range w.StorageSlots.Raw {
@@ -520,8 +523,32 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 	}
 
 	for i := j; i < NumMaxDataPoints; i++ {
-		leafs[i] = new(big.Int).SetUint64(1)
+		// mimc hash of all 0
+		leafs[i] = new(big.Int).SetBytes(common.Hex2Bytes("0x2369aa59f1f52216f305b9ad3b88be1479b25ff97b933be91329c803330966cd"))
 		w.InputCommitments[i] = leafs[i]
+	}
+
+	for x := 0; x < NumMaxDataPoints; x = x + 16 {
+		firstNotEmptyIndex := -1
+		for y := 0; y < 16; y++ {
+			if w.Toggles()[x+y] != 0 {
+				if firstNotEmptyIndex == -1 {
+					firstNotEmptyIndex = x + y
+					break
+				}
+			}
+		}
+		if firstNotEmptyIndex == -1 {
+			// do noting
+		} else {
+			// fill empty with first no empty
+			for y := x; y < 16; y++ {
+				if w.Toggles()[x+y] == 0 {
+					leafs[x+y] = leafs[firstNotEmptyIndex]
+					w.InputCommitments[x+y] = leafs[firstNotEmptyIndex]
+				}
+			}
+		}
 	}
 
 	elementCount := len(w.InputCommitments)
