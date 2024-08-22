@@ -223,6 +223,7 @@ func (q *BrevisApp) PrepareRequest(
 	callbackGasLimit uint64,
 	option *gwproto.QueryOption,
 	apiKey string, // used for brevis partner flow
+	usePlonky2 bool,
 ) (calldata []byte, requestId common.Hash, nonce uint64, feeValue *big.Int, err error) {
 	if !q.buildInputCalled {
 		panic("must call BuildCircuitInput before PrepareRequest")
@@ -245,6 +246,7 @@ func (q *BrevisApp) PrepareRequest(
 		TransactionInfos:  buildTxInfos(q.txs, q.maxTxs),
 		AppCircuitInfo:    buildAppCircuitInfo(q.circuitInput, vk),
 		Option:            *option,
+		UsePlonky2:        usePlonky2,
 	}
 
 	fmt.Println("AppCircuitInfo ", req.AppCircuitInfo)

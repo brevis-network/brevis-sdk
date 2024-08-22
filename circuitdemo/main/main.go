@@ -77,7 +77,7 @@ func main() {
 	appContract := common.HexToAddress("0xeec66d9b615ff84909be1cb1fe633cc26150417d")
 	refundee := common.HexToAddress("0x1bF81EA1F2F6Afde216cD3210070936401A14Bd4")
 
-	_, _, _, _, err = app.PrepareRequest(vk, 97, 97, refundee, appContract, 400000, gwproto.QueryOption_ZK_MODE.Enum(), "")
+	_, _, _, _, err = app.PrepareRequest(vk, 97, 97, refundee, appContract, 400000, gwproto.QueryOption_ZK_MODE.Enum(), "", true)
 	check(err)
 
 	err = app.SubmitProof(proof)
