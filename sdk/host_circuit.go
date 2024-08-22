@@ -10,6 +10,8 @@ import (
 	"github.com/consensys/gnark/std/hash/mimc"
 	"github.com/consensys/gnark/std/multicommit"
 	"github.com/consensys/gnark/test"
+	"github.com/ethereum/go-ethereum/common"
+	"math/big"
 	"sync"
 )
 
@@ -120,6 +122,9 @@ func (c *HostCircuit) commitInput() error {
 		}
 		if firstNotEmptyIndex == -1 {
 			// do noting
+			for y := x; y < 16; y++ {
+				inputCommits[x+y] = new(big.Int).SetBytes(common.Hex2Bytes("2369aa59f1f52216f305b9ad3b88be1479b25ff97b933be91329c803330966cd"))
+			}
 		} else {
 			// fill empty with first no empty
 			for y := x; y < 16; y++ {

@@ -524,7 +524,7 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 
 	for i := j; i < NumMaxDataPoints; i++ {
 		// mimc hash of all 0
-		leafs[i] = new(big.Int).SetBytes(common.Hex2Bytes("0x2369aa59f1f52216f305b9ad3b88be1479b25ff97b933be91329c803330966cd"))
+		leafs[i] = new(big.Int).SetBytes(common.Hex2Bytes("2369aa59f1f52216f305b9ad3b88be1479b25ff97b933be91329c803330966cd"))
 		w.InputCommitments[i] = leafs[i]
 	}
 
