@@ -2,6 +2,9 @@ package sdk
 
 import (
 	"fmt"
+	"math/big"
+	"sync"
+
 	"github.com/brevis-network/brevis-sdk/common/utils"
 	"github.com/brevis-network/zk-utils/circuits/gadgets/keccak"
 	"github.com/celer-network/goutils/log"
@@ -11,8 +14,6 @@ import (
 	"github.com/consensys/gnark/std/multicommit"
 	"github.com/consensys/gnark/test"
 	"github.com/ethereum/go-ethereum/common"
-	"math/big"
-	"sync"
 )
 
 type AppCircuit interface {

@@ -20,6 +20,7 @@ func (c *AppCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions int) {
 }
 
 func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
+	api.OutputBool(sdk.ConstUint248(1))
 	return nil
 }
 
@@ -40,7 +41,7 @@ func main() {
 
 	receipt := sdk.ReceiptData{
 		BlockNum: new(big.Int).SetUint64(41759234),
-		TxHash:   utils.Hex2Hash("0x6A2AAd07396B36Fe02a22b33cf443582f682c82f"),
+		TxHash:   utils.Hex2Hash("0xfbdaea94eda27a5c9ad9c6be6a62026b2a03791f8dcbee7db0862a432fabecf8"),
 		Fields: [sdk.NumMaxLogFields]sdk.LogFieldData{
 			logFiledFata,
 			logFiledFata,
@@ -54,7 +55,7 @@ func main() {
 	}
 
 	// TODO should not hardcode
-	for i := 1; i < 16; i++ {
+	for i := 0; i < 16; i++ {
 		app.AddReceipt(receipt, i)
 	}
 

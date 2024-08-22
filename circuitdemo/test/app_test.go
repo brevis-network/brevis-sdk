@@ -1,12 +1,14 @@
 package test
 
 import (
-	"github.com/brevis-network/brevis-sdk/common/utils"
-	"github.com/brevis-network/brevis-sdk/sdk"
-	"github.com/consensys/gnark-crypto/ecc"
-	"github.com/consensys/gnark/test"
 	"math/big"
 	"testing"
+
+	"github.com/brevis-network/brevis-sdk/common/utils"
+	"github.com/brevis-network/brevis-sdk/sdk"
+	test1 "github.com/brevis-network/brevis-sdk/test"
+	"github.com/consensys/gnark-crypto/ecc"
+	"github.com/consensys/gnark/test"
 )
 
 func TestDemo(t *testing.T) {
@@ -39,7 +41,7 @@ func TestDemo(t *testing.T) {
 	}
 
 	// TODO should not hardcode
-	for i := 1; i < 16; i++ {
+	for i := 0; i < 16; i++ {
 		app.AddReceipt(receipt, i)
 	}
 
@@ -55,7 +57,7 @@ func TestDemo(t *testing.T) {
 	err = test.IsSolved(host, assignment, ecc.BN254.ScalarField())
 	assert.NoError(err)
 
-	//test2.ProverSucceeded(t, guest, guestAssignment, circuitInput)
+	test1.ProverSucceeded(t, guest, guestAssignment, circuitInput)
 }
 
 type AppCircuit struct{}

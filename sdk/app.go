@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/celer-network/goutils/log"
-	mimc_bn254 "github.com/consensys/gnark-crypto/ecc/bn254/fr/mimc"
 	"hash"
 	"math/big"
 	"time"
+
+	"github.com/celer-network/goutils/log"
+	mimc_bn254 "github.com/consensys/gnark-crypto/ecc/bn254/fr/mimc"
 
 	"github.com/brevis-network/brevis-sdk/sdk/proto/commonproto"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
@@ -245,6 +246,8 @@ func (q *BrevisApp) PrepareRequest(
 		AppCircuitInfo:    buildAppCircuitInfo(q.circuitInput, vk),
 		Option:            *option,
 	}
+
+	fmt.Println("AppCircuitInfo ", req.AppCircuitInfo)
 
 	fmt.Println("Calling Brevis gateway PrepareRequest...")
 	res, err := q.gc.PrepareQuery(req)
@@ -495,7 +498,7 @@ func (q *BrevisApp) checkAllocations(cb AppCircuit) error {
 func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 	leafs := make([]*big.Int, NumMaxDataPoints)
 	hasher := mimc_bn254.NewMiMC()
-	// assign 0 to input commit for dummy slots and actual data hash for non-dummies
+	// // assign 0 to input commit for dummy slots and actual data hash for non-dummies
 	j := 0
 
 	for _, receipt := range w.Receipts.Raw {
