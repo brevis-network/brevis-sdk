@@ -504,12 +504,13 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 	j := 0
 
 	for _, receipt := range w.Receipts.Raw {
-		/*if fromInterface(w.Receipts.Toggles[i]).Sign() != 0 {
-			leafs[j] = doHash(hasher, receipt.goPack())
-			w.InputCommitments[j] = leafs[j]
-		}*/
+		// if fromInterface(w.Receipts.Toggles[i]).Sign() != 0 {
 		leafs[j] = doHash(hasher, receipt.goPack())
 		w.InputCommitments[j] = leafs[j]
+		// } else {
+		// 	leafs[j] = new(big.Int).SetBytes(common.Hex2Bytes("2369aa59f1f52216f305b9ad3b88be1479b25ff97b933be91329c803330966cd"))
+		// 	w.InputCommitments[j] = leafs[j]
+		// }
 		j++
 	}
 	for i, slot := range w.StorageSlots.Raw {
