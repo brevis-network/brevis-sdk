@@ -85,26 +85,30 @@ func (c *HostCircuit) commitInput() error {
 		hasher.Write(vs...)
 		sum := hasher.Sum()
 		hasher.Reset()
-		h := c.api.Select(toggle, sum, 0)
+		h := c.api.Select(toggle, sum, new(big.Int).SetBytes(common.Hex2Bytes("2369aa59f1f52216f305b9ad3b88be1479b25ff97b933be91329c803330966cd")))
 		return h
 	}
 
-	var inputCommits []frontend.Variable
+	var inputCommits [NumMaxDataPoints]frontend.Variable
 	receipts := c.Input.Receipts
-	for _, receipt := range receipts.Raw {
+	j := 0
+	for i, receipt := range receipts.Raw {
 		packed := receipt.pack(c.api)
-		inputCommits = append(inputCommits, hashOrZero(1, packed))
+		inputCommits[j] = hashOrZero(receipts.Toggles[i], packed)
+		j++
 	}
 
 	storage := c.Input.StorageSlots
 	for i, slot := range storage.Raw {
 		packed := slot.pack(c.api)
-		inputCommits = append(inputCommits, hashOrZero(storage.Toggles[i], packed))
+		inputCommits[j] = hashOrZero(storage.Toggles[i], packed)
+		j++
 	}
 	txs := c.Input.Transactions
 	for i, tx := range txs.Raw {
 		packed := tx.pack(c.api)
-		inputCommits = append(inputCommits, hashOrZero(txs.Toggles[i], packed))
+		inputCommits[j] = hashOrZero(txs.Toggles[i], packed)
+		j++
 	}
 
 	toggles := c.Input.Toggles()

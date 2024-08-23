@@ -6,6 +6,9 @@ import (
 
 	"github.com/brevis-network/brevis-sdk/common/utils"
 	"github.com/brevis-network/brevis-sdk/sdk"
+	test1 "github.com/brevis-network/brevis-sdk/test"
+
+	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/test"
 )
 
@@ -63,20 +66,20 @@ func TestDemo(t *testing.T) {
 	app.AddReceipt(receipt1)
 
 	guest := &AppCircuit{}
-	// guestAssignment := &AppCircuit{}
+	guestAssignment := &AppCircuit{}
 
-	_, err = app.BuildCircuitInput(guest)
+	circuitInput, err := app.BuildCircuitInput(guest)
 	assert.NoError(err)
 
-	// host := sdk.DefaultHostCircuit(guest)
-	// assignment := sdk.NewHostCircuit(circuitInput.Clone(), guestAssignment)
+	host := sdk.DefaultHostCircuit(guest)
+	assignment := sdk.NewHostCircuit(circuitInput.Clone(), guestAssignment)
 
-	// err = test.IsSolved(host, assignment, ecc.BN254.ScalarField())
-	// assert.NoError(err)
+	err = test.IsSolved(host, assignment, ecc.BN254.ScalarField())
+	assert.NoError(err)
 
-	// test1.ProverSucceeded(t, guest, guestAssignment, circuitInput)
+	test1.ProverSucceeded(t, guest, guestAssignment, circuitInput)
 
-	assert.Equal(1, 2)
+	// assert.Equal(1, 2)
 }
 
 type AppCircuit struct{}
