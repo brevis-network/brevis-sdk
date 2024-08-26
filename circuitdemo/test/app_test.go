@@ -59,7 +59,7 @@ func TestDemo(t *testing.T) {
 	}
 
 	// TODO should not hardcode
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 63; i++ {
 		app.AddReceipt(receipt, i)
 	}
 
@@ -88,7 +88,7 @@ func (c *AppCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions int) {
 	// Our app is only ever going to use one storage data at a time so
 	// we can simply limit the max number of data for storage to 1 and
 	// 0 for all others
-	return 63, 0, 0
+	return 64, 0, 0
 }
 
 func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {

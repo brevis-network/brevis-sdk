@@ -6,6 +6,8 @@ import (
 
 	"github.com/brevis-network/brevis-sdk/common/utils"
 	"github.com/brevis-network/brevis-sdk/sdk"
+	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 type AppCircuit struct{}
@@ -52,10 +54,7 @@ func main() {
 		},
 	}
 
-	// TODO should not hardcode
-	// app.AddReceipt(receipt)
-
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 63; i++ {
 		app.AddReceipt(receipt, i)
 	}
 
@@ -74,14 +73,14 @@ func main() {
 	err = sdk.Verify(vk, publicWitness, proof)
 	check(err)
 
-	// appContract := common.HexToAddress("0xeec66d9b615ff84909be1cb1fe633cc26150417d")
-	// refundee := common.HexToAddress("0x1bF81EA1F2F6Afde216cD3210070936401A14Bd4")
+	appContract := common.HexToAddress("0xeec66d9b615ff84909be1cb1fe633cc26150417d")
+	refundee := common.HexToAddress("0x1bF81EA1F2F6Afde216cD3210070936401A14Bd4")
 
-	// _, _, _, _, err = app.PrepareRequest(vk, 97, 97, refundee, appContract, 400000, gwproto.QueryOption_ZK_MODE.Enum(), "", true)
-	// check(err)
+	_, _, _, _, err = app.PrepareRequest(vk, 97, 97, refundee, appContract, 400000, gwproto.QueryOption_ZK_MODE.Enum(), "", true)
+	check(err)
 
-	// err = app.SubmitProof(proof)
-	// check(err)
+	err = app.SubmitProof(proof)
+	check(err)
 }
 
 func check(err error) {

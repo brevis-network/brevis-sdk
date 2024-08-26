@@ -2,6 +2,7 @@ package sdk
 
 import (
 	"fmt"
+
 	"github.com/brevis-network/brevis-sdk/sdk/proto/commonproto"
 
 	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
@@ -21,13 +22,14 @@ func buildAppCircuitInfo(in CircuitInput, vk plonk.VerifyingKey) *commonproto.Ap
 	}
 
 	return &commonproto.AppCircuitInfo{
-		OutputCommitment:  hexutil.Encode(in.OutputCommitment.Hash().Bytes()),
-		Vk:                hexutil.Encode(mustWriteToBytes(vk)),
-		InputCommitments:  inputCommitments,
-		TogglesCommitment: fmt.Sprintf("0x%x", in.TogglesCommitment),
-		Toggles:           toggles,
-		UseCallback:       true,
-		Output:            hexutil.Encode(in.dryRunOutput),
+		OutputCommitment:     hexutil.Encode(in.OutputCommitment.Hash().Bytes()),
+		Vk:                   hexutil.Encode(mustWriteToBytes(vk)),
+		InputCommitments:     inputCommitments,
+		TogglesCommitment:    fmt.Sprintf("0x%x", in.TogglesCommitment),
+		Toggles:              toggles,
+		UseCallback:          true,
+		Output:               hexutil.Encode(in.dryRunOutput),
+		InputCommitmentsRoot: fmt.Sprintf("0x%x", in.InputCommitmentsRoot),
 	}
 }
 
