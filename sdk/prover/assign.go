@@ -22,9 +22,15 @@ func assignCustomInput(app sdk.AppCircuit, input *sdkproto.CustomInput) (sdk.App
 		return nil, fmt.Errorf(format, msg)
 	}
 
+	// Support empty customInput
+	jsonBytes := ""
+	if input == nil {
+		jsonBytes = "{}"
+	}
+
 	// every custom input must be either at the top level or in a list that's at the top level of the struct
 	var customInput map[string]interface{}
-	err := json.Unmarshal([]byte(input.JsonBytes), &customInput)
+	err := json.Unmarshal([]byte(jsonBytes), &customInput)
 	if err != nil {
 		return makeErr("error reading custom input json", err)
 	}

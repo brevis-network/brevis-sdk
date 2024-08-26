@@ -33,7 +33,7 @@ func hex2Hash(s string) common.Hash {
 	return common.BytesToHash(hex2Bytes(s))
 }
 
-func buildAppCircuitInfo(in sdk.CircuitInput, vk string) *commonproto.AppCircuitInfo {
+func buildAppCircuitInfo(in sdk.CircuitInput, vk, vkHash string) *commonproto.AppCircuitInfo {
 	inputCommitments := make([]string, len(in.InputCommitments))
 	for i, value := range in.InputCommitments {
 		inputCommitments[i] = fmt.Sprintf("0x%x", value)
@@ -52,6 +52,7 @@ func buildAppCircuitInfo(in sdk.CircuitInput, vk string) *commonproto.AppCircuit
 		Toggles:           toggles,
 		UseCallback:       true,
 		Output:            hexutil.Encode(in.GetAbiPackedOutput()),
+		VkHash:            vkHash,
 	}
 }
 

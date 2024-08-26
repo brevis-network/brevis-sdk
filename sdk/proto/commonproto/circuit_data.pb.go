@@ -128,18 +128,19 @@ type AppCirucitInfoWithProof struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	OutputCommitment  string   `protobuf:"bytes,1,opt,name=output_commitment,json=outputCommitment,proto3" json:"output_commitment,omitempty"`
-	VkHash            string   `protobuf:"bytes,2,opt,name=vk_hash,json=vkHash,proto3" json:"vk_hash,omitempty"`
-	InputCommitments  []string `protobuf:"bytes,3,rep,name=input_commitments,json=inputCommitments,proto3" json:"input_commitments,omitempty"`
-	TogglesCommitment string   `protobuf:"bytes,4,opt,name=toggles_commitment,json=togglesCommitment,proto3" json:"toggles_commitment,omitempty"`
-	Toggles           []bool   `protobuf:"varint,5,rep,packed,name=toggles,proto3" json:"toggles,omitempty"`
-	Output            string   `protobuf:"bytes,6,opt,name=output,proto3" json:"output,omitempty"`
-	Proof             string   `protobuf:"bytes,7,opt,name=proof,proto3" json:"proof,omitempty"`
-	CallbackAddr      string   `protobuf:"bytes,8,opt,name=callback_addr,json=callbackAddr,proto3" json:"callback_addr,omitempty"`
+	OutputCommitment     string   `protobuf:"bytes,1,opt,name=output_commitment,json=outputCommitment,proto3" json:"output_commitment,omitempty"`
+	VkHash               string   `protobuf:"bytes,2,opt,name=vk_hash,json=vkHash,proto3" json:"vk_hash,omitempty"`
+	InputCommitments     []string `protobuf:"bytes,3,rep,name=input_commitments,json=inputCommitments,proto3" json:"input_commitments,omitempty"`
+	TogglesCommitment    string   `protobuf:"bytes,4,opt,name=toggles_commitment,json=togglesCommitment,proto3" json:"toggles_commitment,omitempty"`
+	Toggles              []bool   `protobuf:"varint,5,rep,packed,name=toggles,proto3" json:"toggles,omitempty"`
+	Output               string   `protobuf:"bytes,6,opt,name=output,proto3" json:"output,omitempty"`
+	Proof                string   `protobuf:"bytes,7,opt,name=proof,proto3" json:"proof,omitempty"`
+	CallbackAddr         string   `protobuf:"bytes,8,opt,name=callback_addr,json=callbackAddr,proto3" json:"callback_addr,omitempty"`
+	InputCommitmentsRoot string   `protobuf:"bytes,9,opt,name=input_commitments_root,json=inputCommitmentsRoot,proto3" json:"input_commitments_root,omitempty"`
 }
 
-func (x *AppCirucitInfoWithProof) Reset() {
-	*x = AppCirucitInfoWithProof{}
+func (x *AppCircuitInfoWithProof) Reset() {
+	*x = AppCircuitInfoWithProof{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_common_circuit_data_proto_msgTypes[1]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -147,13 +148,13 @@ func (x *AppCirucitInfoWithProof) Reset() {
 	}
 }
 
-func (x *AppCirucitInfoWithProof) String() string {
+func (x *AppCircuitInfoWithProof) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*AppCirucitInfoWithProof) ProtoMessage() {}
+func (*AppCircuitInfoWithProof) ProtoMessage() {}
 
-func (x *AppCirucitInfoWithProof) ProtoReflect() protoreflect.Message {
+func (x *AppCircuitInfoWithProof) ProtoReflect() protoreflect.Message {
 	mi := &file_common_circuit_data_proto_msgTypes[1]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -165,63 +166,70 @@ func (x *AppCirucitInfoWithProof) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use AppCirucitInfoWithProof.ProtoReflect.Descriptor instead.
-func (*AppCirucitInfoWithProof) Descriptor() ([]byte, []int) {
+// Deprecated: Use AppCircuitInfoWithProof.ProtoReflect.Descriptor instead.
+func (*AppCircuitInfoWithProof) Descriptor() ([]byte, []int) {
 	return file_common_circuit_data_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *AppCirucitInfoWithProof) GetOutputCommitment() string {
+func (x *AppCircuitInfoWithProof) GetOutputCommitment() string {
 	if x != nil {
 		return x.OutputCommitment
 	}
 	return ""
 }
 
-func (x *AppCirucitInfoWithProof) GetVkHash() string {
+func (x *AppCircuitInfoWithProof) GetVkHash() string {
 	if x != nil {
 		return x.VkHash
 	}
 	return ""
 }
 
-func (x *AppCirucitInfoWithProof) GetInputCommitments() []string {
+func (x *AppCircuitInfoWithProof) GetInputCommitments() []string {
 	if x != nil {
 		return x.InputCommitments
 	}
 	return nil
 }
 
-func (x *AppCirucitInfoWithProof) GetTogglesCommitment() string {
+func (x *AppCircuitInfoWithProof) GetTogglesCommitment() string {
 	if x != nil {
 		return x.TogglesCommitment
 	}
 	return ""
 }
 
-func (x *AppCirucitInfoWithProof) GetToggles() []bool {
+func (x *AppCircuitInfoWithProof) GetToggles() []bool {
 	if x != nil {
 		return x.Toggles
 	}
 	return nil
 }
 
-func (x *AppCirucitInfoWithProof) GetOutput() string {
+func (x *AppCircuitInfoWithProof) GetOutput() string {
 	if x != nil {
 		return x.Output
 	}
 	return ""
 }
 
-func (x *AppCirucitInfoWithProof) GetProof() string {
+func (x *AppCircuitInfoWithProof) GetProof() string {
 	if x != nil {
 		return x.Proof
 	}
 	return ""
 }
 
-func (x *AppCirucitInfoWithProof) GetCallbackAddr() string {
+func (x *AppCircuitInfoWithProof) GetCallbackAddr() string {
 	if x != nil {
 		return x.CallbackAddr
+	}
+	return ""
+}
+
+func (x *AppCircuitInfoWithProof) GetInputCommitmentsRoot() string {
+	if x != nil {
+		return x.InputCommitmentsRoot
 	}
 	return ""
 }
@@ -285,7 +293,7 @@ func file_common_circuit_data_proto_rawDescGZIP() []byte {
 var file_common_circuit_data_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_common_circuit_data_proto_goTypes = []interface{}{
 	(*AppCircuitInfo)(nil),          // 0: common.AppCircuitInfo
-	(*AppCirucitInfoWithProof)(nil), // 1: common.AppCirucitInfoWithProof
+	(*AppCircuitInfoWithProof)(nil), // 1: common.AppCircuitInfoWithProof
 }
 var file_common_circuit_data_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -314,7 +322,7 @@ func file_common_circuit_data_proto_init() {
 			}
 		}
 		file_common_circuit_data_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*AppCirucitInfoWithProof); i {
+			switch v := v.(*AppCircuitInfoWithProof); i {
 			case 0:
 				return &v.state
 			case 1:
