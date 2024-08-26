@@ -177,19 +177,19 @@ func (q *BrevisApp) BuildCircuitInput(app AppCircuit) (CircuitInput, error) {
 	in := defaultCircuitInput(q.maxReceipts, q.maxStorage, q.maxTxs)
 
 	// receipt
-	err = q.assignReceipts(&in)
+	err = q.assignReceipts(q.maxReceipts, &in)
 	if err != nil {
 		return buildCircuitInputErr("failed to assign in from receipt queries", err)
 	}
 
 	// storage
-	err = q.assignStorageSlots(&in)
+	err = q.assignStorageSlots(q.maxStorage, &in)
 	if err != nil {
 		return buildCircuitInputErr("failed to assign in from storage queries", err)
 	}
 
 	// transaction
-	err = q.assignTransactions(&in)
+	err = q.assignTransactions(q.maxTxs, &in)
 	if err != nil {
 		return buildCircuitInputErr("failed to assign in from transaction queries", err)
 	}
@@ -511,32 +511,23 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 	j := 0
 
 	for _, receipt := range w.Receipts.Raw {
-		// if fromInterface(w.Receipts.Toggles[i]).Sign() != 0 {
 		leafs[j] = doHash(hasher, receipt.goPack())
 		w.InputCommitments[j] = leafs[j]
-		// } else {
-		// 	leafs[j] = new(big.Int).SetBytes(common.Hex2Bytes("2369aa59f1f52216f305b9ad3b88be1479b25ff97b933be91329c803330966cd"))
-		// 	w.InputCommitments[j] = leafs[j]
-		// }
 		j++
 	}
-	for i, slot := range w.StorageSlots.Raw {
-		if fromInterface(w.StorageSlots.Toggles[i]).Sign() != 0 {
-			leafs[j] = doHash(hasher, slot.goPack())
-			w.InputCommitments[j] = leafs[j]
-		}
+	for _, slot := range w.StorageSlots.Raw {
+		leafs[j] = doHash(hasher, slot.goPack())
+		w.InputCommitments[j] = leafs[j]
 		j++
 	}
-	for i, tx := range w.Transactions.Raw {
-		if fromInterface(w.Transactions.Toggles[i]).Sign() != 0 {
-			leafs[j] = doHash(hasher, tx.goPack())
-			w.InputCommitments[j] = leafs[j]
-		}
+	for _, tx := range w.Transactions.Raw {
+		leafs[j] = doHash(hasher, tx.goPack())
+		w.InputCommitments[j] = leafs[j]
+
 		j++
 	}
 
 	for i := j; i < NumMaxDataPoints; i++ {
-		// mimc hash of all 0
 		leafs[i] = new(big.Int).SetBytes(common.Hex2Bytes("2369aa59f1f52216f305b9ad3b88be1479b25ff97b933be91329c803330966cd"))
 		w.InputCommitments[i] = leafs[i]
 	}
@@ -609,7 +600,9 @@ func (q *BrevisApp) assignToggleCommitment(in *CircuitInput) {
 	in.TogglesCommitment = new(big.Int).SetBytes(hasher.Sum(nil))
 }
 
-func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
+func (q *BrevisApp) assignReceipts(maxReceipts int, in *CircuitInput) error {
+	_toggles := make([]int, maxReceipts)
+	_receipts := make([]ReceiptData, maxReceipts)
 	// assigning user appointed receipts at specific indices
 	for i, receipt := range q.receipts.special {
 		in.Receipts.Raw[i] = Receipt{
@@ -617,6 +610,8 @@ func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
 			Fields:   buildLogFields(receipt.Fields),
 		}
 		in.Receipts.Toggles[i] = 1
+		_toggles[i] = 1
+		_receipts[i] = receipt
 	}
 
 	// distribute other receipts in order to the rest of the unassigned spaces
@@ -630,8 +625,44 @@ func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
 			Fields:   buildLogFields(receipt.Fields),
 		}
 		in.Receipts.Toggles[j] = 1
+		_toggles[j] = 1
+		_receipts[j] = receipt
+
 		j++
 	}
+
+	for i := 0; i < maxReceipts; i += 16 {
+		validIndex := -1
+		for j := 0; j < 16; j++ {
+			// in.Receipts.Toggles[i+j]
+			if maxReceipts <= i+j {
+				break
+			}
+
+			if _toggles[i+j] == 1 {
+				validIndex = i + j
+			}
+		}
+
+		if validIndex >= 0 {
+			receipt := _receipts[validIndex]
+			if receipt.BlockNum.Cmp(big.NewInt(0)) == 0 {
+				return fmt.Errorf("try to assign receipt with empty info")
+			}
+			for j := 0; j < 16; j++ {
+				if maxReceipts <= i+j {
+					break
+				}
+				if _toggles[i+j] == 0 {
+					in.Receipts.Raw[i+j] = Receipt{
+						BlockNum: newU248(receipt.BlockNum),
+						Fields:   buildLogFields(receipt.Fields),
+					}
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -667,23 +698,58 @@ func buildLogFields(fs [NumMaxLogFields]LogFieldData) (fields [NumMaxLogFields]L
 	return
 }
 
-func (q *BrevisApp) assignStorageSlots(in *CircuitInput) (err error) {
+func (q *BrevisApp) assignStorageSlots(maxStorageSlots int, in *CircuitInput) (err error) {
+	_toggles := make([]int, maxStorageSlots)
+	_storageSlots := make([]StorageData, maxStorageSlots)
 	// assigning user appointed data at specific indices
 	for i, val := range q.storageVals.special {
 		in.StorageSlots.Raw[i] = buildStorageSlot(val)
 		in.StorageSlots.Toggles[i] = 1
+		_toggles[i] = 1
+		_storageSlots[i] = val
 	}
 
 	// distribute other data in order to the rest of the unassigned spaces
 	j := 0
-	for i, val := range q.storageVals.ordered {
+	for _, val := range q.storageVals.ordered {
 		for in.StorageSlots.Toggles[j] == 1 {
 			j++
 		}
-		in.StorageSlots.Raw[i] = buildStorageSlot(val)
-		in.StorageSlots.Toggles[i] = 1
+		in.StorageSlots.Raw[j] = buildStorageSlot(val)
+		in.StorageSlots.Toggles[j] = 1
+		_toggles[j] = 1
+		_storageSlots[j] = val
 		j++
 	}
+
+	for i := 0; i < maxStorageSlots; i += 16 {
+		validIndex := -1
+		for j := 0; j < 16; j++ {
+			if maxStorageSlots <= i+j {
+				break
+			}
+
+			if _toggles[i+j] == 1 {
+				validIndex = i + j
+			}
+		}
+
+		if validIndex >= 0 {
+			storageSlot := _storageSlots[validIndex]
+			if storageSlot.BlockNum.Cmp(big.NewInt(0)) == 0 {
+				return fmt.Errorf("try to assign receipt with empty info")
+			}
+			for j := 0; j < 16; j++ {
+				if maxStorageSlots <= i+j {
+					break
+				}
+				if _toggles[i+j] == 0 {
+					in.StorageSlots.Raw[i] = buildStorageSlot(storageSlot)
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -696,11 +762,16 @@ func buildStorageSlot(s StorageData) StorageSlot {
 	}
 }
 
-func (q *BrevisApp) assignTransactions(in *CircuitInput) (err error) {
+func (q *BrevisApp) assignTransactions(maxTransactions int, in *CircuitInput) (err error) {
+	_toggles := make([]int, maxTransactions)
+	_txs := make([]TransactionData, maxTransactions)
+
 	// assigning user appointed data at specific indices
 	for i, t := range q.txs.special {
 		in.Transactions.Raw[i] = buildTx(t)
 		in.Transactions.Toggles[i] = 1
+		_toggles[i] = 1
+		_txs[i] = t
 	}
 
 	j := 0
@@ -710,7 +781,37 @@ func (q *BrevisApp) assignTransactions(in *CircuitInput) (err error) {
 		}
 		in.Transactions.Raw[i] = buildTx(t)
 		in.Transactions.Toggles[i] = 1
+		_toggles[j] = 1
+		_txs[j] = t
 		j++
+	}
+
+	for i := 0; i < maxTransactions; i += 16 {
+		validReceiptIndex := -1
+		for j := 0; j < 16; j++ {
+			if maxTransactions <= i+j {
+				break
+			}
+
+			if _toggles[i+j] == 1 {
+				validReceiptIndex = i + j
+			}
+		}
+
+		if validReceiptIndex >= 0 {
+			tx := _txs[validReceiptIndex]
+			if tx.BlockNum.Cmp(big.NewInt(0)) == 0 {
+				return fmt.Errorf("try to assign receipt with empty info")
+			}
+			for j := 0; j < 16; j++ {
+				if maxTransactions <= i+j {
+					break
+				}
+				if _toggles[i+j] == 0 {
+					in.Transactions.Raw[i] = buildTx(tx)
+				}
+			}
+		}
 	}
 	return nil
 }

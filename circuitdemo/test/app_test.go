@@ -57,13 +57,14 @@ func TestDemo(t *testing.T) {
 	}
 	guest := &AppCircuit{}
 
-	// for i := 0; i < 13; i++ {
-	// 	app.AddReceipt(receipt, i)
-	// }
+	for i := 0; i < 13; i++ {
+		app.AddReceipt(receipt, i)
+	}
 	app.AddReceipt(receipt, 15)
 
-	app.AddReceipt(receipt1, 16)
+	// app.AddReceipt(receipt1, 16)
 	app.AddReceipt(receipt1, 17)
+	app.AddReceipt(receipt, 18)
 
 	guestAssignment := &AppCircuit{}
 
@@ -85,7 +86,7 @@ func (c *AppCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions int) {
 	// Our app is only ever going to use one storage data at a time so
 	// we can simply limit the max number of data for storage to 1 and
 	// 0 for all others
-	return 48, 2, 14
+	return 48, 1, 1
 }
 
 func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {

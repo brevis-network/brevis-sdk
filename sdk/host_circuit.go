@@ -2,7 +2,6 @@ package sdk
 
 import (
 	"fmt"
-	"math/big"
 	"sync"
 
 	"github.com/brevis-network/brevis-sdk/common/utils"
@@ -13,7 +12,6 @@ import (
 	"github.com/consensys/gnark/std/hash/mimc"
 	"github.com/consensys/gnark/std/multicommit"
 	"github.com/consensys/gnark/test"
-	"github.com/ethereum/go-ethereum/common"
 )
 
 type AppCircuit interface {
@@ -81,63 +79,33 @@ func (c *HostCircuit) commitInput() error {
 	if err != nil {
 		return fmt.Errorf("error creating mimc hasher instance: %s", err.Error())
 	}
-	hashOrZero := func(toggle frontend.Variable, vs []frontend.Variable) frontend.Variable {
+	hash := func(vs []frontend.Variable) frontend.Variable {
+		hasher.Reset()
 		hasher.Write(vs...)
 		sum := hasher.Sum()
-		hasher.Reset()
-		h := c.api.Select(toggle, sum, new(big.Int).SetBytes(common.Hex2Bytes("2369aa59f1f52216f305b9ad3b88be1479b25ff97b933be91329c803330966cd")))
-		return h
+		return sum
 	}
 
 	var inputCommits [NumMaxDataPoints]frontend.Variable
 	receipts := c.Input.Receipts
 	j := 0
-	for i, receipt := range receipts.Raw {
+	for _, receipt := range receipts.Raw {
 		packed := receipt.pack(c.api)
-		inputCommits[j] = hashOrZero(receipts.Toggles[i], packed)
+		inputCommits[j] = hash(packed)
 		j++
 	}
 
 	storage := c.Input.StorageSlots
-	for i, slot := range storage.Raw {
+	for _, slot := range storage.Raw {
 		packed := slot.pack(c.api)
-		inputCommits[j] = hashOrZero(storage.Toggles[i], packed)
+		inputCommits[j] = hash(packed)
 		j++
 	}
 	txs := c.Input.Transactions
-	for i, tx := range txs.Raw {
+	for _, tx := range txs.Raw {
 		packed := tx.pack(c.api)
-		inputCommits[j] = hashOrZero(txs.Toggles[i], packed)
+		inputCommits[j] = hash(packed)
 		j++
-	}
-
-	toggles := c.Input.Toggles()
-
-	log.Infof("toggles: %v", toggles)
-
-	for x := 0; x < NumMaxDataPoints; x = x + 16 {
-		firstNotEmptyIndex := -1
-		for y := 0; y < 16; y++ {
-			if toggles[x+y] != 0 {
-				if firstNotEmptyIndex == -1 {
-					firstNotEmptyIndex = x + y
-					break
-				}
-			}
-		}
-		if firstNotEmptyIndex == -1 {
-			// do noting
-			for y := x; y < 16; y++ {
-				inputCommits[x+y] = new(big.Int).SetBytes(common.Hex2Bytes("2369aa59f1f52216f305b9ad3b88be1479b25ff97b933be91329c803330966cd"))
-			}
-		} else {
-			// fill empty with first no empty
-			for y := x; y < 16; y++ {
-				if toggles[x+y] == 0 {
-					inputCommits[x+y] = inputCommits[firstNotEmptyIndex]
-				}
-			}
-		}
 	}
 
 	// adding constraint for input commitments (both effective commitments and dummies)
@@ -146,14 +114,15 @@ func (c *HostCircuit) commitInput() error {
 		c.api.AssertIsEqual(c.Input.InputCommitments[i], inputCommits[i])
 	}
 
+	toggles := c.Input.Toggles()
 	log.Infof("toggles: %v", toggles)
-
 	// sanity check, this shouldn't happen
 	if len(toggles) != NumMaxDataPoints {
 		panic(fmt.Errorf("toggles len %d != NumMaxDataPoints %d", len(toggles), NumMaxDataPoints))
 	}
 
 	packed := packBitsToFr(c.api, toggles)
+	hasher.Reset()
 	hasher.Write(packed...)
 	togglesCommit := hasher.Sum()
 	c.api.AssertIsEqual(togglesCommit, c.Input.TogglesCommitment)
