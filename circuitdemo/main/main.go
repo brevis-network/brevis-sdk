@@ -54,7 +54,7 @@ func main() {
 		},
 	}
 
-	for i := 0; i < 63; i++ {
+	for i := 0; i < 2; i++ {
 		app.AddReceipt(receipt, i)
 	}
 
