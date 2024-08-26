@@ -1140,7 +1140,7 @@ type Query struct {
 	ReceiptInfos      []*ReceiptInfo                       `protobuf:"bytes,1,rep,name=receipt_infos,json=receiptInfos,proto3" json:"receipt_infos,omitempty"`
 	StorageQueryInfos []*StorageQueryInfo                  `protobuf:"bytes,2,rep,name=storage_query_infos,json=storageQueryInfos,proto3" json:"storage_query_infos,omitempty"`
 	TransactionInfos  []*TransactionInfo                   `protobuf:"bytes,3,rep,name=transaction_infos,json=transactionInfos,proto3" json:"transaction_infos,omitempty"`
-	AppCircuitInfo    *commonproto.AppCirucitInfoWithProof `protobuf:"bytes,4,opt,name=app_circuit_info,json=appCircuitInfo,proto3" json:"app_circuit_info,omitempty"`
+	AppCircuitInfo    *commonproto.AppCircuitInfoWithProof `protobuf:"bytes,4,opt,name=app_circuit_info,json=appCircuitInfo,proto3" json:"app_circuit_info,omitempty"`
 	UsePlonky2        bool                                 `protobuf:"varint,5,opt,name=use_plonky2,json=usePlonky2,proto3" json:"use_plonky2,omitempty"`
 }
 
@@ -1197,7 +1197,7 @@ func (x *Query) GetTransactionInfos() []*TransactionInfo {
 	return nil
 }
 
-func (x *Query) GetAppCircuitInfo() *commonproto.AppCirucitInfoWithProof {
+func (x *Query) GetAppCircuitInfo() *commonproto.AppCircuitInfoWithProof {
 	if x != nil {
 		return x.AppCircuitInfo
 	}
@@ -1484,7 +1484,7 @@ var file_brevis_gateway_proto_rawDesc = []byte{
 	0x52, 0x10, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x6e, 0x66,
 	0x6f, 0x73, 0x12, 0x49, 0x0a, 0x10, 0x61, 0x70, 0x70, 0x5f, 0x63, 0x69, 0x72, 0x63, 0x75, 0x69,
 	0x74, 0x5f, 0x69, 0x6e, 0x66, 0x6f, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1f, 0x2e, 0x63,
-	0x6f, 0x6d, 0x6d, 0x6f, 0x6e, 0x2e, 0x41, 0x70, 0x70, 0x43, 0x69, 0x72, 0x75, 0x63, 0x69, 0x74,
+	0x6f, 0x6d, 0x6d, 0x6f, 0x6e, 0x2e, 0x41, 0x70, 0x70, 0x43, 0x69, 0x72, 0x63, 0x75, 0x69, 0x74,
 	0x49, 0x6e, 0x66, 0x6f, 0x57, 0x69, 0x74, 0x68, 0x50, 0x72, 0x6f, 0x6f, 0x66, 0x52, 0x0e, 0x61,
 	0x70, 0x70, 0x43, 0x69, 0x72, 0x63, 0x75, 0x69, 0x74, 0x49, 0x6e, 0x66, 0x6f, 0x12, 0x1f, 0x0a,
 	0x0b, 0x75, 0x73, 0x65, 0x5f, 0x70, 0x6c, 0x6f, 0x6e, 0x6b, 0x79, 0x32, 0x18, 0x05, 0x20, 0x01,
@@ -1630,7 +1630,7 @@ var file_brevis_gateway_proto_goTypes = []interface{}{
 	(*StorageQueryInfo)(nil),                    // 21: brevis.StorageQueryInfo
 	(*TransactionInfo)(nil),                     // 22: brevis.TransactionInfo
 	(*commonproto.AppCircuitInfo)(nil),          // 23: common.AppCircuitInfo
-	(*commonproto.AppCirucitInfoWithProof)(nil), // 24: common.AppCirucitInfoWithProof
+	(*commonproto.AppCircuitInfoWithProof)(nil), // 24: common.AppCircuitInfoWithProof
 }
 var file_brevis_gateway_proto_depIdxs = []int32{
 	0,  // 0: brevis.ErrMsg.code:type_name -> brevis.ErrCode
@@ -1655,7 +1655,7 @@ var file_brevis_gateway_proto_depIdxs = []int32{
 	20, // 19: brevis.Query.receipt_infos:type_name -> brevis.ReceiptInfo
 	21, // 20: brevis.Query.storage_query_infos:type_name -> brevis.StorageQueryInfo
 	22, // 21: brevis.Query.transaction_infos:type_name -> brevis.TransactionInfo
-	24, // 22: brevis.Query.app_circuit_info:type_name -> common.AppCirucitInfoWithProof
+	24, // 22: brevis.Query.app_circuit_info:type_name -> common.AppCircuitInfoWithProof
 	4,  // 23: brevis.SendBatchQueriesResponse.err:type_name -> brevis.ErrMsg
 	19, // 24: brevis.SendBatchQueriesResponse.query_keys:type_name -> brevis.QueryKey
 	5,  // 25: brevis.Gateway.PrepareQuery:input_type -> brevis.PrepareQueryRequest
