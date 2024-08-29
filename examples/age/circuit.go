@@ -24,7 +24,7 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 
 	// Output variables can be later accessed in our app contract
 	api.OutputAddress(tx.From)
-	api.OutputUint(64, tx.BlockNum)
+	api.OutputUint32(32, tx.BlockNum)
 
 	return nil
 }

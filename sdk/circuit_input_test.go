@@ -68,7 +68,7 @@ func (c *TestReceiptPackCircuit) Define(api frontend.API) error {
 
 func TestReceiptPack(t *testing.T) {
 	r := Receipt{
-		BlockNum: ConstUint248(1234567),
+		BlockNum: ConstUint32(1234567),
 		Fields:   [NumMaxLogFields]LogField{},
 	}
 	for i := range r.Fields {
@@ -123,7 +123,7 @@ func (c *TestStoragePackCircuit) Define(api frontend.API) error {
 
 func TestStoragePack(t *testing.T) {
 	s := StorageSlot{
-		BlockNum: ConstUint248(1234567),
+		BlockNum: ConstUint32(1234567),
 		Contract: ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
 		Slot:     ConstBytes32(common.FromHex("0x9c2d3d42dcdafb0cb8c10089d02447b96c5fce87f298e50f88f2e188a6afcc41")),
 		Value:    ConstBytes32(common.FromHex("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
@@ -161,7 +161,7 @@ func (c *TestTransactionPackCircuit) Define(api frontend.API) error {
 func TestTransactionPack(t *testing.T) {
 	tx := Transaction{
 		ChainId:             ConstUint248(1),
-		BlockNum:            ConstUint248(1234567),
+		BlockNum:            ConstUint32(1234567),
 		Nonce:               ConstUint248(123),
 		GasTipCapOrGasPrice: ConstUint248(1234567890),
 		GasFeeCap:           ConstUint248(1876543212),
@@ -187,7 +187,7 @@ func TestTransactionPack(t *testing.T) {
 
 func TestReceiptCircuitVariable(t *testing.T) {
 	r := Receipt{
-		BlockNum: ConstUint248(1234567),
+		BlockNum: ConstUint32(1234567),
 		Fields: [NumMaxLogFields]LogField{
 			{
 				Contract: ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
@@ -212,7 +212,7 @@ func TestReceiptCircuitVariable(t *testing.T) {
 
 func TestStorageCircuitVariable(t *testing.T) {
 	s := StorageSlot{
-		BlockNum: ConstUint248(1234567),
+		BlockNum: ConstUint32(1234567),
 		Contract: ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
 		Slot:     ConstBytes32(hexutil.MustDecode("0x9c2d3d42dcdafb0cb8c10089d02447b96c5fce87f298e50f88f2e188a6afcc41")),
 		Value:    ConstBytes32(hexutil.MustDecode("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
@@ -225,7 +225,7 @@ func TestStorageCircuitVariable(t *testing.T) {
 func TestTransactionCircuitVariable(t *testing.T) {
 	tx := Transaction{
 		ChainId:             ConstUint248(1),
-		BlockNum:            ConstUint248(1234567),
+		BlockNum:            ConstUint32(1234567),
 		Nonce:               ConstUint248(123),
 		GasTipCapOrGasPrice: ConstUint248(1234567890),
 		GasFeeCap:           ConstUint248(1876543212),

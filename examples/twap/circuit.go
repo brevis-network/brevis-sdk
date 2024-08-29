@@ -34,6 +34,7 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 	slots := sdk.NewDataStream(api, in.StorageSlots)
 	var u248 = api.Uint248
 	var b32 = api.Bytes32
+	var u32 = api.Uint32
 
 	// group every 3 storage slot data, each group represents a tuple
 	windowed := sdk.WindowUnderlying(slots, 3)
@@ -52,8 +53,8 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 			b32.IsEqual(cur[2].Slot, SlotPrice1CumulativeLast),
 
 			// check block numbers are consistent within the group
-			u248.IsEqual(cur[1].BlockNum, blockNum),
-			u248.IsEqual(cur[2].BlockNum, blockNum),
+			u32.ToUint248(u32.IsEqual(cur[1].BlockNum, blockNum)),
+			u32.ToUint248(u32.IsEqual(cur[2].BlockNum, blockNum)),
 		)
 	})
 
@@ -71,7 +72,7 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 
 	fromBlock := a[0].BlockNum
 	toBlock := b[0].BlockNum
-	u248.AssertIsLessOrEqual(fromBlock, toBlock)
+	u32.AssertIsEqual(u32.IsGreaterThan(fromBlock, toBlock), sdk.ConstUint32(0))
 
 	// the results are uq112x112 fixed point numbers
 	// to get a human readable twap for token0, do:
@@ -89,7 +90,7 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 
 	api.OutputUint(248, token0Twap)
 	api.OutputUint(248, token1Twap)
-	api.OutputUint(64, fromBlock)
+	api.OutputUint32(32, fromBlock)
 	api.OutputUint(32, timeElapsed)
 
 	return nil

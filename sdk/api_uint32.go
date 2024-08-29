@@ -182,3 +182,7 @@ func (api *Uint32API) AssertIsEqual(a, b Uint32) {
 func (api *Uint32API) AssertIsDifferent(a, b Uint32) {
 	api.g.AssertIsDifferent(a.Val, b.Val)
 }
+
+func (api *Uint32API) ToUint248(a Uint32) Uint248 {
+	return newU248(a.Val)
+}

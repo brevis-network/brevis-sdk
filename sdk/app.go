@@ -606,7 +606,7 @@ func (q *BrevisApp) assignReceipts(maxReceipts int, in *CircuitInput) error {
 	// assigning user appointed receipts at specific indices
 	for i, receipt := range q.receipts.special {
 		in.Receipts.Raw[i] = Receipt{
-			BlockNum: newU248(receipt.BlockNum),
+			BlockNum: newU32(receipt.BlockNum),
 			Fields:   buildLogFields(receipt.Fields),
 		}
 		in.Receipts.Toggles[i] = 1
@@ -621,7 +621,7 @@ func (q *BrevisApp) assignReceipts(maxReceipts int, in *CircuitInput) error {
 			j++
 		}
 		in.Receipts.Raw[j] = Receipt{
-			BlockNum: newU248(receipt.BlockNum),
+			BlockNum: newU32(receipt.BlockNum),
 			Fields:   buildLogFields(receipt.Fields),
 		}
 		in.Receipts.Toggles[j] = 1
@@ -655,7 +655,7 @@ func (q *BrevisApp) assignReceipts(maxReceipts int, in *CircuitInput) error {
 				}
 				if _toggles[i+j] == 0 {
 					in.Receipts.Raw[i+j] = Receipt{
-						BlockNum: newU248(receipt.BlockNum),
+						BlockNum: newU32(receipt.BlockNum),
 						Fields:   buildLogFields(receipt.Fields),
 					}
 				}
@@ -755,7 +755,7 @@ func (q *BrevisApp) assignStorageSlots(maxStorageSlots int, in *CircuitInput) (e
 
 func buildStorageSlot(s StorageData) StorageSlot {
 	return StorageSlot{
-		BlockNum: newU248(s.BlockNum),
+		BlockNum: newU32(s.BlockNum),
 		Contract: ConstUint248(s.Address),
 		Slot:     ConstBytes32(s.Slot[:]),
 		Value:    ConstBytes32(s.Value[:]),
@@ -819,7 +819,7 @@ func (q *BrevisApp) assignTransactions(maxTransactions int, in *CircuitInput) (e
 func buildTx(t TransactionData) Transaction {
 	return Transaction{
 		ChainId:             ConstUint248(t.ChainId),
-		BlockNum:            ConstUint248(t.BlockNum),
+		BlockNum:            ConstUint32(t.BlockNum),
 		Nonce:               ConstUint248(t.Nonce),
 		GasTipCapOrGasPrice: ConstUint248(t.GasTipCapOrGasPrice),
 		GasFeeCap:           ConstUint248(t.GasFeeCap),

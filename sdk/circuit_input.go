@@ -147,7 +147,7 @@ const NumMaxLogFields = 8
 
 // Receipt is a collection of LogField.
 type Receipt struct {
-	BlockNum Uint248
+	BlockNum Uint32
 	Fields   [NumMaxLogFields]LogField
 }
 
@@ -157,7 +157,7 @@ func DefaultReceipt() Receipt {
 
 func defaultReceipt() Receipt {
 	r := Receipt{
-		BlockNum: newU248(0),
+		BlockNum: newU32(0),
 		Fields:   [NumMaxLogFields]LogField{},
 	}
 	for i := range r.Fields {
@@ -181,7 +181,7 @@ func (r Receipt) FromValues(vs ...frontend.Variable) CircuitVariable {
 	nr := Receipt{}
 
 	start, end := uint32(0), r.BlockNum.NumVars()
-	nr.BlockNum = r.BlockNum.FromValues(vs[start:end]...).(Uint248)
+	nr.BlockNum = r.BlockNum.FromValues(vs[start:end]...).(Uint32)
 
 	for i, f := range r.Fields {
 		start, end = end, end+f.NumVars()
@@ -324,7 +324,7 @@ func packBitsToFr(api frontend.API, bits []frontend.Variable) []frontend.Variabl
 }
 
 type StorageSlot struct {
-	BlockNum Uint248
+	BlockNum Uint32
 	// The contract to which the storage slot belong
 	Contract Uint248
 	// The storage slot
@@ -335,7 +335,7 @@ type StorageSlot struct {
 
 func defaultStorageSlot() StorageSlot {
 	return StorageSlot{
-		BlockNum: newU248(0),
+		BlockNum: newU32(0),
 		Contract: newU248(0),
 		Slot:     ConstBytes32([]byte{}),
 		Value:    ConstBytes32([]byte{}),
@@ -357,7 +357,7 @@ func (s StorageSlot) FromValues(vs ...frontend.Variable) CircuitVariable {
 	nr := StorageSlot{}
 
 	start, end := uint32(0), s.BlockNum.NumVars()
-	nr.BlockNum = s.BlockNum.FromValues(vs[start:end]...).(Uint248)
+	nr.BlockNum = s.BlockNum.FromValues(vs[start:end]...).(Uint32)
 
 	start, end = end, end+s.Contract.NumVars()
 	nr.Contract = s.Contract.FromValues(vs[start:end]...).(Uint248)
@@ -402,7 +402,7 @@ func (s StorageSlot) goPack() []*big.Int {
 
 type Transaction struct {
 	ChainId  Uint248
-	BlockNum Uint248
+	BlockNum Uint32
 	Nonce    Uint248
 	// GasTipCapOrGasPrice is GasPrice for legacy tx (type 0) and GasTipCapOap for
 	// dynamic-fee tx (type 2)
@@ -418,7 +418,7 @@ type Transaction struct {
 func defaultTransaction() Transaction {
 	return Transaction{
 		ChainId:             newU248(0),
-		BlockNum:            newU248(0),
+		BlockNum:            newU32(0),
 		Nonce:               newU248(0),
 		GasTipCapOrGasPrice: newU248(0),
 		GasFeeCap:           newU248(0),
@@ -453,7 +453,7 @@ func (t Transaction) FromValues(vs ...frontend.Variable) CircuitVariable {
 	nr.ChainId = t.ChainId.FromValues(vs[start:end]...).(Uint248)
 
 	start, end = end, end+t.BlockNum.NumVars()
-	nr.BlockNum = t.BlockNum.FromValues(vs[start:end]...).(Uint248)
+	nr.BlockNum = t.BlockNum.FromValues(vs[start:end]...).(Uint32)
 
 	start, end = end, end+t.Nonce.NumVars()
 	nr.Nonce = t.Nonce.FromValues(vs[start:end]...).(Uint248)

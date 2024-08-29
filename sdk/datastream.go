@@ -2,10 +2,11 @@ package sdk
 
 import (
 	"fmt"
-	"github.com/consensys/gnark/frontend"
-	"github.com/jedib0t/go-pretty/v6/table"
 	"math/big"
 	"os"
+
+	"github.com/consensys/gnark/frontend"
+	"github.com/jedib0t/go-pretty/v6/table"
 )
 
 type DataStream[T CircuitVariable] struct {

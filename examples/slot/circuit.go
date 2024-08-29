@@ -35,7 +35,7 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 	// abi.encodePacked(address,address,uint64)
 	api.OutputAddress(s.Contract)
 	api.OutputAddress(owner)
-	api.OutputUint(64, s.BlockNum)
+	api.OutputUint32(32, s.BlockNum)
 
 	return nil
 }

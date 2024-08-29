@@ -2,9 +2,10 @@ package sdk
 
 import (
 	"fmt"
-	"github.com/consensys/gnark/frontend"
 	"math/big"
 	"strings"
+
+	"github.com/consensys/gnark/frontend"
 )
 
 const (
@@ -16,6 +17,7 @@ const (
 
 // MaxUint248 is the largest safe number for uint248 type
 var MaxUint248 = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 248), big.NewInt(1))
+var MaxUint32 = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 32), big.NewInt(1))
 
 // BLS12377 fr is 253 bits or 32 bytes, but it doesn't mean we can use any
 // uint253 because max uint253 would still overflow the field. Reducing the bit
