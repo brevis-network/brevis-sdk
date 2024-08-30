@@ -53,8 +53,8 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 			b32.IsEqual(cur[2].Slot, SlotPrice1CumulativeLast),
 
 			// check block numbers are consistent within the group
-			u32.ToUint248(u32.IsEqual(cur[1].BlockNum, blockNum)),
-			u32.ToUint248(u32.IsEqual(cur[2].BlockNum, blockNum)),
+			api.ToUint248(u32.IsEqual(cur[1].BlockNum, blockNum)),
+			api.ToUint248(u32.IsEqual(cur[2].BlockNum, blockNum)),
 		)
 	})
 

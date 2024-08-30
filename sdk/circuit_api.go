@@ -249,13 +249,17 @@ func (api *CircuitAPI) ToUint521(i interface{}) Uint521 {
 	panic(fmt.Errorf("unsupported casting from %T to Uint521", i))
 }
 
-// ToUint248 casts the input to a Uint248 type. Supports Uint248, Int248,
+// ToUint248 casts the input to a Uint248 type. Supports Uint32, Uint64, Uint248, Int248,
 // Bytes32, and Uint521
 func (api *CircuitAPI) ToUint248(i interface{}) Uint248 {
 	switch v := i.(type) {
 	case Uint248:
 		return v
 	case Int248:
+		return newU248(v.Val)
+	case Uint32:
+		return newU248(v.Val)
+	case Uint64:
 		return newU248(v.Val)
 	case Bytes32:
 		api.g.AssertIsEqual(v.Val[1], 0)
