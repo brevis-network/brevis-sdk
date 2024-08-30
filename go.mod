@@ -3,9 +3,10 @@ module github.com/brevis-network/brevis-sdk
 go 1.20
 
 require (
-	github.com/brevis-network/zk-utils v0.0.0-20240708030032-e860f3d67190
+	github.com/brevis-network/zk-utils v0.0.0-20240830015644-01011c131ea1
 	github.com/cbergoon/merkletree v0.2.0
-	github.com/consensys/gnark v0.0.0
+	github.com/celer-network/goutils v0.1.60
+	github.com/consensys/gnark v0.9.2-0.20231206193932-4199bb354d89
 	github.com/consensys/gnark-crypto v0.12.2-0.20240215234832-d72fcb379d3e
 	github.com/ethereum/go-ethereum v1.13.15
 	github.com/golang/protobuf v1.5.4
@@ -25,7 +26,6 @@ require (
 	github.com/bits-and-blooms/bitset v1.10.0 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
-	github.com/celer-network/goutils v0.1.60 // indirect
 	github.com/consensys/bavard v0.1.13 // indirect
 	github.com/crate-crypto/go-kzg-4844 v0.7.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
