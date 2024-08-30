@@ -20,6 +20,7 @@ type CircuitAPI struct {
 	Int248  *Int248API
 	Bytes32 *Bytes32API
 	Uint32  *Uint32API
+	Uint64  *Uint64API
 
 	g                    frontend.API
 	output               []variable `gnark:"-"`
@@ -33,6 +34,8 @@ func NewCircuitAPI(gapi frontend.API) *CircuitAPI {
 		Uint521: newUint521API(gapi),
 		Int248:  newInt248API(gapi),
 		Bytes32: newBytes32API(gapi),
+		Uint32:  newUint32API(gapi),
+		Uint64:  newUint64API(gapi),
 	}
 }
 
