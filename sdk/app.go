@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"hash"
 	"math/big"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
 
 	"github.com/brevis-network/zk-utils/common/eth"
+	"github.com/brevis-network/zk-utils/common/utils"
 	bn254_fr "github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/consensys/gnark/backend/plonk"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -506,24 +506,35 @@ func (q *BrevisApp) checkAllocations(cb AppCircuit) error {
 
 func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 	leafs := make([]*big.Int, NumMaxDataPoints)
-	hasher := mimc_bn254.NewMiMC()
+	hasher := utils.NewPoseidonBn254() //  mimc_bn254.NewMiMC()
 	// // assign 0 to input commit for dummy slots and actual data hash for non-dummies
 	j := 0
 
 	for _, receipt := range w.Receipts.Raw {
-		leafs[j] = doHash(hasher, receipt.goPack())
-		w.InputCommitments[j] = leafs[j]
+		result, err := doHash(hasher, receipt.goPack())
+		if err != nil {
+			panic(fmt.Sprintf("failed to hash receipt: %s", err.Error()))
+		}
+		w.InputCommitments[j] = result
+		leafs[j] = result
 		j++
 	}
 	for _, slot := range w.StorageSlots.Raw {
-		leafs[j] = doHash(hasher, slot.goPack())
-		w.InputCommitments[j] = leafs[j]
+		result, err := doHash(hasher, slot.goPack())
+		if err != nil {
+			panic(fmt.Sprintf("failed to hash receipt: %s", err.Error()))
+		}
+		w.InputCommitments[j] = result
+		leafs[j] = result
 		j++
 	}
 	for _, tx := range w.Transactions.Raw {
-		leafs[j] = doHash(hasher, tx.goPack())
-		w.InputCommitments[j] = leafs[j]
-
+		result, err := doHash(hasher, tx.goPack())
+		if err != nil {
+			panic(fmt.Sprintf("failed to hash receipt: %s", err.Error()))
+		}
+		w.InputCommitments[j] = result
+		leafs[j] = result
 		j++
 	}
 
@@ -568,22 +579,29 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 			leafs[2*i].FillBytes(mimcBlockBuf0[:])
 			leafs[2*i+1].FillBytes(mimcBlockBuf1[:])
 			hasher.Reset()
-			hasher.Write(mimcBlockBuf0[:])
-			hasher.Write(mimcBlockBuf1[:])
-			leafs[i] = new(big.Int).SetBytes(hasher.Sum(nil))
+			hasher.Write(new(big.Int).SetBytes(mimcBlockBuf0[:]))
+			hasher.Write(new(big.Int).SetBytes(mimcBlockBuf1[:]))
+			result, err := hasher.Sum()
+			if err != nil {
+				panic(fmt.Sprintf("failed to hash merkle tree: %s", err.Error()))
+			}
+			leafs[i] = result
 		}
 		elementCount = elementCount / 2
 	}
 
 }
 
-func doHash(hasher hash.Hash, packed []*big.Int) *big.Int {
+func doHash(hasher *utils.PoseidonBn254Hasher, packed []*big.Int) (*big.Int, error) {
 	for _, v := range packed {
-		hasher.Write(common.LeftPadBytes(v.Bytes(), 32))
+		hasher.Write(new(big.Int).SetBytes(common.LeftPadBytes(v.Bytes(), 32)))
 	}
-	ret := new(big.Int).SetBytes(hasher.Sum(nil))
+	ret, err := hasher.Sum()
+	if err != nil {
+		return nil, err
+	}
 	hasher.Reset()
-	return ret
+	return ret, nil
 }
 
 func (q *BrevisApp) assignToggleCommitment(in *CircuitInput) {

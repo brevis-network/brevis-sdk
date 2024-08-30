@@ -93,7 +93,7 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 		return assertionPassed
 	})
 
-	blockNums := sdk.Map(receipts, func(cur sdk.Receipt) sdk.Uint248 { return api.Uint32.ToUint248(cur.BlockNum) })
+	blockNums := sdk.Map(receipts, func(cur sdk.Receipt) sdk.Uint248 { return api.ToUint248(cur.BlockNum) })
 
 	volumes := sdk.Map(receipts, func(cur sdk.Receipt) sdk.Uint248 {
 		valInt := api.ToInt248(cur.Fields[0].Value)
