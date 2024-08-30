@@ -124,6 +124,8 @@ github.com/cbergoon/merkletree v0.2.0 h1:Bttqr3OuoiZEo4ed1L7fTasHka9II+BF9fhBfbN
 github.com/cbergoon/merkletree v0.2.0/go.mod h1:5c15eckUgiucMGDOCanvalj/yJnD+KAZj1qyJtRW5aM=
 github.com/celer-network/gnark v0.0.0-20240204054508-d08e3ed6bd9f h1:jnQdUB9RerA8cDst4w2++1Bc4EeKUt/9FkJRpwxTS5I=
 github.com/celer-network/gnark v0.0.0-20240204054508-d08e3ed6bd9f/go.mod h1:ADyECY7hSqe+hSyFuIrm1t3fCZ1VCX5gQbiGC2iPjy8=
+github.com/celer-network/gnark-circomlib v0.0.0-20231207061220-de21415c34f7 h1:3HYiVNlQ0RyDZuNsiqlKlJkxyk/Pn95OZU6S3D6H20g=
+github.com/celer-network/gnark-circomlib v0.0.0-20231207061220-de21415c34f7/go.mod h1:mDaoT9m7iahPdG0kDpReF/K+lVQLVEApaIvc7+d/OVc=
 github.com/celer-network/goutils v0.1.60 h1:/FfVaK4j1zzRXGUHlH0QGnBRDzxwYhOaUFnoZQphkAU=
 github.com/celer-network/goutils v0.1.60/go.mod h1:jk1BUuNQLr7hByLX5hdFMcovAta5UEGQ0BlI6NCXDwQ=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
@@ -195,6 +197,8 @@ github.com/dave/jennifer v1.2.0/go.mod h1:fIb+770HOpJ2fmN9EPPKOqm1vMGhB+TwXKMZhr
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/dchest/blake256 v1.1.0 h1:4AuEhGPT/3TTKFhTfBpZ8hgZE7wJpawcYaEawwsbtqM=
+github.com/dchest/blake512 v1.0.0 h1:oDFEQFIqFSeuA34xLtXZ/rWxCXdSjirjzPhey5EUvmA=
 github.com/deckarep/golang-set v1.8.0/go.mod h1:5nI87KwE7wgsBU1F4GKAw2Qod7p5kyS383rP6+o6qqo=
 github.com/deckarep/golang-set/v2 v2.1.0 h1:g47V4Or+DUdzbs8FxCCmgb6VYd+ptPAngjM6dtGktsI=
 github.com/deckarep/golang-set/v2 v2.1.0/go.mod h1:VAky9rY/yGXJOLEDv3OMci+7wtDpOF4IN+y82NBOac4=
@@ -654,6 +658,7 @@ github.com/microcosm-cc/bluemonday v1.0.20/go.mod h1:yfBmMi8mxvaZut3Yytv+jTXRY8m
 github.com/microcosm-cc/bluemonday v1.0.21/go.mod h1:ytNkv4RrDrLJ2pqlsSI46O6IVXmZOBBD4SaJyDwwTkM=
 github.com/miekg/dns v1.0.14/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
 github.com/minio/highwayhash v1.0.2/go.mod h1:BQskDq+xkJ12lmlUUi7U0M5Swg3EWR+dLTk+kldvVxY=
+github.com/minya-konka/pedersen v0.0.0-20221228123429-151d98c6740c h1:zyxTgZ6hAmtK06aqgRfzDi7i1fJo8C8vlVwK0G+wHrc=
 github.com/mitchellh/cli v1.0.0/go.mod h1:hNIlj7HEI86fIcpObd7a0FcrxTWetlwJDGcceTlRvqc=
 github.com/mitchellh/go-homedir v1.0.0/go.mod h1:SfyaCUpYCn1Vlf4IUYiD9fPX4A5wJrkLzIz1N1q0pr0=
 github.com/mitchellh/go-homedir v1.1.0/go.mod h1:SfyaCUpYCn1Vlf4IUYiD9fPX4A5wJrkLzIz1N1q0pr0=
