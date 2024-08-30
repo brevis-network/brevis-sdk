@@ -8,6 +8,7 @@ import (
 	"github.com/brevis-network/zk-utils/circuits/gadgets/poseidon"
 	"github.com/consensys/gnark/constraint/solver"
 	"github.com/consensys/gnark/frontend"
+	"github.com/consensys/gnark/std/hash/mimc"
 )
 
 // CircuitAPI contains a set of APIs that can only be used in circuit to perform
@@ -301,4 +302,8 @@ func (api *CircuitAPI) NewHint(f solver.Hint, nbOutputs int, inputs ...frontend.
 
 func (api *CircuitAPI) NewPoseidon() (poseidon.PoseidonCircuit, error) {
 	return poseidon.NewBn254PoseidonCircuit(api.g)
+}
+
+func (api *CircuitAPI) NewMiMC() (mimc.MiMC, error) {
+	return mimc.NewMiMC(api.g)
 }
