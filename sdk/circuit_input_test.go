@@ -5,10 +5,10 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/brevis-network/zk-utils/circuits/gadgets/poseidon"
+	"github.com/brevis-network/zk-utils/common/utils"
 	"github.com/consensys/gnark-crypto/ecc"
-	mimc_native "github.com/consensys/gnark-crypto/ecc/bn254/fr/mimc"
 	"github.com/consensys/gnark/frontend"
-	"github.com/consensys/gnark/std/hash/mimc"
 	"github.com/consensys/gnark/test"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -55,11 +55,14 @@ type TestReceiptPackCircuit struct {
 func (c *TestReceiptPackCircuit) Define(api frontend.API) error {
 	packed := c.Receipt.pack(api)
 	fmt.Println("circuit packed", packed)
+	hasher, _ := poseidon.NewBn254PoseidonCircuit(api)
+	if len(packed) > 16 {
+		panic("out of length")
+	}
 	for i, v := range packed {
 		api.AssertIsEqual(v, c.ExpectPacked[i])
+		hasher.Write(v)
 	}
-	hasher, _ := mimc.NewMiMC(api)
-	hasher.Write(packed...)
 	h := hasher.Sum()
 	fmt.Printf("circuit hash: %s\n", h)
 	api.AssertIsEqual(h, c.ExpectHash)
@@ -82,11 +85,15 @@ func TestReceiptPack(t *testing.T) {
 	}
 	fmt.Println("expected packed", r.goPack())
 
-	hasher := mimc_native.NewMiMC()
+	hasher := utils.NewPoseidonBn254()
 	for _, v := range r.goPack() {
-		hasher.Write(common.LeftPadBytes(v.Bytes(), 32))
+		hasher.Write(new(big.Int).SetBytes(common.LeftPadBytes(v.Bytes(), 32)))
 	}
-	h := new(big.Int).SetBytes(hasher.Sum(nil))
+
+	h, err := hasher.Sum()
+	if err != nil {
+		t.Error(err)
+	}
 	fmt.Printf("expected hash: %s\n", h)
 
 	c := &TestReceiptPackCircuit{
@@ -100,7 +107,7 @@ func TestReceiptPack(t *testing.T) {
 		ExpectHash:   h,
 	}
 
-	err := test.IsSolved(c, a, ecc.BN254.ScalarField())
+	err = test.IsSolved(c, a, ecc.BN254.ScalarField())
 	if err != nil {
 		t.Error(err)
 	}

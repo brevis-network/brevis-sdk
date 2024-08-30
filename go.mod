@@ -3,7 +3,7 @@ module github.com/brevis-network/brevis-sdk
 go 1.20
 
 require (
-	github.com/brevis-network/zk-utils v0.0.0-20240830015644-01011c131ea1
+	github.com/brevis-network/zk-utils v0.0.0-20240830023703-6574b1dea68d
 	github.com/cbergoon/merkletree v0.2.0
 	github.com/celer-network/goutils v0.1.60
 	github.com/consensys/gnark v0.9.2-0.20231206193932-4199bb354d89
@@ -41,6 +41,7 @@ require (
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/holiman/uint256 v1.2.4 // indirect
 	github.com/huin/goupnp v1.3.0 // indirect
+	github.com/iden3/go-iden3-crypto v0.0.15 // indirect
 	github.com/ingonyama-zk/icicle v0.1.1-0.20240120093837-db9eff751859 // indirect
 	github.com/ingonyama-zk/iciclegnark v0.1.2-0.20240120100015-8653136f9db4 // indirect
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect

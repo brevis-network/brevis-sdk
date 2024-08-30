@@ -6,6 +6,7 @@ import (
 
 	"github.com/brevis-network/brevis-sdk/common/utils"
 	"github.com/brevis-network/zk-utils/circuits/gadgets/keccak"
+	"github.com/brevis-network/zk-utils/circuits/gadgets/poseidon"
 	"github.com/celer-network/goutils/log"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"
@@ -75,13 +76,18 @@ func (c *HostCircuit) commitInput() error {
 	if err != nil {
 		return fmt.Errorf("invalid witness assignment: %s", err.Error())
 	}
-	hasher, err := mimc.NewMiMC(c.api)
+	hasher, err := poseidon.NewBn254PoseidonCircuit(c.api)
 	if err != nil {
-		return fmt.Errorf("error creating mimc hasher instance: %s", err.Error())
+		return fmt.Errorf("error creating poseidon hasher instance: %s", err.Error())
 	}
 	hash := func(vs []frontend.Variable) frontend.Variable {
 		hasher.Reset()
-		hasher.Write(vs...)
+		if len(vs) > 16 {
+			panic(fmt.Sprintf("input is more than 16: %d", len(vs)))
+		}
+		for _, v := range vs {
+			hasher.Write(v)
+		}
 		sum := hasher.Sum()
 		return sum
 	}
@@ -116,15 +122,20 @@ func (c *HostCircuit) commitInput() error {
 
 	toggles := c.Input.Toggles()
 	log.Infof("toggles: %v", toggles)
+
+	mimcHash, err := mimc.NewMiMC(c.api)
+	if err != nil {
+		return fmt.Errorf("error creating mimc hasher instance: %s", err.Error())
+	}
 	// sanity check, this shouldn't happen
 	if len(toggles) != NumMaxDataPoints {
 		panic(fmt.Errorf("toggles len %d != NumMaxDataPoints %d", len(toggles), NumMaxDataPoints))
 	}
 
 	packed := packBitsToFr(c.api, toggles)
-	hasher.Reset()
-	hasher.Write(packed...)
-	togglesCommit := hasher.Sum()
+	mimcHash.Reset()
+	mimcHash.Write(packed...)
+	togglesCommit := mimcHash.Sum()
 	c.api.AssertIsEqual(togglesCommit, c.Input.TogglesCommitment)
 
 	return nil
@@ -275,7 +286,7 @@ func dryRun(in CircuitInput, guest AppCircuit) (OutputCommitment, []byte, error)
 // must be a full binary tree
 // leafs is the InputCommitments list
 func calMerkelRoot(gapi frontend.API, datas []frontend.Variable) (frontend.Variable, error) {
-	hasher, err := mimc.NewMiMC(gapi)
+	hasher, err := poseidon.NewBn254PoseidonCircuit(gapi)
 	if err != nil {
 		return nil, err
 	}
