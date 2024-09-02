@@ -16,7 +16,7 @@ func (c *AppCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions int) {
 	// Our app is only ever going to use one storage data at a time so
 	// we can simply limit the max number of data for storage to 1 and
 	// 0 for all others
-	return 63, 0, 0
+	return 64, 0, 0
 }
 
 func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
@@ -25,7 +25,6 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 }
 
 func main() {
-
 	outDir := "$HOME/circuitOut/myBrevisApp"
 	srsDir := "$HOME/kzgsrs"
 	app, err := sdk.NewBrevisApp()
@@ -72,7 +71,7 @@ func main() {
 	appContract := common.HexToAddress("0xeec66d9b615ff84909be1cb1fe633cc26150417d")
 	refundee := common.HexToAddress("0x1bF81EA1F2F6Afde216cD3210070936401A14Bd4")
 
-	_, _, _, _, err = app.PrepareRequest(vk, 97, 97, refundee, appContract, 400000, gwproto.QueryOption_ZK_MODE.Enum(), "", true)
+	_, _, _, _, err = app.PrepareRequest(vk, witness, 97, 97, refundee, appContract, 400000, gwproto.QueryOption_ZK_MODE.Enum(), "", true)
 	check(err)
 
 	err = app.SubmitProof(proof)

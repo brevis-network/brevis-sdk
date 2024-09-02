@@ -17,6 +17,7 @@ import (
 	"github.com/brevis-network/zk-utils/common/utils"
 	bn254_fr "github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/consensys/gnark/backend/plonk"
+	"github.com/consensys/gnark/backend/witness"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -218,6 +219,7 @@ func (q *BrevisApp) BuildCircuitInput(app AppCircuit) (CircuitInput, error) {
 
 func (q *BrevisApp) PrepareRequest(
 	vk plonk.VerifyingKey,
+	witness witness.Witness,
 	srcChainId, dstChainId uint64,
 	refundee, appContract common.Address,
 	callbackGasLimit uint64,
@@ -231,12 +233,17 @@ func (q *BrevisApp) PrepareRequest(
 	if len(apiKey) > 0 {
 		fmt.Println("Use Brevis Partner Flow to PrepareRequest...")
 		return q.prepareQueryForBrevisPartnerFlow(
-			vk, srcChainId, dstChainId, appContract, option, apiKey,
+			vk, witness, srcChainId, dstChainId, appContract, option, apiKey,
 		)
 	}
 
 	q.srcChainId = srcChainId
 	q.dstChainId = dstChainId
+
+	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, vk, witness)
+	if err != nil {
+		return
+	}
 
 	req := &gwproto.PrepareQueryRequest{
 		ChainId:           srcChainId,
@@ -244,7 +251,7 @@ func (q *BrevisApp) PrepareRequest(
 		ReceiptInfos:      buildReceiptInfos(q.receipts, q.maxReceipts),
 		StorageQueryInfos: buildStorageQueryInfos(q.storageVals, q.maxStorage),
 		TransactionInfos:  buildTxInfos(q.txs, q.maxTxs),
-		AppCircuitInfo:    buildAppCircuitInfo(q.circuitInput, vk),
+		AppCircuitInfo:    appCircuitInfo,
 		Option:            *option,
 		UsePlonky2:        usePlonky2,
 	}
@@ -410,6 +417,7 @@ func (q *BrevisApp) waitFinalProofSubmitted(cancel <-chan struct{}) (common.Hash
 
 func (q *BrevisApp) prepareQueryForBrevisPartnerFlow(
 	vk plonk.VerifyingKey,
+	witness witness.Witness,
 	srcChainId, dstChainId uint64,
 	appContract common.Address,
 	option *gwproto.QueryOption,
@@ -421,7 +429,11 @@ func (q *BrevisApp) prepareQueryForBrevisPartnerFlow(
 	q.srcChainId = srcChainId
 	q.dstChainId = dstChainId
 
-	appCircuitInfo := buildAppCircuitInfo(q.circuitInput, vk)
+	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, vk, witness)
+	if err != nil {
+		err = fmt.Errorf("failed to build app circuit info: %s", err.Error())
+		return
+	}
 
 	vkHash, err := ComputeVkHash(vk)
 	if err != nil {

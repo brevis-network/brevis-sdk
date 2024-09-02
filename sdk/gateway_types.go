@@ -7,10 +7,11 @@ import (
 
 	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
 	"github.com/consensys/gnark/backend/plonk"
+	"github.com/consensys/gnark/backend/witness"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
-func buildAppCircuitInfo(in CircuitInput, vk plonk.VerifyingKey) *commonproto.AppCircuitInfo {
+func buildAppCircuitInfo(in CircuitInput, vk plonk.VerifyingKey, witness witness.Witness) (*commonproto.AppCircuitInfo, error) {
 	inputCommitments := make([]string, len(in.InputCommitments))
 	for i, value := range in.InputCommitments {
 		inputCommitments[i] = fmt.Sprintf("0x%x", value)
@@ -19,6 +20,11 @@ func buildAppCircuitInfo(in CircuitInput, vk plonk.VerifyingKey) *commonproto.Ap
 	toggles := make([]bool, len(in.Toggles()))
 	for i, value := range in.Toggles() {
 		toggles[i] = fmt.Sprintf("%x", value) == "1"
+	}
+
+	publicWitness, err := witness.Public()
+	if err != nil {
+		return nil, err
 	}
 
 	return &commonproto.AppCircuitInfo{
@@ -30,7 +36,8 @@ func buildAppCircuitInfo(in CircuitInput, vk plonk.VerifyingKey) *commonproto.Ap
 		UseCallback:          true,
 		Output:               hexutil.Encode(in.dryRunOutput),
 		InputCommitmentsRoot: fmt.Sprintf("0x%x", in.InputCommitmentsRoot),
-	}
+		Witness:              hexutil.Encode(mustWriteToBytes(publicWitness)),
+	}, nil
 }
 
 func buildReceiptInfos(r rawData[ReceiptData], max int) (infos []*gwproto.ReceiptInfo) {
