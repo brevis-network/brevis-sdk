@@ -47,10 +47,6 @@ func main() {
 			logFiledFata,
 			logFiledFata,
 			logFiledFata,
-			logFiledFata,
-			logFiledFata,
-			logFiledFata,
-			logFiledFata,
 		},
 	}
 

@@ -10,7 +10,6 @@ import (
 	"github.com/celer-network/goutils/log"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"
-	"github.com/consensys/gnark/std/hash/mimc"
 	"github.com/consensys/gnark/std/multicommit"
 	"github.com/consensys/gnark/test"
 )
@@ -80,7 +79,8 @@ func (c *HostCircuit) commitInput() error {
 	if err != nil {
 		return fmt.Errorf("error creating poseidon hasher instance: %s", err.Error())
 	}
-	hash := func(vs []frontend.Variable) frontend.Variable {
+
+	hashOrZero := func(toggle frontend.Variable, vs []frontend.Variable) frontend.Variable {
 		hasher.Reset()
 		if len(vs) > 16 {
 			panic(fmt.Sprintf("input is more than 16: %d", len(vs)))
@@ -89,28 +89,28 @@ func (c *HostCircuit) commitInput() error {
 			hasher.Write(v)
 		}
 		sum := hasher.Sum()
-		return sum
+		return c.api.Select(toggle, sum, 0)
 	}
 
 	var inputCommits [NumMaxDataPoints]frontend.Variable
 	receipts := c.Input.Receipts
 	j := 0
-	for _, receipt := range receipts.Raw {
+	for i, receipt := range receipts.Raw {
 		packed := receipt.pack(c.api)
-		inputCommits[j] = hash(packed)
+		inputCommits[j] = hashOrZero(receipts.Toggles[i], packed)
 		j++
 	}
 
-	storage := c.Input.StorageSlots
-	for _, slot := range storage.Raw {
+	storageSlots := c.Input.StorageSlots
+	for i, slot := range storageSlots.Raw {
 		packed := slot.pack(c.api)
-		inputCommits[j] = hash(packed)
+		inputCommits[j] = hashOrZero(storageSlots.Toggles[i], packed)
 		j++
 	}
 	txs := c.Input.Transactions
-	for _, tx := range txs.Raw {
+	for i, tx := range txs.Raw {
 		packed := tx.pack(c.api)
-		inputCommits[j] = hash(packed)
+		inputCommits[j] = hashOrZero(txs.Toggles[i], packed)
 		j++
 	}
 
@@ -123,19 +123,27 @@ func (c *HostCircuit) commitInput() error {
 	toggles := c.Input.Toggles()
 	log.Infof("toggles: %v", toggles)
 
-	mimcHash, err := mimc.NewMiMC(c.api)
-	if err != nil {
-		return fmt.Errorf("error creating mimc hasher instance: %s", err.Error())
-	}
 	// sanity check, this shouldn't happen
 	if len(toggles) != NumMaxDataPoints {
 		panic(fmt.Errorf("toggles len %d != NumMaxDataPoints %d", len(toggles), NumMaxDataPoints))
 	}
 
-	packed := packBitsToFr(c.api, toggles)
-	mimcHash.Reset()
-	mimcHash.Write(packed...)
-	togglesCommit := mimcHash.Sum()
+	if len(toggles)%32 != 0 {
+		panic(fmt.Errorf("toggles len %d is not an integral multiple of 32", len(toggles)))
+	}
+
+	var toggleTreeLeaf = make([]frontend.Variable, len(toggles)/32)
+	for i := range toggleTreeLeaf {
+		packed := packBitsToFr(c.api, toggles[i*32:i*32+32])
+		hasher.Reset()
+		hasher.Write(packed[0])
+		toggleTreeLeaf[i] = hasher.Sum()
+	}
+
+	togglesCommit, err := calMerkelRoot(c.api, toggleTreeLeaf)
+	if err != nil {
+		return fmt.Errorf("error building user-defined circuit calMerkelRoot fail, %s", err.Error())
+	}
 	c.api.AssertIsEqual(togglesCommit, c.Input.TogglesCommitment)
 
 	return nil
@@ -284,7 +292,6 @@ func dryRun(in CircuitInput, guest AppCircuit) (OutputCommitment, []byte, error)
 
 // return merkel root hash,
 // must be a full binary tree
-// leafs is the InputCommitments list
 func calMerkelRoot(gapi frontend.API, datas []frontend.Variable) (frontend.Variable, error) {
 	hasher, err := poseidon.NewBn254PoseidonCircuit(gapi)
 	if err != nil {

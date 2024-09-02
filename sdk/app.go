@@ -486,14 +486,23 @@ func (q *BrevisApp) checkAllocations(cb AppCircuit) error {
 	maxReceipts, maxSlots, maxTxs := cb.Allocate()
 
 	numReceipts := len(q.receipts.special) + len(q.receipts.ordered)
+	if maxReceipts%32 != 0 {
+		return allocationMultipleErr("receipt", maxReceipts)
+	}
 	if numReceipts > maxReceipts {
 		return allocationLenErr("receipt", numReceipts, maxReceipts)
 	}
 	numStorages := len(q.storageVals.special) + len(q.storageVals.ordered)
+	if maxSlots%32 != 0 {
+		return allocationMultipleErr("storage", maxSlots)
+	}
 	if numStorages > maxSlots {
 		return allocationLenErr("storage", numStorages, maxSlots)
 	}
 	numTxs := len(q.txs.special) + len(q.txs.ordered)
+	if maxTxs%32 != 0 {
+		return allocationMultipleErr("transaction", maxTxs)
+	}
 	if numTxs > maxTxs {
 		return allocationLenErr("transaction", numTxs, maxTxs)
 	}
@@ -506,67 +515,55 @@ func (q *BrevisApp) checkAllocations(cb AppCircuit) error {
 
 func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 	leafs := make([]*big.Int, NumMaxDataPoints)
-	hasher := utils.NewPoseidonBn254() //  mimc_bn254.NewMiMC()
-	// // assign 0 to input commit for dummy slots and actual data hash for non-dummies
+	hasher := utils.NewPoseidonBn254()
+	// // assign 0 to input commit for dummy and actual data hash for non-dummies
 	j := 0
 
-	for _, receipt := range w.Receipts.Raw {
-		result, err := doHash(hasher, receipt.goPack())
-		if err != nil {
-			panic(fmt.Sprintf("failed to hash receipt: %s", err.Error()))
+	for i, receipt := range w.Receipts.Raw {
+		if fromInterface(w.Receipts.Toggles[i]).Sign() != 0 {
+			result, err := doHash(hasher, receipt.goPack())
+			if err != nil {
+				panic(fmt.Sprintf("failed to hash receipt: %s", err.Error()))
+			}
+			w.InputCommitments[j] = result
+			leafs[j] = result
+		} else {
+			leafs[j] = new(big.Int).SetBytes(common.Hex2Bytes("0x01"))
 		}
-		w.InputCommitments[j] = result
-		leafs[j] = result
 		j++
 	}
-	for _, slot := range w.StorageSlots.Raw {
-		result, err := doHash(hasher, slot.goPack())
-		if err != nil {
-			panic(fmt.Sprintf("failed to hash receipt: %s", err.Error()))
+	for i, slot := range w.StorageSlots.Raw {
+		if fromInterface(w.StorageSlots.Toggles[i]).Sign() != 0 {
+			result, err := doHash(hasher, slot.goPack())
+			if err != nil {
+				panic(fmt.Sprintf("failed to hash receipt: %s", err.Error()))
+			}
+			w.InputCommitments[j] = result
+			leafs[j] = result
+		} else {
+			leafs[j] = new(big.Int).SetBytes(common.Hex2Bytes("0x01"))
 		}
-		w.InputCommitments[j] = result
-		leafs[j] = result
 		j++
 	}
-	for _, tx := range w.Transactions.Raw {
-		result, err := doHash(hasher, tx.goPack())
-		if err != nil {
-			panic(fmt.Sprintf("failed to hash receipt: %s", err.Error()))
+	for i, tx := range w.Transactions.Raw {
+		if fromInterface(w.Transactions.Toggles[i]).Sign() != 0 {
+			result, err := doHash(hasher, tx.goPack())
+			if err != nil {
+				panic(fmt.Sprintf("failed to hash receipt: %s", err.Error()))
+			}
+			w.InputCommitments[j] = result
+			leafs[j] = result
+		} else {
+			leafs[j] = new(big.Int).SetBytes(common.Hex2Bytes("0x01"))
 		}
-		w.InputCommitments[j] = result
-		leafs[j] = result
 		j++
 	}
 
 	for i := j; i < NumMaxDataPoints; i++ {
-		leafs[i] = new(big.Int).SetBytes(common.Hex2Bytes("2369aa59f1f52216f305b9ad3b88be1479b25ff97b933be91329c803330966cd"))
-		w.InputCommitments[i] = leafs[i]
+		leafs[i] = new(big.Int).SetBytes(common.Hex2Bytes("0x01"))
 	}
 
-	for x := 0; x < NumMaxDataPoints; x = x + 16 {
-		firstNotEmptyIndex := -1
-		for y := 0; y < 16; y++ {
-			if w.Toggles()[x+y] != 0 {
-				if firstNotEmptyIndex == -1 {
-					firstNotEmptyIndex = x + y
-					break
-				}
-			}
-		}
-		if firstNotEmptyIndex == -1 {
-			// do noting
-		} else {
-			// fill empty with first no empty
-			for y := x; y < 16; y++ {
-				if w.Toggles()[x+y] == 0 {
-					leafs[x+y] = leafs[firstNotEmptyIndex]
-					w.InputCommitments[x+y] = leafs[firstNotEmptyIndex]
-				}
-			}
-		}
-	}
-
-	elementCount := len(w.InputCommitments)
+	elementCount := len(leafs)
 	for {
 		if elementCount == 1 {
 			w.InputCommitmentsRoot = leafs[0]
@@ -589,7 +586,6 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 		}
 		elementCount = elementCount / 2
 	}
-
 }
 
 func doHash(hasher *utils.PoseidonBn254Hasher, packed []*big.Int) (*big.Int, error) {
@@ -604,18 +600,58 @@ func doHash(hasher *utils.PoseidonBn254Hasher, packed []*big.Int) (*big.Int, err
 	return ret, nil
 }
 
+// To reduce toggles commitment constraint comsumption,
+// hash 32 toggles into one value which is used as merkle tree leaf.
 func (q *BrevisApp) assignToggleCommitment(in *CircuitInput) {
+	leafs := make([]*big.Int, NumMaxDataPoints/32)
+
 	var toggles = in.Toggles()
-	var toggleBits []uint
-	for _, t := range toggles {
-		toggleBits = append(toggleBits, uint(fromInterface(t).Uint64()))
+	if len(toggles)%32 != 0 {
+		panic(fmt.Sprintf("invalid toggles length %d", len(toggles)))
 	}
-	packed := packBitsToInt(toggleBits, bn254_fr.Bits-1)
-	hasher := mimc_bn254.NewMiMC()
-	for _, v := range packed {
-		hasher.Write(common.LeftPadBytes(v.Bytes(), 32))
+
+	hasher := utils.NewPoseidonBn254()
+
+	for i := range leafs {
+		var toggleBits []uint
+		for _, t := range toggles[i*32 : i*32+32] {
+			toggleBits = append(toggleBits, uint(fromInterface(t).Uint64()))
+		}
+		packed := packBitsToInt(toggleBits, bn254_fr.Bits-1)
+		hasher.Reset()
+		for _, v := range packed {
+			hasher.Write(v)
+		}
+		result, err := hasher.Sum()
+		if err != nil {
+			panic(fmt.Sprintf("invalid toggles length %d", len(toggles)))
+		}
+		leafs[i] = result
 	}
-	in.TogglesCommitment = new(big.Int).SetBytes(hasher.Sum(nil))
+
+	elementCount := len(leafs)
+	for {
+		if elementCount == 1 {
+			in.TogglesCommitment = leafs[0]
+			log.Infof("input.TogglesCommitment: %x", in.InputCommitmentsRoot)
+			return
+		}
+		log.Infof("calMerkelRoot(no circuit) with element size: %d", elementCount)
+		for i := 0; i < elementCount/2; i++ {
+			var mimcBlockBuf0, mimcBlockBuf1 [mimc_bn254.BlockSize]byte
+			leafs[2*i].FillBytes(mimcBlockBuf0[:])
+			leafs[2*i+1].FillBytes(mimcBlockBuf1[:])
+			hasher.Reset()
+			hasher.Write(new(big.Int).SetBytes(mimcBlockBuf0[:]))
+			hasher.Write(new(big.Int).SetBytes(mimcBlockBuf1[:]))
+			result, err := hasher.Sum()
+			if err != nil {
+				panic(fmt.Sprintf("failed to hash merkle tree: %s", err.Error()))
+			}
+			leafs[i] = result
+		}
+		elementCount = elementCount / 2
+	}
 }
 
 func (q *BrevisApp) assignReceipts(maxReceipts int, in *CircuitInput) error {
@@ -647,38 +683,6 @@ func (q *BrevisApp) assignReceipts(maxReceipts int, in *CircuitInput) error {
 		_receipts[j] = receipt
 
 		j++
-	}
-
-	for i := 0; i < maxReceipts; i += 16 {
-		validIndex := -1
-		for j := 0; j < 16; j++ {
-			// in.Receipts.Toggles[i+j]
-			if maxReceipts <= i+j {
-				break
-			}
-
-			if _toggles[i+j] == 1 {
-				validIndex = i + j
-			}
-		}
-
-		if validIndex >= 0 {
-			receipt := _receipts[validIndex]
-			if receipt.BlockNum.Cmp(big.NewInt(0)) == 0 {
-				return fmt.Errorf("try to assign receipt with empty info")
-			}
-			for j := 0; j < 16; j++ {
-				if maxReceipts <= i+j {
-					break
-				}
-				if _toggles[i+j] == 0 {
-					in.Receipts.Raw[i+j] = Receipt{
-						BlockNum: newU32(receipt.BlockNum),
-						Fields:   buildLogFields(receipt.Fields),
-					}
-				}
-			}
-		}
 	}
 
 	return nil
@@ -740,34 +744,6 @@ func (q *BrevisApp) assignStorageSlots(maxStorageSlots int, in *CircuitInput) (e
 		j++
 	}
 
-	for i := 0; i < maxStorageSlots; i += 16 {
-		validIndex := -1
-		for j := 0; j < 16; j++ {
-			if maxStorageSlots <= i+j {
-				break
-			}
-
-			if _toggles[i+j] == 1 {
-				validIndex = i + j
-			}
-		}
-
-		if validIndex >= 0 {
-			storageSlot := _storageSlots[validIndex]
-			if storageSlot.BlockNum.Cmp(big.NewInt(0)) == 0 {
-				return fmt.Errorf("try to assign receipt with empty info")
-			}
-			for j := 0; j < 16; j++ {
-				if maxStorageSlots <= i+j {
-					break
-				}
-				if _toggles[i+j] == 0 {
-					in.StorageSlots.Raw[i] = buildStorageSlot(storageSlot)
-				}
-			}
-		}
-	}
-
 	return nil
 }
 
@@ -804,33 +780,6 @@ func (q *BrevisApp) assignTransactions(maxTransactions int, in *CircuitInput) (e
 		j++
 	}
 
-	for i := 0; i < maxTransactions; i += 16 {
-		validReceiptIndex := -1
-		for j := 0; j < 16; j++ {
-			if maxTransactions <= i+j {
-				break
-			}
-
-			if _toggles[i+j] == 1 {
-				validReceiptIndex = i + j
-			}
-		}
-
-		if validReceiptIndex >= 0 {
-			tx := _txs[validReceiptIndex]
-			if tx.BlockNum.Cmp(big.NewInt(0)) == 0 {
-				return fmt.Errorf("try to assign receipt with empty info")
-			}
-			for j := 0; j < 16; j++ {
-				if maxTransactions <= i+j {
-					break
-				}
-				if _toggles[i+j] == 0 {
-					in.Transactions.Raw[i] = buildTx(tx)
-				}
-			}
-		}
-	}
 	return nil
 }
 
@@ -850,6 +799,11 @@ func buildTx(t TransactionData) Transaction {
 
 func buildCircuitInputErr(m string, err error) (CircuitInput, error) {
 	return CircuitInput{}, fmt.Errorf("%s: %s", m, err.Error())
+}
+
+func allocationMultipleErr(name string, queryCount int) error {
+	return fmt.Errorf("# of %s max queries (%d) must be an integral multiple of 32, check your AppCircuit.Allocate() method",
+		name, queryCount)
 }
 
 func allocationLenErr(name string, queryCount, maxCount int) error {
