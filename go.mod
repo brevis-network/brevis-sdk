@@ -73,6 +73,6 @@ require (
 
 replace (
 	github.com/consensys/gnark => github.com/celer-network/gnark v0.1.0
-	//github.com/consensys/gnark-crypto => github.com/consensys/gnark-crypto v0.12.2-0.20240215234832-d72fcb379d3e
+	github.com/consensys/gnark-crypto => github.com/consensys/gnark-crypto v0.12.2-0.20240215234832-d72fcb379d3e
 	github.com/ethereum/go-ethereum => github.com/celer-network/go-ethereum v0.0.0-20240508080742-fdaf5ddad8a3
 )
