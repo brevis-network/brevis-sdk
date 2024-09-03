@@ -131,14 +131,15 @@ func ComputeVkHash(vk plonk.VerifyingKey) (common.Hash, error) {
 func Prove(ccs constraint.ConstraintSystem, pk plonk.ProvingKey, w witness.Witness) (plonk.Proof, error) {
 	fmt.Println(">> prove")
 
-	opts := replonk.GetNativeProverOptions(ecc.BW6_761.ScalarField(), ecc.BLS12_377.ScalarField())
+	opts := replonk.GetNativeProverOptions(ecc.BN254.ScalarField(), ecc.BN254.ScalarField())
+
 	return plonk.Prove(ccs, pk, w, opts)
 }
 
 func Verify(vk plonk.VerifyingKey, publicWitness witness.Witness, proof plonk.Proof) error {
 	fmt.Println(">> verify")
 
-	opts := replonk.GetNativeVerifierOptions(ecc.BW6_761.ScalarField(), ecc.BLS12_377.ScalarField())
+	opts := replonk.GetNativeVerifierOptions(ecc.BN254.ScalarField(), ecc.BN254.ScalarField())
 	return plonk.Verify(proof, vk, publicWitness, opts)
 }
 
