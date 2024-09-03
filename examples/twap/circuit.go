@@ -15,7 +15,7 @@ func (c *AppCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions int) {
 	// This demo app is only going to use blockTimestampLast, price0CumulativeLast and
 	// price1CumulativeLast from two different blocks. These three storage variables takes three
 	// different contract slots, so we need 6 storage slots in total.
-	return 0, 6, 0
+	return 0, 96, 0
 }
 
 var UniswapV2PairUsdcEth = sdk.ConstUint248(
