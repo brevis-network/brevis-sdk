@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/brevis-network/zk-utils/circuits/gadgets/keccak"
-	"github.com/brevis-network/zk-utils/circuits/gadgets/poseidon"
+	"github.com/brevis-network/zk-hash/keccak"
+	"github.com/brevis-network/zk-hash/poseidon"
 	"github.com/consensys/gnark/constraint/solver"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/hash/mimc"

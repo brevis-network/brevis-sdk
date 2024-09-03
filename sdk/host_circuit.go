@@ -5,8 +5,8 @@ import (
 	"sync"
 
 	"github.com/brevis-network/brevis-sdk/common/utils"
-	"github.com/brevis-network/zk-utils/circuits/gadgets/keccak"
-	"github.com/brevis-network/zk-utils/circuits/gadgets/poseidon"
+	"github.com/brevis-network/zk-hash/keccak"
+	"github.com/brevis-network/zk-hash/poseidon"
 	"github.com/celer-network/goutils/log"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"

@@ -13,8 +13,8 @@ import (
 	"github.com/brevis-network/brevis-sdk/sdk/proto/commonproto"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
 
+	"github.com/brevis-network/zk-hash/utils"
 	"github.com/brevis-network/zk-utils/common/eth"
-	"github.com/brevis-network/zk-utils/common/utils"
 	bn254_fr "github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/consensys/gnark/backend/plonk"
 	"github.com/consensys/gnark/backend/witness"
