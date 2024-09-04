@@ -22,8 +22,7 @@ require (
 
 require (
 	github.com/google/go-cmp v0.6.0 // indirect
-	github.com/ingonyama-zk/icicle v0.1.1-0.20240120093837-db9eff751859 // indirect
-	github.com/ingonyama-zk/iciclegnark v0.1.2-0.20240120100015-8653136f9db4 // indirect
+	github.com/ingonyama-zk/icicle/v2 v2.0.3 // indirect
 )
 
 require (
@@ -72,3 +71,5 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
+
+replace github.com/consensys/gnark => github.com/celer-network/gnark v0.1.0
