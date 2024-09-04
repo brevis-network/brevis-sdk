@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -143,7 +144,7 @@ func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkpro
 		return &sdkproto.ProveResponse{Err: protoErr, CircuitInfo: nil}, nil
 	}
 
-	input, guest, protoErr := s.buildInput(req)
+	input, guest, witness, protoErr := s.buildInput(req)
 	if protoErr != nil {
 		return errRes(protoErr)
 	}
@@ -155,7 +156,7 @@ func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkpro
 
 	return &sdkproto.ProveResponse{
 		Proof:       proof,
-		CircuitInfo: buildAppCircuitInfo(*input, s.vkString, s.vkHash),
+		CircuitInfo: buildAppCircuitInfo(*input, s.vkString, s.vkHash, witness),
 	}, nil
 }
 
@@ -169,7 +170,7 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (re
 		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to generate uuid %s", err.Error()))
 	}
 
-	input, guest, protoErr := s.buildInput(req)
+	input, guest, witness, protoErr := s.buildInput(req)
 	if protoErr != nil {
 		return errRes(protoErr)
 	}
@@ -189,7 +190,7 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (re
 	return &sdkproto.ProveAsyncResponse{
 		Err:         nil,
 		ProofId:     uid,
-		CircuitInfo: buildAppCircuitInfo(*input, s.vkString, s.vkHash),
+		CircuitInfo: buildAppCircuitInfo(*input, s.vkString, s.vkHash, witness),
 	}, nil
 }
 
@@ -212,11 +213,11 @@ func (s *server) GetProof(ctx context.Context, req *sdkproto.GetProofRequest) (r
 	}, nil
 }
 
-func (s *server) buildInput(req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.AppCircuit, *sdkproto.Err) {
-	makeErr := func(code sdkproto.ErrCode, format string, args ...any) (*sdk.CircuitInput, sdk.AppCircuit, *sdkproto.Err) {
+func (s *server) buildInput(req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.AppCircuit, string, *sdkproto.Err) {
+	makeErr := func(code sdkproto.ErrCode, format string, args ...any) (*sdk.CircuitInput, sdk.AppCircuit, string, *sdkproto.Err) {
 		fmt.Printf(format, args...)
 		fmt.Println()
-		return nil, nil, newErr(code, format, args...)
+		return nil, nil, "", newErr(code, format, args...)
 	}
 
 	brevisApp, err := sdk.NewBrevisApp()
@@ -258,7 +259,21 @@ func (s *server) buildInput(req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.
 	if err != nil {
 		return makeErr(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, "failed to build circuit input: %+v, %s", req, err.Error())
 	}
-	return &input, guest, nil
+
+	_, publicWitness, err := sdk.NewFullWitness(guest, input)
+	if err != nil {
+		return makeErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to prepare witness %s\n", err.Error())
+	}
+
+	var witnessBuffer bytes.Buffer
+	witnessData := io.Writer(&witnessBuffer)
+	_, err = publicWitness.WriteTo(witnessData)
+	if err != nil {
+		return makeErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to convert witness %s\n", err.Error())
+	}
+	witness := fmt.Sprintf("0x%x", witnessBuffer.Bytes())
+
+	return &input, guest, witness, nil
 }
 
 var ProveProcessorLock sync.Mutex

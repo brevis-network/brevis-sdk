@@ -182,7 +182,3 @@ func (api *Uint64API) AssertIsEqual(a, b Uint64) {
 func (api *Uint64API) AssertIsDifferent(a, b Uint64) {
 	api.g.AssertIsDifferent(a.Val, b.Val)
 }
-
-func (api *Uint64API) ToUint248(a Uint64) Uint248 {
-	return newU248(a.Val)
-}

@@ -5,8 +5,8 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/brevis-network/zk-utils/circuits/gadgets/poseidon"
-	"github.com/brevis-network/zk-utils/common/utils"
+	"github.com/brevis-network/zk-hash/poseidon"
+	"github.com/brevis-network/zk-hash/utils"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/test"

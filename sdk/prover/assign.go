@@ -126,6 +126,10 @@ func convertType(expect, actual reflect.Value, name string) (reflect.Value, refl
 		actual = reflect.ValueOf(actual.Interface().(sdk.Int248))
 	case sdk.Bytes32Type:
 		actual = reflect.ValueOf(actual.Interface().(sdk.Bytes32))
+	case sdk.Uint32Type:
+		actual = reflect.ValueOf(actual.Interface().(sdk.Uint32))
+	case sdk.Uint64Type:
+		actual = reflect.ValueOf(actual.Interface().(sdk.Uint64))
 	default:
 		return reflect.Value{}, reflect.Value{}, fmt.Errorf("mismatch types: json has %s but %s has %s", at, name, et)
 	}
@@ -174,6 +178,10 @@ func parseCircuitValue(value interface{}) (interface{}, error) {
 		return sdk.ConstUint248(data), nil
 	case sdk.Uint521Type:
 		return sdk.ConstUint521(data), nil
+	case sdk.Uint32Type:
+		return sdk.ConstUint32(data), nil
+	case sdk.Uint64Type:
+		return sdk.ConstUint64(data), nil
 	case sdk.Int248Type:
 		// json.Unmarshal automatically removes "" (quotes) around numbers. we need to check again here
 		str, ok := data.(string)

@@ -143,7 +143,7 @@ const NumMaxDataPoints = 256
 // NumMaxLogFields is the max amount of log fields each Receipt can have. This
 // couples tightly to the decoding capacity of the receipt decoder circuit on
 // Brevis' side
-const NumMaxLogFields = 8
+const NumMaxLogFields = 4
 
 // Receipt is a collection of LogField.
 type Receipt struct {

@@ -34,10 +34,6 @@ func TestDemo(t *testing.T) {
 			logFieldData,
 			logFieldData,
 			logFieldData,
-			logFieldData,
-			logFieldData,
-			logFieldData,
-			logFieldData,
 		},
 	}
 
@@ -45,10 +41,6 @@ func TestDemo(t *testing.T) {
 		BlockNum: new(big.Int).SetUint64(13898776),
 		TxHash:   utils.Hex2Hash("0xbef5e22dec94fd5ed9630f3cee52d7d914ad796f5a31048086f8a956892db05e"),
 		Fields: [sdk.NumMaxLogFields]sdk.LogFieldData{
-			logFieldData,
-			logFieldData,
-			logFieldData,
-			logFieldData,
 			logFieldData,
 			logFieldData,
 			logFieldData,
@@ -86,7 +78,7 @@ func (c *AppCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions int) {
 	// Our app is only ever going to use one storage data at a time so
 	// we can simply limit the max number of data for storage to 1 and
 	// 0 for all others
-	return 48, 1, 1
+	return 32, 32, 32
 }
 
 func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
