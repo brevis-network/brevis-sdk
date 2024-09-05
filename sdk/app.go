@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/celer-network/goutils/log"
 	mimc_bn254 "github.com/consensys/gnark-crypto/ecc/bn254/fr/mimc"
 
 	"github.com/brevis-network/brevis-sdk/sdk/proto/commonproto"
@@ -198,8 +197,6 @@ func (q *BrevisApp) BuildCircuitInput(app AppCircuit) (CircuitInput, error) {
 	// commitment
 	q.assignInputCommitment(&in)
 	q.assignToggleCommitment(&in)
-
-	log.Infof("input commits: %x", in.InputCommitments)
 
 	// dry run without assigning the output commitment first to compute the output commitment using the user circuit
 	outputCommit, output, err := dryRun(in, app)
@@ -579,10 +576,8 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 	for {
 		if elementCount == 1 {
 			w.InputCommitmentsRoot = leafs[0]
-			log.Infof("w.InputCommitmentsRoot: %x", w.InputCommitmentsRoot)
 			return
 		}
-		log.Infof("calMerkelRoot(no circuit) with element size: %d", elementCount)
 		for i := 0; i < elementCount/2; i++ {
 			var mimcBlockBuf0, mimcBlockBuf1 [mimc_bn254.BlockSize]byte
 			leafs[2*i].FillBytes(mimcBlockBuf0[:])
@@ -645,10 +640,8 @@ func (q *BrevisApp) assignToggleCommitment(in *CircuitInput) {
 	for {
 		if elementCount == 1 {
 			in.TogglesCommitment = leafs[0]
-			log.Infof("input.TogglesCommitment: %x", in.InputCommitmentsRoot)
 			return
 		}
-		log.Infof("calMerkelRoot(no circuit) with element size: %d", elementCount)
 		for i := 0; i < elementCount/2; i++ {
 			var mimcBlockBuf0, mimcBlockBuf1 [mimc_bn254.BlockSize]byte
 			leafs[2*i].FillBytes(mimcBlockBuf0[:])

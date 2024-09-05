@@ -2,8 +2,10 @@ package test
 
 import (
 	"fmt"
+	"os"
+	"testing"
+
 	"github.com/brevis-network/brevis-sdk/common/utils"
-	"github.com/celer-network/goutils/log"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/plonk"
 	"github.com/consensys/gnark/frontend"
@@ -15,8 +17,6 @@ import (
 	"github.com/consensys/gnark/test"
 	"github.com/consensys/gnark/test/unsafekzg"
 	"github.com/rs/zerolog"
-	"os"
-	"testing"
 )
 
 func TestBn254VkHash(t *testing.T) {
@@ -63,7 +63,7 @@ func TestBn254VkHash(t *testing.T) {
 	plonkCircuitVk, err := replonk.ValueOfVerifyingKey[sw_bn254.ScalarField, sw_bn254.G1Affine, sw_bn254.G2Affine](vk)
 	assert.NoError(err)
 
-	log.Infof("sum: %x", utils.CalculateAppVkHashForBn254(plonkCircuitVk))
+	fmt.Printf("sum: %x", utils.CalculateAppVkHashForBn254(plonkCircuitVk))
 
 	c := &Bn254VkHashTestCircuit{
 		Vk: replonk.PlaceholderVerifyingKey[sw_bn254.ScalarField, sw_bn254.G1Affine, sw_bn254.G2Affine](ccs),
@@ -86,7 +86,7 @@ func (c *Bn254VkHashTestCircuit) Define(api frontend.API) error {
 	if err != nil {
 		return err
 	}
-	log.Infof("res: %x", res)
+	fmt.Printf("res: %x", res)
 	return nil
 }
 

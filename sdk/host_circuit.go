@@ -7,7 +7,6 @@ import (
 	"github.com/brevis-network/brevis-sdk/common/utils"
 	"github.com/brevis-network/zk-hash/keccak"
 	"github.com/brevis-network/zk-hash/poseidon"
-	"github.com/celer-network/goutils/log"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/multicommit"
@@ -116,12 +115,10 @@ func (c *HostCircuit) commitInput() error {
 
 	// adding constraint for input commitments (both effective commitments and dummies)
 	for i := 0; i < c.dataLen(); i++ {
-		log.Infof("%d %x == %x", i, c.Input.InputCommitments[i], inputCommits[i])
 		c.api.AssertIsEqual(c.Input.InputCommitments[i], inputCommits[i])
 	}
 
 	toggles := c.Input.Toggles()
-	log.Infof("toggles: %v", toggles)
 
 	// sanity check, this shouldn't happen
 	if len(toggles) != NumMaxDataPoints {
@@ -302,10 +299,8 @@ func calMerkelRoot(gapi frontend.API, datas []frontend.Variable) (frontend.Varia
 	copy(leafs, datas)
 	for {
 		if elementCount == 1 {
-			log.Infof("in circuitnputCommitmentsRoot: %x", leafs[0])
 			return leafs[0], nil
 		}
-		log.Infof("calMerkelRoot with element size: %d", elementCount)
 		for i := 0; i < elementCount/2; i++ {
 			hasher.Reset()
 			hasher.Write(leafs[2*i])
