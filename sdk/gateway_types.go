@@ -7,7 +7,6 @@ import (
 
 	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
 	"github.com/consensys/gnark/backend/plonk"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
