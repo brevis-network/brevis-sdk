@@ -2,10 +2,12 @@ package sdk
 
 import (
 	"fmt"
+
 	"github.com/brevis-network/brevis-sdk/sdk/proto/commonproto"
 
 	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
 	"github.com/consensys/gnark/backend/plonk"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
@@ -35,11 +37,13 @@ func buildReceiptInfos(r rawData[ReceiptData], max int) (infos []*gwproto.Receip
 	for _, d := range r.list(max) {
 		var logExtractInfo []*gwproto.LogExtractInfo
 		for _, f := range d.Fields {
-			logExtractInfo = append(logExtractInfo, &gwproto.LogExtractInfo{
-				LogIndex:       uint64(f.LogIndex),
-				ValueFromTopic: f.IsTopic,
-				ValueIndex:     uint64(f.FieldIndex),
-			})
+			if f.Contract.Cmp(common.Address{}) != 0 {
+				logExtractInfo = append(logExtractInfo, &gwproto.LogExtractInfo{
+					LogIndex:       uint64(f.LogIndex),
+					ValueFromTopic: f.IsTopic,
+					ValueIndex:     uint64(f.FieldIndex),
+				})
+			}
 		}
 		infos = append(infos, &gwproto.ReceiptInfo{
 			TransactionHash: d.TxHash.Hex(),
