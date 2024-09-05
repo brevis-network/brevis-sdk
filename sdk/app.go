@@ -658,8 +658,6 @@ func (q *BrevisApp) assignToggleCommitment(in *CircuitInput) {
 }
 
 func (q *BrevisApp) assignReceipts(maxReceipts int, in *CircuitInput) error {
-	_toggles := make([]int, maxReceipts)
-	_receipts := make([]ReceiptData, maxReceipts)
 	// assigning user appointed receipts at specific indices
 	for i, receipt := range q.receipts.special {
 		in.Receipts.Raw[i] = Receipt{
@@ -667,8 +665,6 @@ func (q *BrevisApp) assignReceipts(maxReceipts int, in *CircuitInput) error {
 			Fields:   buildLogFields(receipt.Fields),
 		}
 		in.Receipts.Toggles[i] = 1
-		_toggles[i] = 1
-		_receipts[i] = receipt
 	}
 
 	// distribute other receipts in order to the rest of the unassigned spaces
@@ -682,9 +678,6 @@ func (q *BrevisApp) assignReceipts(maxReceipts int, in *CircuitInput) error {
 			Fields:   buildLogFields(receipt.Fields),
 		}
 		in.Receipts.Toggles[j] = 1
-		_toggles[j] = 1
-		_receipts[j] = receipt
-
 		j++
 	}
 
@@ -724,14 +717,10 @@ func buildLogFields(fs [NumMaxLogFields]LogFieldData) (fields [NumMaxLogFields]L
 }
 
 func (q *BrevisApp) assignStorageSlots(maxStorageSlots int, in *CircuitInput) (err error) {
-	_toggles := make([]int, maxStorageSlots)
-	_storageSlots := make([]StorageData, maxStorageSlots)
 	// assigning user appointed data at specific indices
 	for i, val := range q.storageVals.special {
 		in.StorageSlots.Raw[i] = buildStorageSlot(val)
 		in.StorageSlots.Toggles[i] = 1
-		_toggles[i] = 1
-		_storageSlots[i] = val
 	}
 
 	// distribute other data in order to the rest of the unassigned spaces
@@ -742,8 +731,6 @@ func (q *BrevisApp) assignStorageSlots(maxStorageSlots int, in *CircuitInput) (e
 		}
 		in.StorageSlots.Raw[j] = buildStorageSlot(val)
 		in.StorageSlots.Toggles[j] = 1
-		_toggles[j] = 1
-		_storageSlots[j] = val
 		j++
 	}
 
@@ -760,15 +747,10 @@ func buildStorageSlot(s StorageData) StorageSlot {
 }
 
 func (q *BrevisApp) assignTransactions(maxTransactions int, in *CircuitInput) (err error) {
-	_toggles := make([]int, maxTransactions)
-	_txs := make([]TransactionData, maxTransactions)
-
 	// assigning user appointed data at specific indices
 	for i, t := range q.txs.special {
 		in.Transactions.Raw[i] = buildTx(t)
 		in.Transactions.Toggles[i] = 1
-		_toggles[i] = 1
-		_txs[i] = t
 	}
 
 	j := 0
@@ -778,8 +760,6 @@ func (q *BrevisApp) assignTransactions(maxTransactions int, in *CircuitInput) (e
 		}
 		in.Transactions.Raw[i] = buildTx(t)
 		in.Transactions.Toggles[i] = 1
-		_toggles[j] = 1
-		_txs[j] = t
 		j++
 	}
 
