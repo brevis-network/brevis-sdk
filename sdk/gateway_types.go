@@ -42,10 +42,12 @@ func buildAppCircuitInfo(in CircuitInput, vk plonk.VerifyingKey, witness witness
 }
 
 func buildReceiptInfos(r rawData[ReceiptData], max int) (infos []*gwproto.ReceiptInfo) {
+	empty := LogFieldData{}
 	for _, d := range r.list(max) {
 		var logExtractInfo []*gwproto.LogExtractInfo
 		for _, f := range d.Fields {
-			if f.Contract.Cmp(common.Address{}) != 0 {
+			// only use non-empty LogFieldData
+			if f != empty {
 				logExtractInfo = append(logExtractInfo, &gwproto.LogExtractInfo{
 					LogIndex:       uint64(f.LogIndex),
 					ValueFromTopic: f.IsTopic,
