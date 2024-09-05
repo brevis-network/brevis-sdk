@@ -253,8 +253,6 @@ func (q *BrevisApp) PrepareRequest(
 		UsePlonky2:        usePlonky2,
 	}
 
-	fmt.Println("AppCircuitInfo ", req.AppCircuitInfo)
-
 	fmt.Println("Calling Brevis gateway PrepareRequest...")
 	res, err := q.gc.PrepareQuery(req)
 	if err != nil {
