@@ -29,7 +29,7 @@ func main() {
 	srsDir := "$HOME/kzgsrs"
 	app, err := sdk.NewBrevisApp()
 	check(err)
-	logFiledFata := sdk.LogFieldData{
+	logFieldData := sdk.LogFieldData{
 		Contract:   utils.Hex2Addr("0x6A2AAd07396B36Fe02a22b33cf443582f682c82f"),
 		LogIndex:   0,
 		EventID:    utils.Hex2Hash("0x63373d1c4696214b898952999c9aaec57dac1ee2723cec59bea6888f489a9772"),
@@ -42,10 +42,10 @@ func main() {
 		BlockNum: new(big.Int).SetUint64(41759234),
 		TxHash:   utils.Hex2Hash("0xfbdaea94eda27a5c9ad9c6be6a62026b2a03791f8dcbee7db0862a432fabecf8"),
 		Fields: [sdk.NumMaxLogFields]sdk.LogFieldData{
-			logFiledFata,
-			logFiledFata,
-			logFiledFata,
-			logFiledFata,
+			logFieldData,
+			logFieldData,
+			logFieldData,
+			logFieldData,
 		},
 	}
 
