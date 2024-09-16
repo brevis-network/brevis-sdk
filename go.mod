@@ -3,9 +3,8 @@ module github.com/brevis-network/brevis-sdk
 go 1.21.5
 
 require (
-	github.com/brevis-network/zk-utils v0.0.0-20240830023703-6574b1dea68d
+	github.com/brevis-network/zk-utils v0.0.0-20240902080050-191fe3dedf03
 	github.com/cbergoon/merkletree v0.2.0
-	github.com/celer-network/goutils v0.2.0
 	github.com/consensys/gnark v0.10.0
 	github.com/consensys/gnark-crypto v0.12.2-0.20240215234832-d72fcb379d3e
 	github.com/ethereum/go-ethereum v1.14.8
@@ -21,6 +20,7 @@ require (
 )
 
 require (
+	github.com/celer-network/goutils v0.2.0 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/ingonyama-zk/icicle/v2 v2.0.3 // indirect
 )
