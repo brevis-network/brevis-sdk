@@ -3,7 +3,7 @@ module github.com/brevis-network/brevis-sdk
 go 1.21.5
 
 require (
-	github.com/brevis-network/zk-utils v0.0.0-20240902080050-191fe3dedf03
+	github.com/brevis-network/zk-utils v0.0.0-20240916002737-960112dc86d1
 	github.com/cbergoon/merkletree v0.2.0
 	github.com/consensys/gnark v0.10.0
 	github.com/consensys/gnark-crypto v0.12.2-0.20240215234832-d72fcb379d3e
