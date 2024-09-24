@@ -288,3 +288,7 @@ func check(err error) {
 		panic(err)
 	}
 }
+
+func CheckNumberPowerOfTwo(n int) bool {
+	return n&(n-1) == 0
+}

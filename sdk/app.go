@@ -635,22 +635,31 @@ func (q *BrevisApp) assignToggleCommitment(in *CircuitInput) {
 		leafs[i] = result
 	}
 
+	togglesHashRoot, err := CalPoseidonBn254MerkelTree(leafs)
+	if err != nil {
+		panic(fmt.Sprintf("fail to cal toggles hash root %v", err))
+	}
+	in.TogglesCommitment = togglesHashRoot
+	return
+}
+
+func CalPoseidonBn254MerkelTree(leafs []*big.Int) (*big.Int, error) {
+	if !CheckNumberPowerOfTwo(len(leafs)) {
+		return nil, fmt.Errorf("not pow of 2, %d", len(leafs))
+	}
+	hasher := utils.NewPoseidonBn254()
 	elementCount := len(leafs)
 	for {
 		if elementCount == 1 {
-			in.TogglesCommitment = leafs[0]
-			return
+			return leafs[0], nil
 		}
 		for i := 0; i < elementCount/2; i++ {
-			var mimcBlockBuf0, mimcBlockBuf1 [mimc_bn254.BlockSize]byte
-			leafs[2*i].FillBytes(mimcBlockBuf0[:])
-			leafs[2*i+1].FillBytes(mimcBlockBuf1[:])
 			hasher.Reset()
-			hasher.Write(new(big.Int).SetBytes(mimcBlockBuf0[:]))
-			hasher.Write(new(big.Int).SetBytes(mimcBlockBuf1[:]))
+			hasher.Write(leafs[2*i])
+			hasher.Write(leafs[2*i+1])
 			result, err := hasher.Sum()
 			if err != nil {
-				panic(fmt.Sprintf("failed to hash merkle tree: %s", err.Error()))
+				return nil, fmt.Errorf("fail to hash in CalPoseidonBn254MerkelTree, err: %v", err)
 			}
 			leafs[i] = result
 		}
