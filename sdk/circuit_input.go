@@ -377,6 +377,10 @@ func (s StorageSlot) NumVars() uint32 {
 
 func (s StorageSlot) String() string { return "StorageSlot" }
 
+func (s StorageSlot) Pack(api frontend.API) []frontend.Variable {
+	return s.pack(api)
+}
+
 // pack packs the storage slots into Bn254 scalars
 // 4 bytes for block num + 84 bytes for each slot = 672 bits, fits into 3 Bn254 fr vars:
 // - 20 bytes for contract address
@@ -491,6 +495,10 @@ func (t Transaction) NumVars() uint32 {
 }
 
 func (t Transaction) String() string { return "Transaction" }
+
+func (t Transaction) Pack(api frontend.API) []variable {
+	return t.pack(api)
+}
 
 // pack packs the transactions into Bn254 scalars
 // chain_id - 4 bytes
