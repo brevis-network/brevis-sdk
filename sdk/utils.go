@@ -75,6 +75,10 @@ func decomposeBitsExact(data *big.Int) []uint {
 	return ret
 }
 
+func PackBitsToInt(bits []uint, bitSize int) []*big.Int {
+	return packBitsToInt(bits, bitSize)
+}
+
 func packBitsToInt(bits []uint, bitSize int) []*big.Int {
 	var r []*big.Int
 	for i := 0; i < len(bits); i += bitSize {
