@@ -16,7 +16,7 @@ func (c *AppCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions int) {
 	// Our app is only ever going to use one storage data at a time so
 	// we can simply limit the max number of data for storage to 1 and
 	// 0 for all others
-	return 64, 0, 0
+	return 32, 0, 32
 }
 
 func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
@@ -52,6 +52,11 @@ func main() {
 	for i := 0; i < 2; i++ {
 		app.AddReceipt(receipt, i)
 	}
+
+	app.AddTransaction(sdk.TransactionData{
+		Hash:     utils.Hex2Hash("0x02869126ca667c76e819078d5326feb5d17f276ce5786de47e78334f15530e74"),
+		LeafHash: utils.Hex2Hash("0xdc72905c08245cea882190a138e7ec5b5066615a3380cfa1ee767b079aceb2c6"),
+	})
 
 	appCircuitAssignment := &AppCircuit{}
 
