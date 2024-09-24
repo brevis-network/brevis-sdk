@@ -404,32 +404,36 @@ func (s StorageSlot) goPack() []*big.Int {
 	return packBitsToInt(bits, bn254_fr.Bits-1)
 }
 
+// TODO: Bring back detailed information when subproof expose corresponding data
+// LeafHash: unsigned tx rlp keccak result
 type Transaction struct {
-	ChainId  Uint248
-	BlockNum Uint32
-	Nonce    Uint248
-	// GasTipCapOrGasPrice is GasPrice for legacy tx (type 0) and GasTipCapOap for
-	// dynamic-fee tx (type 2)
-	GasTipCapOrGasPrice Uint248
-	// GasFeeCap is always 0 for legacy tx
-	GasFeeCap Uint248
-	GasLimit  Uint248
-	From      Uint248
-	To        Uint248
-	Value     Bytes32
+	// ChainId  Uint248
+	// BlockNum Uint32
+	// Nonce    Uint248
+	// // GasTipCapOrGasPrice is GasPrice for legacy tx (type 0) and GasTipCapOap for
+	// // dynamic-fee tx (type 2)
+	// GasTipCapOrGasPrice Uint248
+	// // GasFeeCap is always 0 for legacy tx
+	// GasFeeCap Uint248
+	// GasLimit  Uint248
+	// From      Uint248
+	// To        Uint248
+	// Value     Bytes32
+	LeafHash Bytes32
 }
 
 func defaultTransaction() Transaction {
 	return Transaction{
-		ChainId:             newU248(0),
-		BlockNum:            newU32(0),
-		Nonce:               newU248(0),
-		GasTipCapOrGasPrice: newU248(0),
-		GasFeeCap:           newU248(0),
-		GasLimit:            newU248(0),
-		From:                newU248(0),
-		To:                  newU248(0),
-		Value:               ConstBytes32([]byte{}),
+		// ChainId:             newU248(0),
+		// BlockNum:            newU32(0),
+		// Nonce:               newU248(0),
+		// GasTipCapOrGasPrice: newU248(0),
+		// GasFeeCap:           newU248(0),
+		// GasLimit:            newU248(0),
+		// From:                newU248(0),
+		// To:                  newU248(0),
+		// Value:               ConstBytes32([]byte{}),
+		LeafHash: ConstBytes32([]byte{}),
 	}
 }
 
@@ -437,56 +441,62 @@ var _ CircuitVariable = Transaction{}
 
 func (t Transaction) Values() []frontend.Variable {
 	var ret []frontend.Variable
-	ret = append(ret, t.ChainId.Values()...)
-	ret = append(ret, t.BlockNum.Values()...)
-	ret = append(ret, t.Nonce.Values()...)
-	ret = append(ret, t.GasTipCapOrGasPrice.Values()...)
-	ret = append(ret, t.GasFeeCap.Values()...)
-	ret = append(ret, t.GasLimit.Values()...)
-	ret = append(ret, t.From.Values()...)
-	ret = append(ret, t.To.Values()...)
-	ret = append(ret, t.Value.Values()...)
-
+	// ret = append(ret, t.ChainId.Values()...)
+	// ret = append(ret, t.BlockNum.Values()...)
+	// ret = append(ret, t.Nonce.Values()...)
+	// ret = append(ret, t.GasTipCapOrGasPrice.Values()...)
+	// ret = append(ret, t.GasFeeCap.Values()...)
+	// ret = append(ret, t.GasLimit.Values()...)
+	// ret = append(ret, t.From.Values()...)
+	// ret = append(ret, t.To.Values()...)
+	// ret = append(ret, t.Value.Values()...)
+	ret = append(ret, t.LeafHash.Values()...)
 	return ret
 }
 
 func (t Transaction) FromValues(vs ...frontend.Variable) CircuitVariable {
 	nr := Transaction{}
 
-	start, end := uint32(0), t.ChainId.NumVars()
-	nr.ChainId = t.ChainId.FromValues(vs[start:end]...).(Uint248)
+	// start, end := uint32(0), t.ChainId.NumVars()
+	// nr.ChainId = t.ChainId.FromValues(vs[start:end]...).(Uint248)
 
-	start, end = end, end+t.BlockNum.NumVars()
-	nr.BlockNum = t.BlockNum.FromValues(vs[start:end]...).(Uint32)
+	// start, end = end, end+t.BlockNum.NumVars()
+	// nr.BlockNum = t.BlockNum.FromValues(vs[start:end]...).(Uint32)
 
-	start, end = end, end+t.Nonce.NumVars()
-	nr.Nonce = t.Nonce.FromValues(vs[start:end]...).(Uint248)
+	// start, end = end, end+t.Nonce.NumVars()
+	// nr.Nonce = t.Nonce.FromValues(vs[start:end]...).(Uint248)
 
-	start, end = end, end+t.GasTipCapOrGasPrice.NumVars()
-	nr.GasTipCapOrGasPrice = t.GasTipCapOrGasPrice.FromValues(vs[start:end]...).(Uint248)
+	// start, end = end, end+t.GasTipCapOrGasPrice.NumVars()
+	// nr.GasTipCapOrGasPrice = t.GasTipCapOrGasPrice.FromValues(vs[start:end]...).(Uint248)
 
-	start, end = end, end+t.GasFeeCap.NumVars()
-	nr.GasFeeCap = t.GasFeeCap.FromValues(vs[start:end]...).(Uint248)
+	// start, end = end, end+t.GasFeeCap.NumVars()
+	// nr.GasFeeCap = t.GasFeeCap.FromValues(vs[start:end]...).(Uint248)
 
-	start, end = end, end+t.GasLimit.NumVars()
-	nr.GasLimit = t.GasLimit.FromValues(vs[start:end]...).(Uint248)
+	// start, end = end, end+t.GasLimit.NumVars()
+	// nr.GasLimit = t.GasLimit.FromValues(vs[start:end]...).(Uint248)
 
-	start, end = end, end+t.From.NumVars()
-	nr.From = t.From.FromValues(vs[start:end]...).(Uint248)
+	// start, end = end, end+t.From.NumVars()
+	// nr.From = t.From.FromValues(vs[start:end]...).(Uint248)
 
-	start, end = end, end+t.To.NumVars()
-	nr.To = t.To.FromValues(vs[start:end]...).(Uint248)
+	// start, end = end, end+t.To.NumVars()
+	// nr.To = t.To.FromValues(vs[start:end]...).(Uint248)
 
-	start, end = end, end+t.Value.NumVars()
-	nr.Value = t.Value.FromValues(vs[start:end]...).(Bytes32)
+	// start, end = end, end+t.Value.NumVars()
+	// nr.Value = t.Value.FromValues(vs[start:end]...).(Bytes32)
+
+	end := uint32(0)
+	start, end := end, end+t.LeafHash.NumVars()
+	nr.LeafHash = t.LeafHash.FromValues(vs[start:end]...).(Bytes32)
 
 	return nr
 }
 
 func (t Transaction) NumVars() uint32 {
 	fields := []CircuitVariable{
-		t.ChainId, t.BlockNum, t.Nonce, t.GasTipCapOrGasPrice,
-		t.GasFeeCap, t.GasLimit, t.From, t.To, t.Value}
+		// t.ChainId, t.BlockNum, t.Nonce, t.GasTipCapOrGasPrice,
+		// t.GasFeeCap, t.GasLimit, t.From, t.To, t.Value,
+		t.LeafHash,
+	}
 	sum := uint32(0)
 	for _, f := range fields {
 		sum += f.NumVars()
@@ -511,28 +521,30 @@ func (t Transaction) Pack(api frontend.API) []variable {
 // value - 32 bytes
 func (t Transaction) pack(api frontend.API) []variable {
 	var bits []variable
-	bits = append(bits, api.ToBinary(t.BlockNum.Val, 8*4)...)
-	bits = append(bits, api.ToBinary(t.ChainId.Val, 8*4)...)
-	bits = append(bits, api.ToBinary(t.Nonce.Val, 8*4)...)
-	bits = append(bits, api.ToBinary(t.GasTipCapOrGasPrice.Val, 8*8)...)
-	bits = append(bits, api.ToBinary(t.GasFeeCap.Val, 8*8)...)
-	bits = append(bits, api.ToBinary(t.GasLimit.Val, 8*4)...)
-	bits = append(bits, api.ToBinary(t.From.Val, 8*20)...)
-	bits = append(bits, api.ToBinary(t.To.Val, 8*20)...)
-	bits = append(bits, t.Value.toBinaryVars(api)...)
+	// bits = append(bits, api.ToBinary(t.BlockNum.Val, 8*4)...)
+	// bits = append(bits, api.ToBinary(t.ChainId.Val, 8*4)...)
+	// bits = append(bits, api.ToBinary(t.Nonce.Val, 8*4)...)
+	// bits = append(bits, api.ToBinary(t.GasTipCapOrGasPrice.Val, 8*8)...)
+	// bits = append(bits, api.ToBinary(t.GasFeeCap.Val, 8*8)...)
+	// bits = append(bits, api.ToBinary(t.GasLimit.Val, 8*4)...)
+	// bits = append(bits, api.ToBinary(t.From.Val, 8*20)...)
+	// bits = append(bits, api.ToBinary(t.To.Val, 8*20)...)
+	// bits = append(bits, t.Value.toBinaryVars(api)...)
+	bits = append(bits, t.LeafHash.toBinaryVars(api)...)
 	return packBitsToFr(api, bits)
 }
 
 func (t Transaction) goPack() []*big.Int {
 	var bits []uint
-	bits = append(bits, decomposeBits(fromInterface(t.BlockNum.Val), 8*4)...)
-	bits = append(bits, decomposeBits(fromInterface(t.ChainId.Val), 8*4)...)
-	bits = append(bits, decomposeBits(fromInterface(t.Nonce.Val), 8*4)...)
-	bits = append(bits, decomposeBits(fromInterface(t.GasTipCapOrGasPrice.Val), 8*8)...)
-	bits = append(bits, decomposeBits(fromInterface(t.GasFeeCap.Val), 8*8)...)
-	bits = append(bits, decomposeBits(fromInterface(t.GasLimit.Val), 8*4)...)
-	bits = append(bits, decomposeBits(fromInterface(t.From.Val), 8*20)...)
-	bits = append(bits, decomposeBits(fromInterface(t.To.Val), 8*20)...)
-	bits = append(bits, t.Value.toBinary()...)
+	// bits = append(bits, decomposeBits(fromInterface(t.BlockNum.Val), 8*4)...)
+	// bits = append(bits, decomposeBits(fromInterface(t.ChainId.Val), 8*4)...)
+	// bits = append(bits, decomposeBits(fromInterface(t.Nonce.Val), 8*4)...)
+	// bits = append(bits, decomposeBits(fromInterface(t.GasTipCapOrGasPrice.Val), 8*8)...)
+	// bits = append(bits, decomposeBits(fromInterface(t.GasFeeCap.Val), 8*8)...)
+	// bits = append(bits, decomposeBits(fromInterface(t.GasLimit.Val), 8*4)...)
+	// bits = append(bits, decomposeBits(fromInterface(t.From.Val), 8*20)...)
+	// bits = append(bits, decomposeBits(fromInterface(t.To.Val), 8*20)...)
+	// bits = append(bits, t.Value.toBinary()...)
+	bits = append(bits, t.LeafHash.toBinary()...)
 	return packBitsToInt(bits, bn254_fr.Bits-1)
 }

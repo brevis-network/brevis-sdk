@@ -68,6 +68,7 @@ type TransactionData struct {
 	From      common.Address `json:"from,omitempty"`
 	To        common.Address `json:"to,omitempty"`
 	Value     *big.Int       `json:"value,omitempty"`
+	LeafHash  common.Hash    `json:"leaf_hash,omitempty"`
 }
 
 type rawData[T ReceiptData | StorageData | TransactionData] struct {
@@ -156,9 +157,10 @@ func (q *BrevisApp) AddStorage(data StorageData, index ...int) {
 // AddTransaction adds the TransactionData to be queried. If an index is
 // specified, the data will be assigned to the specified index of
 // DataInput.Transactions.
-func (q *BrevisApp) AddTransaction(data TransactionData, index ...int) {
-	q.txs.add(data, index...)
-}
+// Disable Transaction for now.
+// func (q *BrevisApp) AddTransaction(data TransactionData, index ...int) {
+// 	q.txs.add(data, index...)
+// }
 
 // BuildCircuitInput executes all added queries and package the query results
 // into circuit assignment (the DataInput struct) The provided ctx is used
@@ -768,15 +770,16 @@ func (q *BrevisApp) assignTransactions(maxTransactions int, in *CircuitInput) (e
 
 func buildTx(t TransactionData) Transaction {
 	return Transaction{
-		ChainId:             ConstUint248(t.ChainId),
-		BlockNum:            ConstUint32(t.BlockNum),
-		Nonce:               ConstUint248(t.Nonce),
-		GasTipCapOrGasPrice: ConstUint248(t.GasTipCapOrGasPrice),
-		GasFeeCap:           ConstUint248(t.GasFeeCap),
-		GasLimit:            ConstUint248(t.GasLimit),
-		From:                ConstUint248(t.From),
-		To:                  ConstUint248(t.To),
-		Value:               ConstBytes32(t.Value.Bytes()),
+		// ChainId:             ConstUint248(t.ChainId),
+		// BlockNum:            ConstUint32(t.BlockNum),
+		// Nonce:               ConstUint248(t.Nonce),
+		// GasTipCapOrGasPrice: ConstUint248(t.GasTipCapOrGasPrice),
+		// GasFeeCap:           ConstUint248(t.GasFeeCap),
+		// GasLimit:            ConstUint248(t.GasLimit),
+		// From:                ConstUint248(t.From),
+		// To:                  ConstUint248(t.To),
+		// Value:               ConstBytes32(t.Value.Bytes()),
+		LeafHash: ConstBytes32(t.LeafHash.Bytes()),
 	}
 }
 
