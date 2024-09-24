@@ -241,14 +241,14 @@ func (s *server) buildInput(req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.
 		brevisApp.AddStorage(sdkStorage, int(storage.Index))
 	}
 
-	// for _, transaction := range req.Transactions {
-	// 	sdkTx, err := convertProtoTxToSdkTx(transaction.Data)
-	// 	if err != nil {
-	// 		return makeErr(sdkproto.ErrCode_ERROR_INVALID_INPUT, "invalid sdk transaction: %+v, %s", transaction.Data, err.Error())
-	// 	}
+	for _, transaction := range req.Transactions {
+		sdkTx, err := convertProtoTxToSdkTx(transaction.Data)
+		if err != nil {
+			return makeErr(sdkproto.ErrCode_ERROR_INVALID_INPUT, "invalid sdk transaction: %+v, %s", transaction.Data, err.Error())
+		}
 
-	// 	brevisApp.AddTransaction(sdkTx, int(transaction.Index))
-	// }
+		brevisApp.AddTransaction(sdkTx, int(transaction.Index))
+	}
 
 	guest, err := assignCustomInput(s.app, req.CustomInput)
 	if err != nil {

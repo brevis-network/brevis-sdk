@@ -57,10 +57,10 @@ func TestDemo(t *testing.T) {
 	app.AddReceipt(receipt1, 17)
 	app.AddReceipt(receipt, 18)
 
-	// app.AddTransaction(sdk.TransactionData{
-	// 	Hash:     utils.Hex2Hash("0xbef5e22dec94fd5ed9630f3cee52d7d914ad796f5a31048086f8a956892db05e"),
-	// 	LeafHash: utils.Hex2Hash("0xbef5e22dec94fd5ed9630f3cee52d7d914ad796f5a31048086f8a956892db05e"),
-	// })
+	app.AddTransaction(sdk.TransactionData{
+		Hash:     utils.Hex2Hash("0xbef5e22dec94fd5ed9630f3cee52d7d914ad796f5a31048086f8a956892db05e"),
+		LeafHash: utils.Hex2Hash("0xbef5e22dec94fd5ed9630f3cee52d7d914ad796f5a31048086f8a956892db05e"),
+	})
 
 	guestAssignment := &AppCircuit{}
 

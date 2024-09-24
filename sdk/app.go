@@ -157,10 +157,9 @@ func (q *BrevisApp) AddStorage(data StorageData, index ...int) {
 // AddTransaction adds the TransactionData to be queried. If an index is
 // specified, the data will be assigned to the specified index of
 // DataInput.Transactions.
-// Disable Transaction for now.
-// func (q *BrevisApp) AddTransaction(data TransactionData, index ...int) {
-// 	q.txs.add(data, index...)
-// }
+func (q *BrevisApp) AddTransaction(data TransactionData, index ...int) {
+	q.txs.add(data, index...)
+}
 
 // BuildCircuitInput executes all added queries and package the query results
 // into circuit assignment (the DataInput struct) The provided ctx is used
