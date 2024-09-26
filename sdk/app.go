@@ -7,8 +7,6 @@ import (
 	"math/big"
 	"time"
 
-	mimc_bn254 "github.com/consensys/gnark-crypto/ecc/bn254/fr/mimc"
-
 	"github.com/brevis-network/brevis-sdk/sdk/proto/commonproto"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
 
@@ -571,27 +569,16 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 		leafs[i] = new(big.Int).SetBytes(common.Hex2Bytes("0x01"))
 	}
 
-	elementCount := len(leafs)
-	for {
-		if elementCount == 1 {
-			w.InputCommitmentsRoot = leafs[0]
-			return
-		}
-		for i := 0; i < elementCount/2; i++ {
-			var mimcBlockBuf0, mimcBlockBuf1 [mimc_bn254.BlockSize]byte
-			leafs[2*i].FillBytes(mimcBlockBuf0[:])
-			leafs[2*i+1].FillBytes(mimcBlockBuf1[:])
-			hasher.Reset()
-			hasher.Write(new(big.Int).SetBytes(mimcBlockBuf0[:]))
-			hasher.Write(new(big.Int).SetBytes(mimcBlockBuf1[:]))
-			result, err := hasher.Sum()
-			if err != nil {
-				panic(fmt.Sprintf("failed to hash merkle tree: %s", err.Error()))
-			}
-			leafs[i] = result
-		}
-		elementCount = elementCount / 2
+	var err error
+	w.InputCommitmentsRoot, err = CalPoseidonBn254MerkelTree(leafs)
+	if err != nil {
+		panic(fmt.Sprintf("failed to dp sub hash merkel with poseidon bn254: %s", err.Error()))
 	}
+	return
+}
+
+func DoHash(hasher *utils.PoseidonBn254Hasher, packed []*big.Int) (*big.Int, error) {
+	return doHash(hasher, packed)
 }
 
 func doHash(hasher *utils.PoseidonBn254Hasher, packed []*big.Int) (*big.Int, error) {
