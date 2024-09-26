@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/consensys/gnark/frontend"
+	"log"
 	"math/big"
 	"time"
 
@@ -601,11 +603,18 @@ func doHash(hasher *utils.PoseidonBn254Hasher, packed []*big.Int) (*big.Int, err
 // To reduce toggles commitment constraint comsumption,
 // hash 32 toggles into one value which is used as merkle tree leaf.
 func (q *BrevisApp) assignToggleCommitment(in *CircuitInput) {
-	leafs := make([]*big.Int, NumMaxDataPoints/32)
+	var err error
+	in.TogglesCommitment, err = CalTogglesHashRoot(in.Toggles())
+	if err != nil {
+		log.Panicf("fail to CalTogglesHashRoot, err: %v", err)
+	}
+	return
+}
 
-	var toggles = in.Toggles()
+func CalTogglesHashRoot(toggles []frontend.Variable) (*big.Int, error) {
+	leafs := make([]*big.Int, NumMaxDataPoints/32)
 	if len(toggles)%32 != 0 {
-		panic(fmt.Sprintf("invalid toggles length %d", len(toggles)))
+		return nil, fmt.Errorf("invalid toggles length %d", len(toggles))
 	}
 
 	hasher := utils.NewPoseidonBn254()
@@ -622,7 +631,7 @@ func (q *BrevisApp) assignToggleCommitment(in *CircuitInput) {
 		}
 		result, err := hasher.Sum()
 		if err != nil {
-			panic(fmt.Sprintf("invalid toggles length %d", len(toggles)))
+			return nil, fmt.Errorf("invalid toggles length %d", len(toggles))
 		}
 		leafs[i] = result
 	}
@@ -631,8 +640,7 @@ func (q *BrevisApp) assignToggleCommitment(in *CircuitInput) {
 	if err != nil {
 		panic(fmt.Sprintf("fail to cal toggles hash root %v", err))
 	}
-	in.TogglesCommitment = togglesHashRoot
-	return
+	return togglesHashRoot, nil
 }
 
 func CalPoseidonBn254MerkelTree(leafs []*big.Int) (*big.Int, error) {
