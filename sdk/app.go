@@ -577,6 +577,11 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 	return
 }
 
+func DoHashWithPoseidonBn254(packed []*big.Int) (*big.Int, error) {
+	hasher := utils.NewPoseidonBn254()
+	return DoHash(hasher, packed)
+}
+
 func DoHash(hasher *utils.PoseidonBn254Hasher, packed []*big.Int) (*big.Int, error) {
 	return doHash(hasher, packed)
 }
