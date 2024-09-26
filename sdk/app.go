@@ -747,6 +747,10 @@ func (q *BrevisApp) assignStorageSlots(maxStorageSlots int, in *CircuitInput) (e
 	return nil
 }
 
+func BuildStorageSlot(s StorageData) StorageSlot {
+	return buildStorageSlot(s)
+}
+
 func buildStorageSlot(s StorageData) StorageSlot {
 	return StorageSlot{
 		BlockNum: newU32(s.BlockNum),
@@ -774,6 +778,10 @@ func (q *BrevisApp) assignTransactions(maxTransactions int, in *CircuitInput) (e
 	}
 
 	return nil
+}
+
+func BuildTx(t TransactionData) Transaction {
+	return buildTx(t)
 }
 
 func buildTx(t TransactionData) Transaction {
