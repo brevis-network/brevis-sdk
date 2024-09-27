@@ -57,9 +57,9 @@ func (c *HostCircuit) Define(gapi frontend.API) error {
 		return fmt.Errorf("error building user-defined circuit %s", err.Error())
 	}
 	//assertInputUniqueness(gapi, c.Input.InputCommitments, api.checkInputUniqueness)
-	inputCommitmentRoot, err := calMerkelRoot(gapi, c.Input.InputCommitments)
+	inputCommitmentRoot, err := CalMerkleRoot(gapi, c.Input.InputCommitments)
 	if err != nil {
-		return fmt.Errorf("error building user-defined circuit calMerkelRoot fail, %s", err.Error())
+		return fmt.Errorf("error building user-defined circuit calMerkleRoot fail, %s", err.Error())
 	}
 	gapi.AssertIsEqual(inputCommitmentRoot, c.Input.InputCommitmentsRoot)
 	outputCommit := c.commitOutput(api.output)
@@ -137,9 +137,9 @@ func (c *HostCircuit) commitInput() error {
 		toggleTreeLeaf[i] = hasher.Sum()
 	}
 
-	togglesCommit, err := calMerkelRoot(c.api, toggleTreeLeaf)
+	togglesCommit, err := CalMerkleRoot(c.api, toggleTreeLeaf)
 	if err != nil {
-		return fmt.Errorf("error building user-defined circuit calMerkelRoot fail, %s", err.Error())
+		return fmt.Errorf("error building user-defined circuit calMerkleRoot fail, %s", err.Error())
 	}
 	c.api.AssertIsEqual(togglesCommit, c.Input.TogglesCommitment)
 
@@ -287,9 +287,9 @@ func dryRun(in CircuitInput, guest AppCircuit) (OutputCommitment, []byte, error)
 	return commit, out, nil
 }
 
-// return merkel root hash,
+// return merkle root hash,
 // must be a full binary tree
-func calMerkelRoot(gapi frontend.API, datas []frontend.Variable) (frontend.Variable, error) {
+func CalMerkleRoot(gapi frontend.API, datas []frontend.Variable) (frontend.Variable, error) {
 	hasher, err := poseidon.NewBn254PoseidonCircuit(gapi)
 	if err != nil {
 		return nil, err

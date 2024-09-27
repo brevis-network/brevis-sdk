@@ -572,7 +572,7 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 	}
 
 	var err error
-	w.InputCommitmentsRoot, err = CalPoseidonBn254MerkelTree(leafs)
+	w.InputCommitmentsRoot, err = CalPoseidonBn254MerkleTree(leafs)
 	if err != nil {
 		panic(fmt.Sprintf("failed to dp sub hash merkel with poseidon bn254: %s", err.Error()))
 	}
@@ -636,14 +636,14 @@ func CalTogglesHashRoot(toggles []frontend.Variable) (*big.Int, error) {
 		leafs[i] = result
 	}
 
-	togglesHashRoot, err := CalPoseidonBn254MerkelTree(leafs)
+	togglesHashRoot, err := CalPoseidonBn254MerkleTree(leafs)
 	if err != nil {
 		panic(fmt.Sprintf("fail to cal toggles hash root %v", err))
 	}
 	return togglesHashRoot, nil
 }
 
-func CalPoseidonBn254MerkelTree(leafs []*big.Int) (*big.Int, error) {
+func CalPoseidonBn254MerkleTree(leafs []*big.Int) (*big.Int, error) {
 	if !CheckNumberPowerOfTwo(len(leafs)) {
 		return nil, fmt.Errorf("not pow of 2, %d", len(leafs))
 	}
@@ -659,7 +659,7 @@ func CalPoseidonBn254MerkelTree(leafs []*big.Int) (*big.Int, error) {
 			hasher.Write(leafs[2*i+1])
 			result, err := hasher.Sum()
 			if err != nil {
-				return nil, fmt.Errorf("fail to hash in CalPoseidonBn254MerkelTree, err: %v", err)
+				return nil, fmt.Errorf("fail to hash in CalPoseidonBn254MerkleTree, err: %v", err)
 			}
 			leafs[i] = result
 		}
