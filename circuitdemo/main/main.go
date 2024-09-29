@@ -27,7 +27,7 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 func main() {
 	outDir := "$HOME/circuitOut/myBrevisApp"
 	srsDir := "$HOME/kzgsrs"
-	app, err := sdk.NewBrevisApp()
+	app, err := sdk.NewBrevisApp("localhost:11080")
 	check(err)
 	logFieldData := sdk.LogFieldData{
 		Contract:   utils.Hex2Addr("0x397FF1542f962076d0BFE58eA045FfA2d347ACa0"),
@@ -65,7 +65,7 @@ func main() {
 	for i := 0; i < 64; i++ {
 		app.AddTransaction(sdk.TransactionData{
 			Hash:     utils.Hex2Hash("0xbc6709ddc1cc2dff10b1be86fcbefa416fe321a079b7e09a0b5ab5883d70604a"),
-			LeafHash: utils.Hex2Hash("0xdc72905c08245cea882190a138e7ec5b5066615a3380cfa1ee767b079aceb2c6"),
+			LeafHash: utils.Hex2Hash("0x1e23a8df83fb904e7ab0c6e0a7fd3c70c007ed539a5d47a80d96a08d7bcf67ef"),
 		})
 	}
 
