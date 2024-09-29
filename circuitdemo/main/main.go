@@ -16,7 +16,7 @@ func (c *AppCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions int) {
 	// Our app is only ever going to use one storage data at a time so
 	// we can simply limit the max number of data for storage to 1 and
 	// 0 for all others
-	return 32, 0, 32
+	return 32, 32, 64
 }
 
 func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
@@ -30,17 +30,17 @@ func main() {
 	app, err := sdk.NewBrevisApp()
 	check(err)
 	logFieldData := sdk.LogFieldData{
-		Contract:   utils.Hex2Addr("0x6A2AAd07396B36Fe02a22b33cf443582f682c82f"),
-		LogIndex:   0,
-		EventID:    utils.Hex2Hash("0x63373d1c4696214b898952999c9aaec57dac1ee2723cec59bea6888f489a9772"),
+		Contract:   utils.Hex2Addr("0x397FF1542f962076d0BFE58eA045FfA2d347ACa0"),
+		LogIndex:   12,
+		EventID:    utils.Hex2Hash("0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822"),
 		IsTopic:    false,
-		FieldIndex: 0,
-		Value:      utils.Hex2Hash("0x201223A7DF4B8D523A2F74C71E10F2B01DAC1B9869A994566D820CCA1781838E"),
+		FieldIndex: 3,
+		Value:      utils.Hex2Hash("0x000000000000000000000000000000000000000000000000000000000fe6987e"),
 	}
 
 	receipt := sdk.ReceiptData{
-		BlockNum: new(big.Int).SetUint64(41759234),
-		TxHash:   utils.Hex2Hash("0xfbdaea94eda27a5c9ad9c6be6a62026b2a03791f8dcbee7db0862a432fabecf8"),
+		BlockNum: new(big.Int).SetUint64(20844438),
+		TxHash:   utils.Hex2Hash("0xbc6709ddc1cc2dff10b1be86fcbefa416fe321a079b7e09a0b5ab5883d70604a"),
 		Fields: [sdk.NumMaxLogFields]sdk.LogFieldData{
 			logFieldData,
 			logFieldData,
@@ -49,14 +49,25 @@ func main() {
 		},
 	}
 
-	for i := 0; i < 2; i++ {
-		app.AddReceipt(receipt, i)
+	for i := 0; i < 32; i++ {
+		app.AddReceipt(receipt)
 	}
 
-	app.AddTransaction(sdk.TransactionData{
-		Hash:     utils.Hex2Hash("0x02869126ca667c76e819078d5326feb5d17f276ce5786de47e78334f15530e74"),
-		LeafHash: utils.Hex2Hash("0xdc72905c08245cea882190a138e7ec5b5066615a3380cfa1ee767b079aceb2c6"),
-	})
+	for i := 0; i < 32; i++ {
+		app.AddStorage(sdk.StorageData{
+			BlockNum: new(big.Int).SetUint64(20844438),
+			Address:  utils.Hex2Addr("0x75231f58b43240c9718dd58b4967c5114342a86c"),
+			Slot:     utils.Hex2Hash("0x0000000000000000000000000000000000000000000000000000000000000001"),
+			Value:    utils.Hex2Hash("0x0000000000000000000000000000000000000000000000000000000000000000"),
+		})
+	}
+
+	for i := 0; i < 64; i++ {
+		app.AddTransaction(sdk.TransactionData{
+			Hash:     utils.Hex2Hash("0xbc6709ddc1cc2dff10b1be86fcbefa416fe321a079b7e09a0b5ab5883d70604a"),
+			LeafHash: utils.Hex2Hash("0xdc72905c08245cea882190a138e7ec5b5066615a3380cfa1ee767b079aceb2c6"),
+		})
+	}
 
 	appCircuitAssignment := &AppCircuit{}
 
@@ -76,7 +87,7 @@ func main() {
 	appContract := common.HexToAddress("0xeec66d9b615ff84909be1cb1fe633cc26150417d")
 	refundee := common.HexToAddress("0x1bF81EA1F2F6Afde216cD3210070936401A14Bd4")
 
-	_, _, _, _, err = app.PrepareRequest(vk, witness, 97, 97, refundee, appContract, 400000, gwproto.QueryOption_ZK_MODE.Enum(), "", true)
+	_, _, _, _, err = app.PrepareRequest(vk, witness, 1, 11155111, refundee, appContract, 400000, gwproto.QueryOption_ZK_MODE.Enum(), "", true)
 	check(err)
 
 	err = app.SubmitProof(proof)
