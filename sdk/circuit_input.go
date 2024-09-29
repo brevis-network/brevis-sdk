@@ -396,7 +396,7 @@ func (s StorageSlot) pack(api frontend.API) []frontend.Variable {
 }
 
 func (s StorageSlot) GoPack() []*big.Int {
-	return s.GoPack()
+	return s.goPack()
 }
 
 func (s StorageSlot) goPack() []*big.Int {
