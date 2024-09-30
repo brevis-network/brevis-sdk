@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/consensys/gnark/frontend"
 	"log"
 	"math/big"
 	"time"
+
+	"github.com/consensys/gnark/frontend"
 
 	"github.com/brevis-network/brevis-sdk/sdk/proto/commonproto"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
@@ -536,7 +537,9 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 			w.InputCommitments[j] = result
 			leafs[j] = result
 		} else {
-			leafs[j] = new(big.Int).SetBytes(common.Hex2Bytes("0x01"))
+			defaultReceiptInputCommitment := hexutil.MustDecode("0x12314fdb373df6a01b6428c852e5c297c0db0a2731e785f0bff5e8fd1b03b9ba")
+			w.InputCommitments[j] = defaultReceiptInputCommitment
+			leafs[j] = new(big.Int).SetBytes(defaultReceiptInputCommitment)
 		}
 		j++
 	}
@@ -549,7 +552,9 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 			w.InputCommitments[j] = result
 			leafs[j] = result
 		} else {
-			leafs[j] = new(big.Int).SetBytes(common.Hex2Bytes("0x01"))
+			defaultStorageInputCommitment := hexutil.MustDecode("0x252bd7b4900da46f2d3a497c679dc2127577b41a13d48775251c1552819e51a4")
+			w.InputCommitments[j] = defaultStorageInputCommitment
+			leafs[j] = new(big.Int).SetBytes(defaultStorageInputCommitment)
 		}
 		j++
 	}
@@ -562,13 +567,17 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 			w.InputCommitments[j] = result
 			leafs[j] = result
 		} else {
-			leafs[j] = new(big.Int).SetBytes(common.Hex2Bytes("0x01"))
+			defaultTxInputCommitment := hexutil.MustDecode("0x052f1ad2d21f9127238a8a087cce19db7138c34b5676234ca5bac022f5367ca3")
+			w.InputCommitments[j] = defaultTxInputCommitment
+			leafs[j] = new(big.Int).SetBytes(defaultTxInputCommitment)
 		}
 		j++
 	}
 
 	for i := j; i < NumMaxDataPoints; i++ {
-		leafs[i] = new(big.Int).SetBytes(common.Hex2Bytes("0x01"))
+		defaultTxInputCommitment := hexutil.MustDecode("0x052f1ad2d21f9127238a8a087cce19db7138c34b5676234ca5bac022f5367ca3")
+		w.InputCommitments[i] = defaultTxInputCommitment
+		leafs[i] = new(big.Int).SetBytes(defaultTxInputCommitment)
 	}
 
 	var err error
@@ -576,7 +585,6 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 	if err != nil {
 		panic(fmt.Sprintf("failed to dp sub hash merkel with poseidon bn254: %s", err.Error()))
 	}
-	return
 }
 
 func DoHashWithPoseidonBn254(packed []*big.Int) (*big.Int, error) {
@@ -608,7 +616,6 @@ func (q *BrevisApp) assignToggleCommitment(in *CircuitInput) {
 	if err != nil {
 		log.Panicf("fail to CalTogglesHashRoot, err: %v", err)
 	}
-	return
 }
 
 func CalTogglesHashRoot(toggles []frontend.Variable) (*big.Int, error) {

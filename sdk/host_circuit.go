@@ -11,6 +11,7 @@ import (
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/multicommit"
 	"github.com/consensys/gnark/test"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 type AppCircuit interface {
@@ -56,6 +57,7 @@ func (c *HostCircuit) Define(gapi frontend.API) error {
 	if err != nil {
 		return fmt.Errorf("error building user-defined circuit %s", err.Error())
 	}
+
 	//assertInputUniqueness(gapi, c.Input.InputCommitments, api.checkInputUniqueness)
 	inputCommitmentRoot, err := CalMerkleRoot(gapi, c.Input.InputCommitments)
 	if err != nil {
@@ -79,37 +81,52 @@ func (c *HostCircuit) commitInput() error {
 		return fmt.Errorf("error creating poseidon hasher instance: %s", err.Error())
 	}
 
-	hashOrZero := func(toggle frontend.Variable, vs []frontend.Variable) frontend.Variable {
-		hasher.Reset()
-		if len(vs) > 16 {
-			panic(fmt.Sprintf("input is more than 16: %d", len(vs)))
-		}
-		for _, v := range vs {
-			hasher.Write(v)
-		}
-		sum := hasher.Sum()
-		return c.api.Select(toggle, sum, 0)
-	}
-
 	var inputCommits [NumMaxDataPoints]frontend.Variable
 	receipts := c.Input.Receipts
 	j := 0
 	for i, receipt := range receipts.Raw {
 		packed := receipt.pack(c.api)
-		inputCommits[j] = hashOrZero(receipts.Toggles[i], packed)
+		hasher.Reset()
+		if len(packed) > 16 {
+			panic(fmt.Sprintf("input is more than 16: %d", len(packed)))
+		}
+		for _, v := range packed {
+			hasher.Write(v)
+		}
+		sum := hasher.Sum()
+		defaultReceipt := hexutil.MustDecode("0x12314fdb373df6a01b6428c852e5c297c0db0a2731e785f0bff5e8fd1b03b9ba")
+		inputCommits[j] = c.api.Select(receipts.Toggles[i], sum, defaultReceipt)
 		j++
 	}
 
 	storageSlots := c.Input.StorageSlots
 	for i, slot := range storageSlots.Raw {
 		packed := slot.pack(c.api)
-		inputCommits[j] = hashOrZero(storageSlots.Toggles[i], packed)
+		hasher.Reset()
+		if len(packed) > 16 {
+			panic(fmt.Sprintf("input is more than 16: %d", len(packed)))
+		}
+		for _, v := range packed {
+			hasher.Write(v)
+		}
+		sum := hasher.Sum()
+		defaultSlot := hexutil.MustDecode("0x252bd7b4900da46f2d3a497c679dc2127577b41a13d48775251c1552819e51a4")
+		inputCommits[j] = c.api.Select(storageSlots.Toggles[i], sum, defaultSlot)
 		j++
 	}
 	txs := c.Input.Transactions
 	for i, tx := range txs.Raw {
 		packed := tx.pack(c.api)
-		inputCommits[j] = hashOrZero(txs.Toggles[i], packed)
+		hasher.Reset()
+		if len(packed) > 16 {
+			panic(fmt.Sprintf("input is more than 16: %d", len(packed)))
+		}
+		for _, v := range packed {
+			hasher.Write(v)
+		}
+		sum := hasher.Sum()
+		defaultSlot := hexutil.MustDecode("0x052f1ad2d21f9127238a8a087cce19db7138c34b5676234ca5bac022f5367ca3")
+		inputCommits[j] = c.api.Select(txs.Toggles[i], sum, defaultSlot)
 		j++
 	}
 
