@@ -9,5 +9,5 @@ var DummyStorageInputCommitment = map[uint64]string{
 }
 
 var DummyTransactionInputCommitment = map[uint64]string{
-	1: "0x2c9f0320873c53da55ff0df5e29d7c2ebd0bc3b485008b1e72fd7b0826a16b7a",
+	1: "0x25d98e9f6736943f9f7399e6a96d7d082bbc334702685206a7f089ce915a3377",
 }
