@@ -540,7 +540,6 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 			w.InputCommitments[j] = result
 			leafs[j] = result
 		} else {
-			// q.srcChainId
 			dummyIC := brevisCommon.DummyReceiptInputCommitment[q.srcChainId]
 			if len(dummyIC) == 0 {
 				panic(fmt.Sprintf("cannot find dummy receipt info for chain %d", q.srcChainId))
@@ -552,9 +551,9 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 			if len(icData) == 0 {
 				panic(fmt.Sprintf("cannot decode dummy receipt info for chain %d", q.srcChainId))
 			}
-			dic := icData
-			w.InputCommitments[j] = dic
-			leafs[j] = new(big.Int).SetBytes(dic)
+			w.InputCommitments[j] = icData
+			w.DummyReceiptInputCommitment = icData
+			leafs[j] = new(big.Int).SetBytes(icData)
 		}
 		j++
 	}
@@ -578,9 +577,9 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 			if len(icData) == 0 {
 				panic(fmt.Sprintf("cannot decode dummy receipt info for chain %d", q.srcChainId))
 			}
-			dic := icData
-			w.InputCommitments[j] = dic
-			leafs[j] = new(big.Int).SetBytes(dic)
+			w.InputCommitments[j] = icData
+			w.DummyStorageInputCommitment = icData
+			leafs[j] = new(big.Int).SetBytes(icData)
 		}
 		j++
 	}
@@ -606,6 +605,7 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 			}
 			dic := icData
 			w.InputCommitments[j] = dic
+			w.DummyTransactionInputCommitment = dic
 			leafs[j] = new(big.Int).SetBytes(dic)
 		}
 		j++

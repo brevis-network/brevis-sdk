@@ -47,7 +47,10 @@ type CircuitInput struct {
 	// OutputCommitment is a keccak256 commitment to the computation results of the
 	// developer's circuit. The output of this commitment is revealed by the
 	// developer in their application contract.
-	OutputCommitment OutputCommitment `gnark:",public"`
+	OutputCommitment                OutputCommitment  `gnark:",public"`
+	DummyReceiptInputCommitment     frontend.Variable `gnark:",public"`
+	DummyStorageInputCommitment     frontend.Variable `gnark:",public"`
+	DummyTransactionInputCommitment frontend.Variable `gnark:",public"`
 
 	dryRunOutput []byte `gnark:"-"`
 }
@@ -58,11 +61,14 @@ func defaultCircuitInput(maxReceipts, maxStorage, maxTxs int) CircuitInput {
 		inputCommits[i] = 0
 	}
 	return CircuitInput{
-		DataInput:            defaultDataInput(maxReceipts, maxStorage, maxTxs),
-		InputCommitmentsRoot: 0,
-		InputCommitments:     inputCommits,
-		TogglesCommitment:    0,
-		OutputCommitment:     OutputCommitment{0, 0},
+		DataInput:                       defaultDataInput(maxReceipts, maxStorage, maxTxs),
+		InputCommitmentsRoot:            0,
+		InputCommitments:                inputCommits,
+		TogglesCommitment:               0,
+		OutputCommitment:                OutputCommitment{0, 0},
+		DummyReceiptInputCommitment:     0,
+		DummyStorageInputCommitment:     0,
+		DummyTransactionInputCommitment: 0,
 	}
 }
 
@@ -71,10 +77,13 @@ func (in CircuitInput) Clone() CircuitInput {
 	copy(inputCommits, in.InputCommitments)
 
 	return CircuitInput{
-		InputCommitmentsRoot: in.InputCommitmentsRoot,
-		InputCommitments:     inputCommits,
-		TogglesCommitment:    in.TogglesCommitment,
-		OutputCommitment:     in.OutputCommitment,
+		InputCommitmentsRoot:            in.InputCommitmentsRoot,
+		InputCommitments:                inputCommits,
+		TogglesCommitment:               in.TogglesCommitment,
+		OutputCommitment:                in.OutputCommitment,
+		DummyReceiptInputCommitment:     in.DummyReceiptInputCommitment,
+		DummyStorageInputCommitment:     in.DummyStorageInputCommitment,
+		DummyTransactionInputCommitment: in.DummyTransactionInputCommitment,
 		DataInput: DataInput{
 			Receipts:     in.Receipts.Clone(),
 			StorageSlots: in.StorageSlots.Clone(),

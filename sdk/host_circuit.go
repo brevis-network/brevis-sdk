@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sync"
 
-	brevisCommon "github.com/brevis-network/brevis-sdk/common"
 	"github.com/brevis-network/brevis-sdk/common/utils"
 	"github.com/brevis-network/zk-hash/keccak"
 	"github.com/brevis-network/zk-hash/poseidon"
@@ -12,7 +11,6 @@ import (
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/multicommit"
 	"github.com/consensys/gnark/test"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 type AppCircuit interface {
@@ -96,20 +94,7 @@ func (c *HostCircuit) commitInput() error {
 		}
 		sum := hasher.Sum()
 
-		// TODO: Remove Hardcode
-		dummyIC := brevisCommon.DummyReceiptInputCommitment[1]
-		if len(dummyIC) == 0 {
-			panic(fmt.Sprintf("cannot find dummy receipt info for chain %d", 1))
-		}
-		icData, err := hexutil.Decode(dummyIC)
-		if err != nil {
-			panic(err.Error())
-		}
-		if len(icData) == 0 {
-			panic(fmt.Sprintf("cannot decode dummy receipt info for chain %d", 1))
-		}
-
-		inputCommits[j] = c.api.Select(receipts.Toggles[i], sum, icData)
+		inputCommits[j] = c.api.Select(receipts.Toggles[i], sum, c.Input.DummyReceiptInputCommitment)
 		j++
 	}
 
@@ -125,20 +110,7 @@ func (c *HostCircuit) commitInput() error {
 		}
 		sum := hasher.Sum()
 
-		// TODO: Remove Hardcode
-		dummyIC := brevisCommon.DummyStorageInputCommitment[1]
-		if len(dummyIC) == 0 {
-			panic(fmt.Sprintf("cannot find dummy receipt info for chain %d", 1))
-		}
-		icData, err := hexutil.Decode(dummyIC)
-		if err != nil {
-			panic(err.Error())
-		}
-		if len(icData) == 0 {
-			panic(fmt.Sprintf("cannot decode dummy receipt info for chain %d", 1))
-		}
-
-		inputCommits[j] = c.api.Select(storageSlots.Toggles[i], sum, icData)
+		inputCommits[j] = c.api.Select(storageSlots.Toggles[i], sum, c.Input.DummyStorageInputCommitment)
 		j++
 	}
 	txs := c.Input.Transactions
@@ -152,21 +124,7 @@ func (c *HostCircuit) commitInput() error {
 			hasher.Write(v)
 		}
 		sum := hasher.Sum()
-
-		// TODO: Remove Hardcode
-		dummyIC := brevisCommon.DummyTransactionInputCommitment[1]
-		if len(dummyIC) == 0 {
-			panic(fmt.Sprintf("cannot find dummy receipt info for chain %d", 1))
-		}
-		icData, err := hexutil.Decode(dummyIC)
-		if err != nil {
-			panic(err.Error())
-		}
-		if len(icData) == 0 {
-			panic(fmt.Sprintf("cannot decode dummy receipt info for chain %d", 1))
-		}
-
-		inputCommits[j] = c.api.Select(txs.Toggles[i], sum, icData)
+		inputCommits[j] = c.api.Select(txs.Toggles[i], sum, c.Input.DummyTransactionInputCommitment)
 		j++
 	}
 
@@ -325,6 +283,7 @@ func dryRun(in CircuitInput, guest AppCircuit) (OutputCommitment, []byte, error)
 
 	circuit := &HostCircuit{Input: in, Guest: guest}
 	assignment := &HostCircuit{Input: in, Guest: guest}
+	fmt.Println("in.DummyReceiptInputCommitment", in.DummyReceiptInputCommitment)
 
 	err := test.IsSolved(circuit, assignment, ecc.BN254.ScalarField())
 	if err != nil {
