@@ -34,7 +34,7 @@ func main() {
 		LogIndex:   12,
 		EventID:    utils.Hex2Hash("0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822"),
 		IsTopic:    false,
-		FieldIndex: 3,
+		FieldIndex: 2,
 		Value:      utils.Hex2Hash("0x000000000000000000000000000000000000000000000000000000000fe6987e"),
 	}
 
