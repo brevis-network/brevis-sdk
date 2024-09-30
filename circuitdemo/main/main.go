@@ -35,43 +35,50 @@ func main() {
 	app, err := sdk.NewBrevisApp(1, "localhost:11080")
 	check(err)
 	logFieldData := sdk.LogFieldData{
-		Contract:   utils.Hex2Addr("0x4446e0f8417C1db113899929A8F3cEe8e0DcBCDb"),
+		Contract:   utils.Hex2Addr("0xec53bF9167f50cDEB3Ae105f56099aaaB9061F83"),
 		LogIndex:   0,
-		EventID:    utils.Hex2Hash("0xfcc00a4bc74238c0d621a60c235a07a52789cca8e03b6e03f90d0b0c6e7bbecb"),
+		EventID:    utils.Hex2Hash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
 		IsTopic:    false,
 		FieldIndex: 0,
-		Value:      utils.Hex2Hash("0x0000000000000000000000000000000000000000000000000000000000000001"),
+		Value:      utils.Hex2Hash("0x000000000000000000000000000000000000000000000000b5434e41ef93cdf9"),
+	}
+
+	logFieldData1 := sdk.LogFieldData{
+		Contract:   utils.Hex2Addr("0xec53bF9167f50cDEB3Ae105f56099aaaB9061F83"),
+		LogIndex:   0,
+		EventID:    utils.Hex2Hash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
+		IsTopic:    true,
+		FieldIndex: 2,
+		Value:      utils.Hex2Hash("0x0FB8b4981437C97F304097b899F4eBa3Aa01401A"),
 	}
 
 	receipt := sdk.ReceiptData{
 		BlockNum: new(big.Int).SetUint64(20861588),
-		TxHash:   utils.Hex2Hash("0x3b762c2829801787b44ea8afba9510241014faa7dd86dbf03d729846aa346894"),
+		TxHash:   utils.Hex2Hash("0xe1fa9bc29a1185125450fc8b0e588ec377e0d1c5acf66f0f66cac7124f6dba36"),
 		Fields: [sdk.NumMaxLogFields]sdk.LogFieldData{
 			logFieldData,
-			logFieldData,
-			logFieldData,
-			logFieldData,
+			logFieldData1,
 		},
 	}
 
-	for i := 0; i < 32; i++ {
-		app.AddReceipt(receipt)
+	for i := 0; i < 3; i++ {
+		app.AddReceipt(receipt, i*3)
 	}
 
-	for i := 0; i < 32; i++ {
+	for i := 0; i < 3; i++ {
 		app.AddStorage(sdk.StorageData{
 			BlockNum: new(big.Int).SetUint64(20861588),
-			Address:  utils.Hex2Addr("0x4446e0f8417C1db113899929A8F3cEe8e0DcBCDb"),
+			Address:  utils.Hex2Addr("0xec53bF9167f50cDEB3Ae105f56099aaaB9061F83"),
 			Slot:     utils.Hex2Hash("0x0000000000000000000000000000000000000000000000000000000000000000"),
-			Value:    utils.Hex2Hash("0x00000000000000000000000058b529f9084d7eaa598eb3477fe36064c5b7bbc1"),
-		})
+			Value:    utils.Hex2Hash("0x0000000000000000000000000000000000000000000000000000000000000001"),
+		}, i+2)
 	}
 
-	for i := 0; i < 64; i++ {
+	for i := 0; i < 3; i++ {
 		app.AddTransaction(sdk.TransactionData{
-			Hash:     utils.Hex2Hash("0x3b762c2829801787b44ea8afba9510241014faa7dd86dbf03d729846aa346894"),
+			Hash:     utils.Hex2Hash("0xae934778e8f088c775d0b4350c06a66127456df8cf44a13b8c5566e974529194"),
 			LeafHash: utils.Hex2Hash("0x72d15e4bf219afb31c502e2b24c9ae1d0c1b408cb8774706bfc48d6a2022b299"),
-		})
+		}, i*6)
 	}
 
 	appCircuitAssignment := &AppCircuit{}
