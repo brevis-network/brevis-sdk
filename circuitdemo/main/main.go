@@ -77,7 +77,7 @@ func main() {
 	for i := 0; i < 3; i++ {
 		app.AddTransaction(sdk.TransactionData{
 			Hash:     utils.Hex2Hash("0xae934778e8f088c775d0b4350c06a66127456df8cf44a13b8c5566e974529194"),
-			LeafHash: utils.Hex2Hash("0x72d15e4bf219afb31c502e2b24c9ae1d0c1b408cb8774706bfc48d6a2022b299"),
+			LeafHash: utils.Hex2Hash("0x50a46fb905a23c119205ca313dbb2f4ce01cb43c344c5e378a19857fd5aa065e"),
 		}, i*6)
 	}
 
