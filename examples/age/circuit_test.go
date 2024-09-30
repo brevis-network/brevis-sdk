@@ -14,7 +14,7 @@ import (
 )
 
 func TestCircuit(t *testing.T) {
-	app, err := sdk.NewBrevisApp()
+	app, err := sdk.NewBrevisApp(1)
 	check(err)
 
 	txHash := common.HexToHash(
@@ -59,7 +59,7 @@ func TestCircuit(t *testing.T) {
 }
 
 func TestE2E(t *testing.T) {
-	app, err := sdk.NewBrevisApp()
+	app, err := sdk.NewBrevisApp(1)
 	check(err)
 
 	txHash := common.HexToHash(

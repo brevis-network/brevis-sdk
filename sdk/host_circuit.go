@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 
+	brevisCommon "github.com/brevis-network/brevis-sdk/common"
 	"github.com/brevis-network/brevis-sdk/common/utils"
 	"github.com/brevis-network/zk-hash/keccak"
 	"github.com/brevis-network/zk-hash/poseidon"
@@ -94,8 +95,21 @@ func (c *HostCircuit) commitInput() error {
 			hasher.Write(v)
 		}
 		sum := hasher.Sum()
-		defaultReceipt := hexutil.MustDecode("0x12314fdb373df6a01b6428c852e5c297c0db0a2731e785f0bff5e8fd1b03b9ba")
-		inputCommits[j] = c.api.Select(receipts.Toggles[i], sum, defaultReceipt)
+
+		// TODO: Remove Hardcode
+		dummyIC := brevisCommon.DummyReceiptInputCommitment[1]
+		if len(dummyIC) == 0 {
+			panic(fmt.Sprintf("cannot find dummy receipt info for chain %d", 1))
+		}
+		icData, err := hexutil.Decode(dummyIC)
+		if err != nil {
+			panic(err.Error())
+		}
+		if len(icData) == 0 {
+			panic(fmt.Sprintf("cannot decode dummy receipt info for chain %d", 1))
+		}
+
+		inputCommits[j] = c.api.Select(receipts.Toggles[i], sum, icData)
 		j++
 	}
 
@@ -110,8 +124,21 @@ func (c *HostCircuit) commitInput() error {
 			hasher.Write(v)
 		}
 		sum := hasher.Sum()
-		defaultSlot := hexutil.MustDecode("0x252bd7b4900da46f2d3a497c679dc2127577b41a13d48775251c1552819e51a4")
-		inputCommits[j] = c.api.Select(storageSlots.Toggles[i], sum, defaultSlot)
+
+		// TODO: Remove Hardcode
+		dummyIC := brevisCommon.DummyStorageInputCommitment[1]
+		if len(dummyIC) == 0 {
+			panic(fmt.Sprintf("cannot find dummy receipt info for chain %d", 1))
+		}
+		icData, err := hexutil.Decode(dummyIC)
+		if err != nil {
+			panic(err.Error())
+		}
+		if len(icData) == 0 {
+			panic(fmt.Sprintf("cannot decode dummy receipt info for chain %d", 1))
+		}
+
+		inputCommits[j] = c.api.Select(storageSlots.Toggles[i], sum, icData)
 		j++
 	}
 	txs := c.Input.Transactions
@@ -125,8 +152,21 @@ func (c *HostCircuit) commitInput() error {
 			hasher.Write(v)
 		}
 		sum := hasher.Sum()
-		defaultSlot := hexutil.MustDecode("0x052f1ad2d21f9127238a8a087cce19db7138c34b5676234ca5bac022f5367ca3")
-		inputCommits[j] = c.api.Select(txs.Toggles[i], sum, defaultSlot)
+
+		// TODO: Remove Hardcode
+		dummyIC := brevisCommon.DummyTransactionInputCommitment[1]
+		if len(dummyIC) == 0 {
+			panic(fmt.Sprintf("cannot find dummy receipt info for chain %d", 1))
+		}
+		icData, err := hexutil.Decode(dummyIC)
+		if err != nil {
+			panic(err.Error())
+		}
+		if len(icData) == 0 {
+			panic(fmt.Sprintf("cannot decode dummy receipt info for chain %d", 1))
+		}
+
+		inputCommits[j] = c.api.Select(txs.Toggles[i], sum, icData)
 		j++
 	}
 

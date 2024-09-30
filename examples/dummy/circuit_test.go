@@ -10,7 +10,7 @@ import (
 )
 
 func TestCircuit(t *testing.T) {
-	app, err := sdk.NewBrevisApp()
+	app, err := sdk.NewBrevisApp(1)
 	check(err)
 
 	usdcPool := common.HexToAddress("0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640")

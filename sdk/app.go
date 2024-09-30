@@ -10,6 +10,8 @@ import (
 
 	"github.com/consensys/gnark/frontend"
 
+	brevisCommon "github.com/brevis-network/brevis-sdk/common"
+
 	"github.com/brevis-network/brevis-sdk/sdk/proto/commonproto"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
 
@@ -123,7 +125,7 @@ type BrevisApp struct {
 	maxReceipts, maxStorage, maxTxs int
 }
 
-func NewBrevisApp(gatewayUrlOverride ...string) (*BrevisApp, error) {
+func NewBrevisApp(srcChainId uint64, gatewayUrlOverride ...string) (*BrevisApp, error) {
 	gc, err := NewGatewayClient(gatewayUrlOverride...)
 	if err != nil {
 		return nil, err
@@ -136,6 +138,7 @@ func NewBrevisApp(gatewayUrlOverride ...string) (*BrevisApp, error) {
 	return &BrevisApp{
 		gc:            gc,
 		brevisRequest: br,
+		srcChainId:    srcChainId,
 		receipts:      rawData[ReceiptData]{},
 		storageVals:   rawData[StorageData]{},
 		txs:           rawData[TransactionData]{},
@@ -537,9 +540,21 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 			w.InputCommitments[j] = result
 			leafs[j] = result
 		} else {
-			defaultReceiptInputCommitment := hexutil.MustDecode("0x12314fdb373df6a01b6428c852e5c297c0db0a2731e785f0bff5e8fd1b03b9ba")
-			w.InputCommitments[j] = defaultReceiptInputCommitment
-			leafs[j] = new(big.Int).SetBytes(defaultReceiptInputCommitment)
+			// q.srcChainId
+			dummyIC := brevisCommon.DummyReceiptInputCommitment[q.srcChainId]
+			if len(dummyIC) == 0 {
+				panic(fmt.Sprintf("cannot find dummy receipt info for chain %d", q.srcChainId))
+			}
+			icData, err := hexutil.Decode(dummyIC)
+			if err != nil {
+				panic(err.Error())
+			}
+			if len(icData) == 0 {
+				panic(fmt.Sprintf("cannot decode dummy receipt info for chain %d", q.srcChainId))
+			}
+			dic := icData
+			w.InputCommitments[j] = dic
+			leafs[j] = new(big.Int).SetBytes(dic)
 		}
 		j++
 	}
@@ -552,9 +567,20 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 			w.InputCommitments[j] = result
 			leafs[j] = result
 		} else {
-			defaultStorageInputCommitment := hexutil.MustDecode("0x252bd7b4900da46f2d3a497c679dc2127577b41a13d48775251c1552819e51a4")
-			w.InputCommitments[j] = defaultStorageInputCommitment
-			leafs[j] = new(big.Int).SetBytes(defaultStorageInputCommitment)
+			dummyIC := brevisCommon.DummyStorageInputCommitment[q.srcChainId]
+			if len(dummyIC) == 0 {
+				panic(fmt.Sprintf("cannot find dummy receipt info for chain %d", q.srcChainId))
+			}
+			icData, err := hexutil.Decode(dummyIC)
+			if err != nil {
+				panic(err.Error())
+			}
+			if len(icData) == 0 {
+				panic(fmt.Sprintf("cannot decode dummy receipt info for chain %d", q.srcChainId))
+			}
+			dic := icData
+			w.InputCommitments[j] = dic
+			leafs[j] = new(big.Int).SetBytes(dic)
 		}
 		j++
 	}
@@ -567,9 +593,20 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 			w.InputCommitments[j] = result
 			leafs[j] = result
 		} else {
-			defaultTxInputCommitment := hexutil.MustDecode("0x052f1ad2d21f9127238a8a087cce19db7138c34b5676234ca5bac022f5367ca3")
-			w.InputCommitments[j] = defaultTxInputCommitment
-			leafs[j] = new(big.Int).SetBytes(defaultTxInputCommitment)
+			dummyIC := brevisCommon.DummyTransactionInputCommitment[q.srcChainId]
+			if len(dummyIC) == 0 {
+				panic(fmt.Sprintf("cannot find dummy receipt info for chain %d", q.srcChainId))
+			}
+			icData, err := hexutil.Decode(dummyIC)
+			if err != nil {
+				panic(err.Error())
+			}
+			if len(icData) == 0 {
+				panic(fmt.Sprintf("cannot decode dummy receipt info for chain %d", q.srcChainId))
+			}
+			dic := icData
+			w.InputCommitments[j] = dic
+			leafs[j] = new(big.Int).SetBytes(dic)
 		}
 		j++
 	}

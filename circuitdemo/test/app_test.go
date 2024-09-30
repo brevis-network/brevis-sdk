@@ -14,7 +14,7 @@ import (
 
 func TestDemo(t *testing.T) {
 	assert := test.NewAssert(t)
-	app, err := sdk.NewBrevisApp()
+	app, err := sdk.NewBrevisApp(1)
 	assert.NoError(err)
 
 	logFieldData := sdk.LogFieldData{

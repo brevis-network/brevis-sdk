@@ -1,15 +1,16 @@
 package balance
 
 import (
+	"math/big"
+	"testing"
+
 	"github.com/brevis-network/brevis-sdk/sdk"
 	"github.com/brevis-network/brevis-sdk/test"
 	"github.com/ethereum/go-ethereum/common"
-	"math/big"
-	"testing"
 )
 
 func TestCircuit(t *testing.T) {
-	app, err := sdk.NewBrevisApp()
+	app, err := sdk.NewBrevisApp(1)
 	check(err)
 
 	USDT := common.HexToAddress("0xdac17f958d2ee523a2206206994597c13d831ec7")
