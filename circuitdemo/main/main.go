@@ -34,8 +34,8 @@ func main() {
 		LogIndex:   12,
 		EventID:    utils.Hex2Hash("0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822"),
 		IsTopic:    false,
-		FieldIndex: 2,
-		Value:      utils.Hex2Hash("0x000000000000000000000000000000000000000000000000000000000fe6987e"),
+		FieldIndex: 3,
+		Value:      utils.Hex2Hash("0x0000000000000000000000000000000000000000000000000000000000000000"),
 	}
 
 	receipt := sdk.ReceiptData{
@@ -49,22 +49,22 @@ func main() {
 		},
 	}
 
-	for i := 0; i < 32; i++ {
+	for i := 0; i < 1; i++ {
 		app.AddReceipt(receipt)
 	}
 
-	for i := 0; i < 32; i++ {
+	for i := 0; i < 1; i++ {
 		app.AddStorage(sdk.StorageData{
 			BlockNum: new(big.Int).SetUint64(20844438),
 			Address:  utils.Hex2Addr("0x75231f58b43240c9718dd58b4967c5114342a86c"),
-			Slot:     utils.Hex2Hash("0x0000000000000000000000000000000000000000000000000000000000000001"),
-			Value:    utils.Hex2Hash("0x0000000000000000000000000000000000000000000000000000000000000000"),
+			Slot:     utils.Hex2Hash("0x0000000000000000000000000000000000000000000000000000000000000000"),
+			Value:    utils.Hex2Hash("0x0000000000000000000000000000000000000000000000000000000000000001"),
 		})
 	}
 
-	for i := 0; i < 64; i++ {
+	for i := 0; i < 1; i++ {
 		app.AddTransaction(sdk.TransactionData{
-			Hash:     utils.Hex2Hash("0xbc6709ddc1cc2dff10b1be86fcbefa416fe321a079b7e09a0b5ab5883d70604a"),
+			Hash:     utils.Hex2Hash("0x3aa1931426adbe23edbbf98f851023333876fd19fbf10743872e296bff2189a6"),
 			LeafHash: utils.Hex2Hash("0x1e23a8df83fb904e7ab0c6e0a7fd3c70c007ed539a5d47a80d96a08d7bcf67ef"),
 		})
 	}
