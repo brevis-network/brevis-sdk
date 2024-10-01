@@ -27,8 +27,9 @@ func TestDemo(t *testing.T) {
 	}
 
 	receipt := sdk.ReceiptData{
-		BlockNum: new(big.Int).SetUint64(13898775),
-		TxHash:   utils.Hex2Hash("0xbef5e22dec94fd5ed9630f3cee52d7d914ad796f5a31048086f8a956892db05e"),
+		BlockNum:     new(big.Int).SetUint64(13898775),
+		BlockBaseFee: new(big.Int).SetUint64(0),
+		TxHash:       utils.Hex2Hash("0xbef5e22dec94fd5ed9630f3cee52d7d914ad796f5a31048086f8a956892db05e"),
 		Fields: [sdk.NumMaxLogFields]sdk.LogFieldData{
 			logFieldData,
 			logFieldData,
@@ -38,8 +39,9 @@ func TestDemo(t *testing.T) {
 	}
 
 	receipt1 := sdk.ReceiptData{
-		BlockNum: new(big.Int).SetUint64(13898776),
-		TxHash:   utils.Hex2Hash("0xbef5e22dec94fd5ed9630f3cee52d7d914ad796f5a31048086f8a956892db05e"),
+		BlockNum:     new(big.Int).SetUint64(13898776),
+		BlockBaseFee: new(big.Int).SetUint64(0),
+		TxHash:       utils.Hex2Hash("0xbef5e22dec94fd5ed9630f3cee52d7d914ad796f5a31048086f8a956892db05e"),
 		Fields: [sdk.NumMaxLogFields]sdk.LogFieldData{
 			logFieldData,
 			logFieldData,

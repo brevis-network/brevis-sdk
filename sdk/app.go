@@ -26,9 +26,10 @@ import (
 )
 
 type ReceiptData struct {
-	BlockNum *big.Int                      `json:"block_num,omitempty"`
-	TxHash   common.Hash                   `json:"tx_hash,omitempty"`
-	Fields   [NumMaxLogFields]LogFieldData `json:"fields,omitempty"`
+	BlockNum     *big.Int                      `json:"block_num,omitempty"`
+	BlockBaseFee *big.Int                      `json:"block_base_fee,omitempty"`
+	TxHash       common.Hash                   `json:"tx_hash,omitempty"`
+	Fields       [NumMaxLogFields]LogFieldData `json:"fields,omitempty"`
 }
 
 // LogFieldData represents a single field of an event.
@@ -715,8 +716,9 @@ func (q *BrevisApp) assignReceipts(maxReceipts int, in *CircuitInput) error {
 	// assigning user appointed receipts at specific indices
 	for i, receipt := range q.receipts.special {
 		in.Receipts.Raw[i] = Receipt{
-			BlockNum: newU32(receipt.BlockNum),
-			Fields:   buildLogFields(receipt.Fields),
+			BlockNum:     newU32(receipt.BlockNum),
+			BlockBaseFee: newU248(receipt.BlockBaseFee),
+			Fields:       buildLogFields(receipt.Fields),
 		}
 		in.Receipts.Toggles[i] = 1
 	}
@@ -728,8 +730,9 @@ func (q *BrevisApp) assignReceipts(maxReceipts int, in *CircuitInput) error {
 			j++
 		}
 		in.Receipts.Raw[j] = Receipt{
-			BlockNum: newU32(receipt.BlockNum),
-			Fields:   buildLogFields(receipt.Fields),
+			BlockNum:     newU32(receipt.BlockNum),
+			BlockBaseFee: newU248(receipt.BlockBaseFee),
+			Fields:       buildLogFields(receipt.Fields),
 		}
 		in.Receipts.Toggles[j] = 1
 		j++

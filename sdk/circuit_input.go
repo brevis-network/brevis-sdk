@@ -156,8 +156,9 @@ const NumMaxLogFields = 4
 
 // Receipt is a collection of LogField.
 type Receipt struct {
-	BlockNum Uint32
-	Fields   [NumMaxLogFields]LogField
+	BlockNum     Uint32
+	BlockBaseFee Uint248
+	Fields       [NumMaxLogFields]LogField
 }
 
 func DefaultReceipt() Receipt {
@@ -166,8 +167,9 @@ func DefaultReceipt() Receipt {
 
 func defaultReceipt() Receipt {
 	r := Receipt{
-		BlockNum: newU32(0),
-		Fields:   [NumMaxLogFields]LogField{},
+		BlockNum:     newU32(0),
+		BlockBaseFee: newU248(0),
+		Fields:       [NumMaxLogFields]LogField{},
 	}
 	for i := range r.Fields {
 		r.Fields[i] = defaultLogField()
@@ -192,6 +194,9 @@ func (r Receipt) FromValues(vs ...frontend.Variable) CircuitVariable {
 	start, end := uint32(0), r.BlockNum.NumVars()
 	nr.BlockNum = r.BlockNum.FromValues(vs[start:end]...).(Uint32)
 
+	start, end = end, end+r.BlockBaseFee.NumVars()
+	nr.BlockBaseFee = r.BlockBaseFee.FromValues(vs[start:end]...).(Uint248)
+
 	for i, f := range r.Fields {
 		start, end = end, end+f.NumVars()
 		nr.Fields[i] = f.FromValues(vs[start:end]...).(LogField)
@@ -201,6 +206,7 @@ func (r Receipt) FromValues(vs ...frontend.Variable) CircuitVariable {
 
 func (r Receipt) NumVars() uint32 {
 	sum := r.BlockNum.NumVars()
+	sum += r.BlockBaseFee.NumVars()
 	for _, field := range r.Fields {
 		sum += field.NumVars()
 	}
@@ -286,7 +292,7 @@ func (f LogField) NumVars() uint32 {
 func (r Receipt) pack(api frontend.API) []frontend.Variable {
 	var bits []frontend.Variable
 	bits = append(bits, api.ToBinary(r.BlockNum.Val, 8*4)...)
-
+	bits = append(bits, api.ToBinary(r.BlockBaseFee.Val, 8*16)...)
 	for _, field := range r.Fields {
 		bits = append(bits, api.ToBinary(field.Contract.Val, 8*20)...)
 		bits = append(bits, api.ToBinary(field.EventID.Val, 8*6)...)
@@ -308,6 +314,8 @@ func (r Receipt) GoPack() []*big.Int {
 func (r Receipt) goPack() []*big.Int {
 	var bits []uint
 	bits = append(bits, decomposeBits(fromInterface(r.BlockNum.Val), 8*4)...)
+	bits = append(bits, decomposeBits(fromInterface(r.BlockBaseFee.Val), 8*16)...)
+
 	for _, field := range r.Fields {
 		bits = append(bits, decomposeBits(fromInterface(field.Contract.Val), 8*20)...)
 		bits = append(bits, decomposeBits(fromInterface(field.EventID.Val), 8*6)...)
