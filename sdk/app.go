@@ -52,17 +52,19 @@ type LogFieldData struct {
 }
 
 type StorageData struct {
-	BlockNum *big.Int       `json:"block_num,omitempty"`
-	Address  common.Address `json:"address,omitempty"`
-	Slot     common.Hash    `json:"slot,omitempty"`
-	Value    common.Hash    `json:"value,omitempty"`
+	BlockNum     *big.Int       `json:"block_num,omitempty"`
+	BlockBaseFee *big.Int       `json:"block_base_fee,omitempty"`
+	Address      common.Address `json:"address,omitempty"`
+	Slot         common.Hash    `json:"slot,omitempty"`
+	Value        common.Hash    `json:"value,omitempty"`
 }
 
 type TransactionData struct {
-	Hash     common.Hash `json:"hash,omitempty"`
-	ChainId  *big.Int    `json:"chain_id,omitempty"`
-	BlockNum *big.Int    `json:"block_num,omitempty"`
-	Nonce    uint64      `json:"nonce,omitempty"`
+	Hash         common.Hash `json:"hash,omitempty"`
+	ChainId      *big.Int    `json:"chain_id,omitempty"`
+	BlockNum     *big.Int    `json:"block_num,omitempty"`
+	BlockBaseFee *big.Int    `json:"block_base_fee,omitempty"`
+	Nonce        uint64      `json:"nonce,omitempty"`
 	// GasTipCapOrGasPrice is GasPrice for legacy tx (type 0) and GasTipCapOap for
 	// dynamic-fee tx (type 2)
 	GasTipCapOrGasPrice *big.Int `json:"max_priority_fee_per_gas,omitempty"`
@@ -800,10 +802,11 @@ func BuildStorageSlot(s StorageData) StorageSlot {
 
 func buildStorageSlot(s StorageData) StorageSlot {
 	return StorageSlot{
-		BlockNum: newU32(s.BlockNum),
-		Contract: ConstUint248(s.Address),
-		Slot:     ConstBytes32(s.Slot[:]),
-		Value:    ConstBytes32(s.Value[:]),
+		BlockNum:     newU32(s.BlockNum),
+		BlockBaseFee: newU248(s.BlockBaseFee),
+		Contract:     ConstUint248(s.Address),
+		Slot:         ConstBytes32(s.Slot[:]),
+		Value:        ConstBytes32(s.Value[:]),
 	}
 }
 
@@ -834,7 +837,8 @@ func BuildTx(t TransactionData) Transaction {
 func buildTx(t TransactionData) Transaction {
 	return Transaction{
 		// ChainId:             ConstUint248(t.ChainId),
-		// BlockNum:            ConstUint32(t.BlockNum),
+		BlockNum:     ConstUint32(t.BlockNum),
+		BlockBaseFee: newU248(t.BlockBaseFee),
 		// Nonce:               ConstUint248(t.Nonce),
 		// GasTipCapOrGasPrice: ConstUint248(t.GasTipCapOrGasPrice),
 		// GasFeeCap:           ConstUint248(t.GasFeeCap),

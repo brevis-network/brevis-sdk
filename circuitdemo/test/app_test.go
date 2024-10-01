@@ -60,9 +60,19 @@ func TestDemo(t *testing.T) {
 	app.AddReceipt(receipt, 18)
 
 	app.AddTransaction(sdk.TransactionData{
-		Hash:     utils.Hex2Hash("0xbef5e22dec94fd5ed9630f3cee52d7d914ad796f5a31048086f8a956892db05e"),
-		LeafHash: utils.Hex2Hash("0xbef5e22dec94fd5ed9630f3cee52d7d914ad796f5a31048086f8a956892db05e"),
+		Hash:         utils.Hex2Hash("0xbef5e22dec94fd5ed9630f3cee52d7d914ad796f5a31048086f8a956892db05e"),
+		BlockBaseFee: new(big.Int).SetUint64(0),
+		BlockNum:     new(big.Int).SetUint64(13898775),
+		LeafHash:     utils.Hex2Hash("0xbef5e22dec94fd5ed9630f3cee52d7d914ad796f5a31048086f8a956892db05e"),
 	})
+
+	app.AddStorage(sdk.StorageData{
+		BlockNum:     new(big.Int).SetUint64(20861588),
+		BlockBaseFee: new(big.Int).SetUint64(0),
+		Address:      utils.Hex2Addr("0xec53bF9167f50cDEB3Ae105f56099aaaB9061F83"),
+		Slot:         utils.Hex2Hash("0x0000000000000000000000000000000000000000000000000000000000000000"),
+		Value:        utils.Hex2Hash("0x0000000000000000000000000000000000000000000000000000000000000001"),
+	}, 3)
 
 	guestAssignment := &AppCircuit{}
 

@@ -130,6 +130,7 @@ func (c *HostCircuit) commitInput() error {
 
 	// adding constraint for input commitments (both effective commitments and dummies)
 	for i := 0; i < c.dataLen(); i++ {
+		fmt.Println(i)
 		c.api.AssertIsEqual(c.Input.InputCommitments[i], inputCommits[i])
 	}
 

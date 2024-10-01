@@ -341,7 +341,9 @@ func packBitsToFr(api frontend.API, bits []frontend.Variable) []frontend.Variabl
 }
 
 type StorageSlot struct {
-	BlockNum Uint32
+	BlockNum     Uint32
+	BlockBaseFee Uint248
+
 	// The contract to which the storage slot belong
 	Contract Uint248
 	// The storage slot
@@ -352,10 +354,11 @@ type StorageSlot struct {
 
 func defaultStorageSlot() StorageSlot {
 	return StorageSlot{
-		BlockNum: newU32(0),
-		Contract: newU248(0),
-		Slot:     ConstBytes32([]byte{}),
-		Value:    ConstBytes32([]byte{}),
+		BlockNum:     newU32(0),
+		BlockBaseFee: newU248(0),
+		Contract:     newU248(0),
+		Slot:         ConstBytes32([]byte{}),
+		Value:        ConstBytes32([]byte{}),
 	}
 }
 
@@ -364,6 +367,7 @@ var _ CircuitVariable = StorageSlot{}
 func (s StorageSlot) Values() []frontend.Variable {
 	var ret []frontend.Variable
 	ret = append(ret, s.BlockNum.Values()...)
+	ret = append(ret, s.BlockBaseFee.Values()...)
 	ret = append(ret, s.Contract.Values()...)
 	ret = append(ret, s.Slot.Values()...)
 	ret = append(ret, s.Value.Values()...)
@@ -375,6 +379,9 @@ func (s StorageSlot) FromValues(vs ...frontend.Variable) CircuitVariable {
 
 	start, end := uint32(0), s.BlockNum.NumVars()
 	nr.BlockNum = s.BlockNum.FromValues(vs[start:end]...).(Uint32)
+
+	start, end = end, end+s.BlockBaseFee.NumVars()
+	nr.BlockBaseFee = s.BlockBaseFee.FromValues(vs[start:end]...).(Uint248)
 
 	start, end = end, end+s.Contract.NumVars()
 	nr.Contract = s.Contract.FromValues(vs[start:end]...).(Uint248)
@@ -389,7 +396,7 @@ func (s StorageSlot) FromValues(vs ...frontend.Variable) CircuitVariable {
 }
 
 func (s StorageSlot) NumVars() uint32 {
-	return s.BlockNum.NumVars() + s.Contract.NumVars() + s.Slot.NumVars() + s.Value.NumVars()
+	return s.BlockNum.NumVars() + s.BlockBaseFee.NumVars() + s.Contract.NumVars() + s.Slot.NumVars() + s.Value.NumVars()
 }
 
 func (s StorageSlot) String() string { return "StorageSlot" }
@@ -406,6 +413,7 @@ func (s StorageSlot) Pack(api frontend.API) []frontend.Variable {
 func (s StorageSlot) pack(api frontend.API) []frontend.Variable {
 	var bits []frontend.Variable
 	bits = append(bits, api.ToBinary(s.BlockNum.Val, 8*4)...)
+	bits = append(bits, api.ToBinary(s.BlockBaseFee.Val, 8*16)...)
 	bits = append(bits, api.ToBinary(s.Contract.Val, 8*20)...)
 	bits = append(bits, s.Slot.toBinaryVars(api)...)
 	bits = append(bits, s.Value.toBinaryVars(api)...)
@@ -419,6 +427,7 @@ func (s StorageSlot) GoPack() []*big.Int {
 func (s StorageSlot) goPack() []*big.Int {
 	var bits []uint
 	bits = append(bits, decomposeBits(fromInterface(s.BlockNum.Val), 8*4)...)
+	bits = append(bits, decomposeBits(fromInterface(s.BlockBaseFee.Val), 8*16)...)
 	bits = append(bits, decomposeBits(fromInterface(s.Contract.Val), 8*20)...)
 	bits = append(bits, s.Slot.toBinary()...)
 	bits = append(bits, s.Value.toBinary()...)
@@ -429,12 +438,13 @@ func (s StorageSlot) goPack() []*big.Int {
 // LeafHash: unsigned tx rlp keccak result
 type Transaction struct {
 	// ChainId  Uint248
-	// BlockNum Uint32
+	BlockNum     Uint32
+	BlockBaseFee Uint248
 	// Nonce    Uint248
-	// // GasTipCapOrGasPrice is GasPrice for legacy tx (type 0) and GasTipCapOap for
-	// // dynamic-fee tx (type 2)
+	// GasTipCapOrGasPrice is GasPrice for legacy tx (type 0) and GasTipCapOap for
+	// dynamic-fee tx (type 2)
 	// GasTipCapOrGasPrice Uint248
-	// // GasFeeCap is always 0 for legacy tx
+	// GasFeeCap is always 0 for legacy tx
 	// GasFeeCap Uint248
 	// GasLimit  Uint248
 	// From      Uint248
@@ -446,7 +456,8 @@ type Transaction struct {
 func defaultTransaction() Transaction {
 	return Transaction{
 		// ChainId:             newU248(0),
-		// BlockNum:            newU32(0),
+		BlockNum:     newU32(0),
+		BlockBaseFee: newU248(0),
 		// Nonce:               newU248(0),
 		// GasTipCapOrGasPrice: newU248(0),
 		// GasFeeCap:           newU248(0),
@@ -463,7 +474,7 @@ var _ CircuitVariable = Transaction{}
 func (t Transaction) Values() []frontend.Variable {
 	var ret []frontend.Variable
 	// ret = append(ret, t.ChainId.Values()...)
-	// ret = append(ret, t.BlockNum.Values()...)
+	ret = append(ret, t.BlockNum.Values()...)
 	// ret = append(ret, t.Nonce.Values()...)
 	// ret = append(ret, t.GasTipCapOrGasPrice.Values()...)
 	// ret = append(ret, t.GasFeeCap.Values()...)
@@ -471,6 +482,7 @@ func (t Transaction) Values() []frontend.Variable {
 	// ret = append(ret, t.From.Values()...)
 	// ret = append(ret, t.To.Values()...)
 	// ret = append(ret, t.Value.Values()...)
+	ret = append(ret, t.BlockBaseFee.Values()...)
 	ret = append(ret, t.LeafHash.Values()...)
 	return ret
 }
@@ -478,11 +490,12 @@ func (t Transaction) Values() []frontend.Variable {
 func (t Transaction) FromValues(vs ...frontend.Variable) CircuitVariable {
 	nr := Transaction{}
 
+	end := uint32(0)
 	// start, end := uint32(0), t.ChainId.NumVars()
 	// nr.ChainId = t.ChainId.FromValues(vs[start:end]...).(Uint248)
 
-	// start, end = end, end+t.BlockNum.NumVars()
-	// nr.BlockNum = t.BlockNum.FromValues(vs[start:end]...).(Uint32)
+	start, end := end, end+t.BlockNum.NumVars()
+	nr.BlockNum = t.BlockNum.FromValues(vs[start:end]...).(Uint32)
 
 	// start, end = end, end+t.Nonce.NumVars()
 	// nr.Nonce = t.Nonce.FromValues(vs[start:end]...).(Uint248)
@@ -505,8 +518,10 @@ func (t Transaction) FromValues(vs ...frontend.Variable) CircuitVariable {
 	// start, end = end, end+t.Value.NumVars()
 	// nr.Value = t.Value.FromValues(vs[start:end]...).(Bytes32)
 
-	end := uint32(0)
-	start, end := end, end+t.LeafHash.NumVars()
+	start, end = end, end+t.BlockBaseFee.NumVars()
+	nr.BlockBaseFee = t.BlockBaseFee.FromValues(vs[start:end]...).(Uint248)
+
+	start, end = end, end+t.LeafHash.NumVars()
 	nr.LeafHash = t.LeafHash.FromValues(vs[start:end]...).(Bytes32)
 
 	return nr
@@ -514,8 +529,10 @@ func (t Transaction) FromValues(vs ...frontend.Variable) CircuitVariable {
 
 func (t Transaction) NumVars() uint32 {
 	fields := []CircuitVariable{
-		// t.ChainId, t.BlockNum, t.Nonce, t.GasTipCapOrGasPrice,
+		// t.ChainId,  t.Nonce, t.GasTipCapOrGasPrice,
 		// t.GasFeeCap, t.GasLimit, t.From, t.To, t.Value,
+		t.BlockNum,
+		t.BlockBaseFee,
 		t.LeafHash,
 	}
 	sum := uint32(0)
@@ -542,7 +559,8 @@ func (t Transaction) Pack(api frontend.API) []variable {
 // value - 32 bytes
 func (t Transaction) pack(api frontend.API) []variable {
 	var bits []variable
-	// bits = append(bits, api.ToBinary(t.BlockNum.Val, 8*4)...)
+	bits = append(bits, api.ToBinary(t.BlockNum.Val, 8*4)...)
+	bits = append(bits, api.ToBinary(t.BlockBaseFee.Val, 8*16)...)
 	// bits = append(bits, api.ToBinary(t.ChainId.Val, 8*4)...)
 	// bits = append(bits, api.ToBinary(t.Nonce.Val, 8*4)...)
 	// bits = append(bits, api.ToBinary(t.GasTipCapOrGasPrice.Val, 8*8)...)
@@ -561,7 +579,8 @@ func (t Transaction) GoPack() []*big.Int {
 
 func (t Transaction) goPack() []*big.Int {
 	var bits []uint
-	// bits = append(bits, decomposeBits(fromInterface(t.BlockNum.Val), 8*4)...)
+	bits = append(bits, decomposeBits(fromInterface(t.BlockNum.Val), 8*4)...)
+	bits = append(bits, decomposeBits(fromInterface(t.BlockBaseFee.Val), 8*16)...)
 	// bits = append(bits, decomposeBits(fromInterface(t.ChainId.Val), 8*4)...)
 	// bits = append(bits, decomposeBits(fromInterface(t.Nonce.Val), 8*4)...)
 	// bits = append(bits, decomposeBits(fromInterface(t.GasTipCapOrGasPrice.Val), 8*8)...)
