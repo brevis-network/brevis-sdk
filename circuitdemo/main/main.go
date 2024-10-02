@@ -53,8 +53,9 @@ func main() {
 	}
 
 	receipt := sdk.ReceiptData{
-		BlockNum: new(big.Int).SetUint64(20861588),
-		TxHash:   utils.Hex2Hash("0xe1fa9bc29a1185125450fc8b0e588ec377e0d1c5acf66f0f66cac7124f6dba36"),
+		BlockNum:     new(big.Int).SetUint64(20861588),
+		BlockBaseFee: new(big.Int).SetUint64(7343991989),
+		TxHash:       utils.Hex2Hash("0xe1fa9bc29a1185125450fc8b0e588ec377e0d1c5acf66f0f66cac7124f6dba36"),
 		Fields: [sdk.NumMaxLogFields]sdk.LogFieldData{
 			logFieldData,
 			logFieldData1,
@@ -67,17 +68,20 @@ func main() {
 
 	for i := 0; i < 3; i++ {
 		app.AddStorage(sdk.StorageData{
-			BlockNum: new(big.Int).SetUint64(20861588),
-			Address:  utils.Hex2Addr("0xec53bF9167f50cDEB3Ae105f56099aaaB9061F83"),
-			Slot:     utils.Hex2Hash("0x0000000000000000000000000000000000000000000000000000000000000000"),
-			Value:    utils.Hex2Hash("0x0000000000000000000000000000000000000000000000000000000000000001"),
+			BlockNum:     new(big.Int).SetUint64(20861588),
+			BlockBaseFee: new(big.Int).SetUint64(7343991989),
+			Address:      utils.Hex2Addr("0xec53bF9167f50cDEB3Ae105f56099aaaB9061F83"),
+			Slot:         utils.Hex2Hash("0x0000000000000000000000000000000000000000000000000000000000000000"),
+			Value:        utils.Hex2Hash("0x0000000000000000000000000000000000000000000000000000000000000001"),
 		}, i+2)
 	}
 
 	for i := 0; i < 3; i++ {
 		app.AddTransaction(sdk.TransactionData{
-			Hash:     utils.Hex2Hash("0xae934778e8f088c775d0b4350c06a66127456df8cf44a13b8c5566e974529194"),
-			LeafHash: utils.Hex2Hash("0x50a46fb905a23c119205ca313dbb2f4ce01cb43c344c5e378a19857fd5aa065e"),
+			BlockNum:     new(big.Int).SetUint64(20861588),
+			BlockBaseFee: new(big.Int).SetUint64(7343991989),
+			Hash:         utils.Hex2Hash("0xae934778e8f088c775d0b4350c06a66127456df8cf44a13b8c5566e974529194"),
+			LeafHash:     utils.Hex2Hash("0x50a46fb905a23c119205ca313dbb2f4ce01cb43c344c5e378a19857fd5aa065e"),
 		}, i*6)
 	}
 
