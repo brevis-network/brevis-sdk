@@ -1,13 +1,13 @@
 package common
 
 var DummyReceiptInputCommitment = map[uint64]string{
-	1: "0x2c9f0320873c53da55ff0df5e29d7c2ebd0bc3b485008b1e72fd7b0826a16b7a",
+	1: "0x2c5e0beb9dac6b77e64945195f455c6d4eea855c98b16c2bbdf0f5908b5051d5",
 }
 
 var DummyStorageInputCommitment = map[uint64]string{
-	1: "0x267191e0d2245c49d4d7c864620d313f5c7009e6af17d213f2ca5d1b52cf0ef4",
+	1: "0x23f3a31138685cdf359df5193c2615577a0cb7ec6e8f6a7b8c722bbdc255605b",
 }
 
 var DummyTransactionInputCommitment = map[uint64]string{
-	1: "0x25d98e9f6736943f9f7399e6a96d7d082bbc334702685206a7f089ce915a3377",
+	1: "0x2db248500f85132995f4d45c82ca8d70a0cecd90e62fae79007260b97c96c350",
 }
