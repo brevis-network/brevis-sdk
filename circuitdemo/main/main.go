@@ -71,7 +71,7 @@ func main() {
 			BlockNum:     new(big.Int).SetUint64(20861588),
 			BlockBaseFee: new(big.Int).SetUint64(7343991989),
 			Hash:         utils.Hex2Hash("0x3b762c2829801787b44ea8afba9510241014faa7dd86dbf03d729846aa346894"),
-			LeafHash:     utils.Hex2Hash("0x50a46fb905a23c119205ca313dbb2f4ce01cb43c344c5e378a19857fd5aa065e"),
+			LeafHash:     utils.Hex2Hash("0x72d15e4bf219afb31c502e2b24c9ae1d0c1b408cb8774706bfc48d6a2022b299"),
 		}, i)
 	}
 
