@@ -1,6 +1,6 @@
 # Brevis SDK
 
-Please refer to [https://docs.brevis.network]() for the full documentation. 
+Please refer to [https://docs.brevis.network](https://docs.brevis.network) for the full documentation. 
 
 This SDK aims to provide developers with a framework to implement custom data analysis computations and to interoperate with Brevis' provers.  
 
