@@ -11,7 +11,7 @@ import (
 )
 
 func TestCircuit(t *testing.T) {
-	app, err := sdk.NewBrevisApp()
+	app, err := sdk.NewBrevisApp(1)
 	check(err)
 
 	account := common.HexToAddress("0x5427FEFA711Eff984124bFBB1AB6fbf5E3DA1820")
@@ -46,7 +46,7 @@ func TestCircuit(t *testing.T) {
 }
 
 func TestE2E(t *testing.T) {
-	app, err := sdk.NewBrevisApp()
+	app, err := sdk.NewBrevisApp(1)
 	check(err)
 
 	account := common.HexToAddress("0x5427FEFA711Eff984124bFBB1AB6fbf5E3DA1820")

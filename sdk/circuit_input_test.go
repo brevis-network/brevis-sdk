@@ -5,10 +5,10 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/brevis-network/zk-hash/poseidon"
+	"github.com/brevis-network/zk-hash/utils"
 	"github.com/consensys/gnark-crypto/ecc"
-	mimc_native "github.com/consensys/gnark-crypto/ecc/bls12-377/fr/mimc"
 	"github.com/consensys/gnark/frontend"
-	"github.com/consensys/gnark/std/hash/mimc"
 	"github.com/consensys/gnark/test"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -40,7 +40,7 @@ func TestPackBitsToFr(t *testing.T) {
 		Bits:         newVars(bits),
 		ExpectPacked: newVars(packed),
 	}
-	err := test.IsSolved(c, w, ecc.BLS12_377.ScalarField())
+	err := test.IsSolved(c, w, ecc.BN254.ScalarField())
 	if err != nil {
 		t.Error(err)
 	}
@@ -55,11 +55,14 @@ type TestReceiptPackCircuit struct {
 func (c *TestReceiptPackCircuit) Define(api frontend.API) error {
 	packed := c.Receipt.pack(api)
 	fmt.Println("circuit packed", packed)
+	hasher, _ := poseidon.NewBn254PoseidonCircuit(api)
+	if len(packed) > 16 {
+		panic("out of length")
+	}
 	for i, v := range packed {
 		api.AssertIsEqual(v, c.ExpectPacked[i])
+		hasher.Write(v)
 	}
-	hasher, _ := mimc.NewMiMC(api)
-	hasher.Write(packed...)
 	h := hasher.Sum()
 	fmt.Printf("circuit hash: %s\n", h)
 	api.AssertIsEqual(h, c.ExpectHash)
@@ -68,7 +71,7 @@ func (c *TestReceiptPackCircuit) Define(api frontend.API) error {
 
 func TestReceiptPack(t *testing.T) {
 	r := Receipt{
-		BlockNum: ConstUint248(1234567),
+		BlockNum: ConstUint32(1234567),
 		Fields:   [NumMaxLogFields]LogField{},
 	}
 	for i := range r.Fields {
@@ -82,11 +85,15 @@ func TestReceiptPack(t *testing.T) {
 	}
 	fmt.Println("expected packed", r.goPack())
 
-	hasher := mimc_native.NewMiMC()
+	hasher := utils.NewPoseidonBn254()
 	for _, v := range r.goPack() {
-		hasher.Write(common.LeftPadBytes(v.Bytes(), 32))
+		hasher.Write(new(big.Int).SetBytes(common.LeftPadBytes(v.Bytes(), 32)))
 	}
-	h := new(big.Int).SetBytes(hasher.Sum(nil))
+
+	h, err := hasher.Sum()
+	if err != nil {
+		t.Error(err)
+	}
 	fmt.Printf("expected hash: %s\n", h)
 
 	c := &TestReceiptPackCircuit{
@@ -100,7 +107,7 @@ func TestReceiptPack(t *testing.T) {
 		ExpectHash:   h,
 	}
 
-	err := test.IsSolved(c, a, ecc.BLS12_377.ScalarField())
+	err = test.IsSolved(c, a, ecc.BN254.ScalarField())
 	if err != nil {
 		t.Error(err)
 	}
@@ -123,7 +130,7 @@ func (c *TestStoragePackCircuit) Define(api frontend.API) error {
 
 func TestStoragePack(t *testing.T) {
 	s := StorageSlot{
-		BlockNum: ConstUint248(1234567),
+		BlockNum: ConstUint32(1234567),
 		Contract: ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
 		Slot:     ConstBytes32(common.FromHex("0x9c2d3d42dcdafb0cb8c10089d02447b96c5fce87f298e50f88f2e188a6afcc41")),
 		Value:    ConstBytes32(common.FromHex("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
@@ -137,7 +144,7 @@ func TestStoragePack(t *testing.T) {
 		Packed: newVars(s.goPack()),
 	}
 
-	err := test.IsSolved(c, a, ecc.BLS12_377.ScalarField())
+	err := test.IsSolved(c, a, ecc.BN254.ScalarField())
 	if err != nil {
 		t.Error(err)
 	}
@@ -160,15 +167,16 @@ func (c *TestTransactionPackCircuit) Define(api frontend.API) error {
 
 func TestTransactionPack(t *testing.T) {
 	tx := Transaction{
-		ChainId:             ConstUint248(1),
-		BlockNum:            ConstUint248(1234567),
-		Nonce:               ConstUint248(123),
-		GasTipCapOrGasPrice: ConstUint248(1234567890),
-		GasFeeCap:           ConstUint248(1876543212),
-		GasLimit:            ConstUint248(123456),
-		From:                ConstUint248(common.HexToAddress("0x58b529F9084D7eAA598EB3477Fe36064C5B7bbC1")),
-		To:                  ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
-		Value:               ConstBytes32(hexutil.MustDecode("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
+		// ChainId:             ConstUint248(1),
+		// BlockNum:            ConstUint32(1234567),
+		// Nonce:               ConstUint248(123),
+		// GasTipCapOrGasPrice: ConstUint248(1234567890),
+		// GasFeeCap:           ConstUint248(1876543212),
+		// GasLimit:            ConstUint248(123456),
+		// From:                ConstUint248(common.HexToAddress("0x58b529F9084D7eAA598EB3477Fe36064C5B7bbC1")),
+		// To:                  ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
+		// Value:               ConstBytes32(hexutil.MustDecode("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
+		LeafHash: ConstBytes32(hexutil.MustDecode("0x784ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c732")),
 	}
 	c := &TestTransactionPackCircuit{
 		Transaction: tx,
@@ -179,7 +187,7 @@ func TestTransactionPack(t *testing.T) {
 		Packed:      newVars(tx.goPack()),
 	}
 
-	err := test.IsSolved(c, a, ecc.BLS12_377.ScalarField())
+	err := test.IsSolved(c, a, ecc.BN254.ScalarField())
 	if err != nil {
 		t.Error(err)
 	}
@@ -187,7 +195,7 @@ func TestTransactionPack(t *testing.T) {
 
 func TestReceiptCircuitVariable(t *testing.T) {
 	r := Receipt{
-		BlockNum: ConstUint248(1234567),
+		BlockNum: ConstUint32(1234567),
 		Fields: [NumMaxLogFields]LogField{
 			{
 				Contract: ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
@@ -212,7 +220,7 @@ func TestReceiptCircuitVariable(t *testing.T) {
 
 func TestStorageCircuitVariable(t *testing.T) {
 	s := StorageSlot{
-		BlockNum: ConstUint248(1234567),
+		BlockNum: ConstUint32(1234567),
 		Contract: ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
 		Slot:     ConstBytes32(hexutil.MustDecode("0x9c2d3d42dcdafb0cb8c10089d02447b96c5fce87f298e50f88f2e188a6afcc41")),
 		Value:    ConstBytes32(hexutil.MustDecode("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
@@ -224,15 +232,16 @@ func TestStorageCircuitVariable(t *testing.T) {
 
 func TestTransactionCircuitVariable(t *testing.T) {
 	tx := Transaction{
-		ChainId:             ConstUint248(1),
-		BlockNum:            ConstUint248(1234567),
-		Nonce:               ConstUint248(123),
-		GasTipCapOrGasPrice: ConstUint248(1234567890),
-		GasFeeCap:           ConstUint248(1876543212),
-		GasLimit:            ConstUint248(123456),
-		From:                ConstUint248(common.HexToAddress("0x58b529F9084D7eAA598EB3477Fe36064C5B7bbC1")),
-		To:                  ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
-		Value:               ConstBytes32(hexutil.MustDecode("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
+		// ChainId:             ConstUint248(1),
+		// BlockNum:            ConstUint32(1234567),
+		// Nonce:               ConstUint248(123),
+		// GasTipCapOrGasPrice: ConstUint248(1234567890),
+		// GasFeeCap:           ConstUint248(1876543212),
+		// GasLimit:            ConstUint248(123456),
+		// From:                ConstUint248(common.HexToAddress("0x58b529F9084D7eAA598EB3477Fe36064C5B7bbC1")),
+		// To:                  ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
+		// Value:               ConstBytes32(hexutil.MustDecode("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
+		LeafHash: ConstBytes32(hexutil.MustDecode("0x784ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c732")),
 	}
 	values := tx.Values()
 	reconstructed := tx.FromValues(values...)

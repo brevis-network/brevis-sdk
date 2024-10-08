@@ -10,7 +10,7 @@ import (
 )
 
 func TestCircuit(t *testing.T) {
-	app, err := sdk.NewBrevisApp()
+	app, err := sdk.NewBrevisApp(1)
 	check(err)
 
 	usdcPool := common.HexToAddress("0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640")
@@ -36,18 +36,18 @@ func TestCircuit(t *testing.T) {
 		Slot:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000008"),
 		Value:    common.HexToHash("0x660432e30000000002c4161b6fe645e05c7300000000000000002a22f3e2696a"),
 	})
-	app.AddTransaction(sdk.TransactionData{
-		Hash:                common.HexToHash("0x6dc75e61220cc775aafa17796c20e49ac08030020fce710e3e546aa4e003454c"),
-		ChainId:             big.NewInt(1),
-		BlockNum:            big.NewInt(19073244),
-		Nonce:               0,
-		GasTipCapOrGasPrice: big.NewInt(90000000000),
-		GasFeeCap:           big.NewInt(90000000000),
-		GasLimit:            21000,
-		From:                common.HexToAddress("0x6c2843bA78Feb261798be1AAC579d1A4aE2C64b4"),
-		To:                  common.HexToAddress("0x2F19E5C3C66C44E6405D4c200fE064ECe9bC253a"),
-		Value:               big.NewInt(22329290000000000),
-	})
+	// app.AddTransaction(sdk.TransactionData{
+	// 	Hash:                common.HexToHash("0x6dc75e61220cc775aafa17796c20e49ac08030020fce710e3e546aa4e003454c"),
+	// 	ChainId:             big.NewInt(1),
+	// 	BlockNum:            big.NewInt(19073244),
+	// 	Nonce:               0,
+	// 	GasTipCapOrGasPrice: big.NewInt(90000000000),
+	// 	GasFeeCap:           big.NewInt(90000000000),
+	// 	GasLimit:            21000,
+	// 	From:                common.HexToAddress("0x6c2843bA78Feb261798be1AAC579d1A4aE2C64b4"),
+	// 	To:                  common.HexToAddress("0x2F19E5C3C66C44E6405D4c200fE064ECe9bC253a"),
+	// 	Value:               big.NewInt(22329290000000000),
+	// })
 
 	appCircuit := DefaultAppCircuit()
 	appCircuitAssignment := DefaultAppCircuit()

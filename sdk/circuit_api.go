@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/brevis-network/zk-utils/circuits/gadgets/keccak"
+	"github.com/brevis-network/zk-hash/keccak"
+	"github.com/brevis-network/zk-hash/poseidon"
 	"github.com/consensys/gnark/constraint/solver"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/hash/mimc"
@@ -18,6 +19,8 @@ type CircuitAPI struct {
 	Uint521 *Uint521API
 	Int248  *Int248API
 	Bytes32 *Bytes32API
+	Uint32  *Uint32API
+	Uint64  *Uint64API
 
 	g                    frontend.API
 	output               []variable `gnark:"-"`
@@ -31,6 +34,8 @@ func NewCircuitAPI(gapi frontend.API) *CircuitAPI {
 		Uint521: newUint521API(gapi),
 		Int248:  newInt248API(gapi),
 		Bytes32: newBytes32API(gapi),
+		Uint32:  newUint32API(gapi),
+		Uint64:  newUint64API(gapi),
 	}
 }
 
@@ -60,6 +65,34 @@ func (api *CircuitAPI) OutputBool(v Uint248) {
 // Panics if the bitSize exceeds 248. For outputting uint256, use OutputBytes32 instead
 func (api *CircuitAPI) OutputUint(bitSize int, v Uint248) {
 	if bitSize%8 != 0 {
+		panic("bitSize must be multiple of 8")
+	}
+	b := api.g.ToBinary(v.Val, bitSize)
+	api.addOutput(b)
+	_, ok := v.Val.(*big.Int)
+	dbgPrint(ok, "added uint%d output: %d\n", bitSize, v.Val)
+}
+
+// OutputUint adds an output of solidity uint_bitSize type where N is in range [8, 248]
+// with a step size 8. e.g. uint8, uint16, ..., uint248.
+// Panics if a bitSize of non-multiple of 8 is used.
+// Panics if the bitSize exceeds 248. For outputting uint256, use OutputBytes32 instead
+func (api *CircuitAPI) OutputUint32(bitSize int, v Uint32) {
+	if bitSize%8 != 0 || bitSize > 32 {
+		panic("bitSize must be multiple of 8")
+	}
+	b := api.g.ToBinary(v.Val, bitSize)
+	api.addOutput(b)
+	_, ok := v.Val.(*big.Int)
+	dbgPrint(ok, "added uint%d output: %d\n", bitSize, v.Val)
+}
+
+// OutputUint adds an output of solidity uint_bitSize type where N is in range [8, 248]
+// with a step size 8. e.g. uint8, uint16, ..., uint248.
+// Panics if a bitSize of non-multiple of 8 is used.
+// Panics if the bitSize exceeds 248. For outputting uint256, use OutputBytes32 instead
+func (api *CircuitAPI) OutputUint64(bitSize int, v Uint64) {
+	if bitSize%8 != 0 || bitSize > 64 {
 		panic("bitSize must be multiple of 8")
 	}
 	b := api.g.ToBinary(v.Val, bitSize)
@@ -216,13 +249,17 @@ func (api *CircuitAPI) ToUint521(i interface{}) Uint521 {
 	panic(fmt.Errorf("unsupported casting from %T to Uint521", i))
 }
 
-// ToUint248 casts the input to a Uint248 type. Supports Uint248, Int248,
+// ToUint248 casts the input to a Uint248 type. Supports Uint32, Uint64, Uint248, Int248,
 // Bytes32, and Uint521
 func (api *CircuitAPI) ToUint248(i interface{}) Uint248 {
 	switch v := i.(type) {
 	case Uint248:
 		return v
 	case Int248:
+		return newU248(v.Val)
+	case Uint32:
+		return newU248(v.Val)
+	case Uint64:
 		return newU248(v.Val)
 	case Bytes32:
 		api.g.AssertIsEqual(v.Val[1], 0)
@@ -268,6 +305,10 @@ func (api *CircuitAPI) isEqual(a, b variable) variable {
 
 func (api *CircuitAPI) NewHint(f solver.Hint, nbOutputs int, inputs ...frontend.Variable) ([]frontend.Variable, error) {
 	return api.g.Compiler().NewHint(f, nbOutputs, inputs)
+}
+
+func (api *CircuitAPI) NewPoseidon() (poseidon.PoseidonCircuit, error) {
+	return poseidon.NewBn254PoseidonCircuit(api.g)
 }
 
 func (api *CircuitAPI) NewMiMC() (mimc.MiMC, error) {

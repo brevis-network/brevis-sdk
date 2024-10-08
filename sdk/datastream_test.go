@@ -14,12 +14,12 @@ func TestGroupValuesHint(t *testing.T) {
 	toggles := []frontend.Variable{1, 1, 0, 1, 0, 1}
 	c := &TestGroupValuesHintCircuit{values, toggles}
 
-	err := test.IsSolved(c, c, ecc.BLS12_377.ScalarField())
+	err := test.IsSolved(c, c, ecc.BN254.ScalarField())
 	if err != nil {
 		t.Error(err)
 	}
 	assert := test.NewAssert(t)
-	assert.ProverSucceeded(c, c, test.WithCurves(ecc.BLS12_377), test.WithBackends(backend.PLONK))
+	assert.ProverSucceeded(c, c, test.WithCurves(ecc.BN254), test.WithBackends(backend.PLONK))
 }
 
 type TestGroupValuesHintCircuit struct {
@@ -55,7 +55,7 @@ func TestDataStream(t *testing.T) {
 		},
 	}
 	assert := test.NewAssert(t)
-	assert.ProverSucceeded(c, c, test.WithCurves(ecc.BLS12_377), test.WithBackends(backend.PLONK))
+	assert.ProverSucceeded(c, c, test.WithCurves(ecc.BN254), test.WithBackends(backend.PLONK))
 
 }
 
@@ -118,7 +118,7 @@ func (c *TestDataStreamCircuit) Define(gapi frontend.API) error {
 func TestSimple(t *testing.T) {
 	c := &TestSimpleCircuit{}
 	assert := test.NewAssert(t)
-	assert.ProverSucceeded(c, c, test.WithCurves(ecc.BLS12_377), test.WithBackends(backend.PLONK))
+	assert.ProverSucceeded(c, c, test.WithCurves(ecc.BN254), test.WithBackends(backend.PLONK))
 }
 
 type TestSimpleCircuit struct{}
@@ -193,10 +193,8 @@ type MySchema = Tuple3[Bytes32, Uint248, Uint521]
 
 func TestComplex(t *testing.T) {
 	c := &TestComplexCircuit{}
-	err := test.IsSolved(c, c, ecc.BLS12_377.ScalarField())
+	err := test.IsSolved(c, c, ecc.BN254.ScalarField())
 	check(err)
-	//assert := test.NewAssert(t)
-	//assert.ProverSucceeded(c, c, test.WithCurves(ecc.BLS12_377), test.WithBackends(backend.PLONK))
 }
 
 type TestComplexCircuit struct{}

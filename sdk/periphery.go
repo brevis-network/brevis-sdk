@@ -8,17 +8,17 @@ import (
 	"time"
 
 	"github.com/brevis-network/brevis-sdk/common/utils"
-	"github.com/brevis-network/brevis-sdk/sdk/srs"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/plonk"
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/consensys/gnark/constraint"
-	cs "github.com/consensys/gnark/constraint/bls12-377"
-	cs_12377 "github.com/consensys/gnark/constraint/bls12-377"
+	cs "github.com/consensys/gnark/constraint/bn254"
+	cs_bn254 "github.com/consensys/gnark/constraint/bn254"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/scs"
-	"github.com/consensys/gnark/std/algebra/native/sw_bls12377"
+	"github.com/consensys/gnark/std/algebra/emulated/sw_bn254"
 	replonk "github.com/consensys/gnark/std/recursion/plonk"
+	"github.com/consensys/gnark/test/unsafekzg"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -50,7 +50,7 @@ func NewFullWitness(assign AppCircuit, in CircuitInput) (w, wpub witness.Witness
 	fmt.Println(">> generate full witness")
 	host := NewHostCircuit(in.Clone(), assign)
 
-	w, err = frontend.NewWitness(host, ecc.BLS12_377.ScalarField())
+	w, err = frontend.NewWitness(host, ecc.BN254.ScalarField())
 	if err != nil {
 		return
 	}
@@ -66,7 +66,7 @@ func CompileOnly(app AppCircuit) (constraint.ConstraintSystem, error) {
 	host := DefaultHostCircuit(app)
 
 	before := time.Now()
-	ccs, err := frontend.Compile(ecc.BLS12_377.ScalarField(), scs.NewBuilder, host)
+	ccs, err := frontend.Compile(ecc.BN254.ScalarField(), scs.NewBuilder, host)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile: %s", err.Error())
 	}
@@ -80,9 +80,14 @@ func Setup(ccs constraint.ConstraintSystem, cacheDir string) (pk plonk.ProvingKe
 		return nil, nil, fmt.Errorf("must provide a directory to save SRS")
 	}
 	r1cs := ccs.(*cs.SparseR1CS)
-	srsDir := os.ExpandEnv(cacheDir)
+	// srsDir := os.ExpandEnv(cacheDir)
 
-	canonical, lagrange, err := srs.NewSRS(r1cs, "https://kzg-srs.s3.us-west-2.amazonaws.com", srsDir)
+	// canonical, lagrange, err := srs.NewSRS(r1cs, "https://kzg-srs.s3.us-west-2.amazonaws.com", srsDir)
+	// if err != nil {
+	// 	return
+	// }
+
+	canonical, lagrange, err := unsafekzg.NewSRS(r1cs)
 	if err != nil {
 		return
 	}
@@ -94,7 +99,7 @@ func Setup(ccs constraint.ConstraintSystem, cacheDir string) (pk plonk.ProvingKe
 	}
 	fmt.Printf("setup done in %s\n", time.Since(before))
 
-	printVkHash(vk)
+	// printVkHash(vk)
 
 	return
 }
@@ -113,27 +118,27 @@ func printVkHash(vk plonk.VerifyingKey) {
 }
 
 func ComputeVkHash(vk plonk.VerifyingKey) (common.Hash, error) {
-	plonkCircuitVk, err := replonk.ValueOfVerifyingKey[sw_bls12377.ScalarField, sw_bls12377.G1Affine, sw_bls12377.G2Affine](vk)
+	plonkCircuitVk, err := replonk.ValueOfVerifyingKey[sw_bn254.ScalarField, sw_bn254.G1Affine, sw_bn254.G2Affine](vk)
 	if err != nil {
 		return common.Hash{}, err
 	}
 
-	appVkHash761 := utils.CalculateAppVkHashFor761(plonkCircuitVk)
-	appVkHash := utils.CalculateAppVkHashFrom761To254(appVkHash761)
+	appVkHash := utils.CalculateAppVkHashForBn254(plonkCircuitVk)
 	return common.BytesToHash(appVkHash), nil
 }
 
 func Prove(ccs constraint.ConstraintSystem, pk plonk.ProvingKey, w witness.Witness) (plonk.Proof, error) {
 	fmt.Println(">> prove")
 
-	opts := replonk.GetNativeProverOptions(ecc.BW6_761.ScalarField(), ecc.BLS12_377.ScalarField())
+	opts := replonk.GetNativeProverOptions(ecc.BN254.ScalarField(), ecc.BN254.ScalarField())
+
 	return plonk.Prove(ccs, pk, w, opts)
 }
 
 func Verify(vk plonk.VerifyingKey, publicWitness witness.Witness, proof plonk.Proof) error {
 	fmt.Println(">> verify")
 
-	opts := replonk.GetNativeVerifierOptions(ecc.BW6_761.ScalarField(), ecc.BLS12_377.ScalarField())
+	opts := replonk.GetNativeVerifierOptions(ecc.BN254.ScalarField(), ecc.BN254.ScalarField())
 	return plonk.Verify(proof, vk, publicWitness, opts)
 }
 
@@ -177,7 +182,7 @@ func ReadCircuitFrom(path string) (constraint.ConstraintSystem, error) {
 		return nil, err
 	}
 	defer f.Close()
-	ccs := new(cs_12377.R1CS)
+	ccs := new(cs_bn254.R1CS)
 	d, err := ccs.ReadFrom(f)
 	if err != nil {
 		return nil, err

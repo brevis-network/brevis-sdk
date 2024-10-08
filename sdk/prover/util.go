@@ -33,7 +33,7 @@ func hex2Hash(s string) common.Hash {
 	return common.BytesToHash(hex2Bytes(s))
 }
 
-func buildAppCircuitInfo(in sdk.CircuitInput, vk, vkHash string) *commonproto.AppCircuitInfo {
+func buildAppCircuitInfo(in sdk.CircuitInput, vk, vkHash, witness string) *commonproto.AppCircuitInfo {
 	inputCommitments := make([]string, len(in.InputCommitments))
 	for i, value := range in.InputCommitments {
 		inputCommitments[i] = fmt.Sprintf("0x%x", value)
@@ -45,14 +45,16 @@ func buildAppCircuitInfo(in sdk.CircuitInput, vk, vkHash string) *commonproto.Ap
 	}
 
 	return &commonproto.AppCircuitInfo{
-		OutputCommitment:  hexutil.Encode(in.OutputCommitment.Hash().Bytes()),
-		Vk:                vk,
-		InputCommitments:  inputCommitments,
-		TogglesCommitment: fmt.Sprintf("0x%x", in.TogglesCommitment),
-		Toggles:           toggles,
-		UseCallback:       true,
-		Output:            hexutil.Encode(in.GetAbiPackedOutput()),
-		VkHash:            vkHash,
+		OutputCommitment:     hexutil.Encode(in.OutputCommitment.Hash().Bytes()),
+		Vk:                   vk,
+		InputCommitments:     inputCommitments,
+		TogglesCommitment:    fmt.Sprintf("0x%x", in.TogglesCommitment),
+		Toggles:              toggles,
+		UseCallback:          true,
+		Output:               hexutil.Encode(in.GetAbiPackedOutput()),
+		VkHash:               vkHash,
+		InputCommitmentsRoot: fmt.Sprintf("0x%x", in.InputCommitmentsRoot),
+		Witness:              witness,
 	}
 }
 

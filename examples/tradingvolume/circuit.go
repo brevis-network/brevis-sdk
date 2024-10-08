@@ -47,7 +47,7 @@ func (c *AppCircuit) Allocate() (maxReceipts, maxSlots, maxTransactions int) {
 	// always have 5 processing "chips" for receipts and none for others. It means
 	// your compiled circuit will always be only able to process up to 5 receipts and
 	// cannot process other types unless you change the allocations and recompile.
-	return 5, 0, 0
+	return 32, 0, 0
 }
 
 func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
@@ -93,7 +93,7 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 		return assertionPassed
 	})
 
-	blockNums := sdk.Map(receipts, func(cur sdk.Receipt) sdk.Uint248 { return cur.BlockNum })
+	blockNums := sdk.Map(receipts, func(cur sdk.Receipt) sdk.Uint248 { return api.ToUint248(cur.BlockNum) })
 
 	volumes := sdk.Map(receipts, func(cur sdk.Receipt) sdk.Uint248 {
 		valInt := api.ToInt248(cur.Fields[0].Value)

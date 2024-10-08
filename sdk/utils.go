@@ -3,10 +3,12 @@ package sdk
 import (
 	"bytes"
 	"fmt"
-	"github.com/consensys/gnark/frontend"
-	"github.com/ethereum/go-ethereum/common"
 	"io"
 	"math/big"
+
+	"github.com/consensys/gnark/frontend"
+	"github.com/consensys/gnark/std/math/bits"
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/consensys/gnark-crypto/ecc"
 )
@@ -28,7 +30,7 @@ func recomposeBig(data []*big.Int, bitSize int) *big.Int {
 	r := big.NewInt(0)
 	for i := 0; i < len(data); i++ {
 		r.Add(r, new(big.Int).Lsh(data[i], uint(i*bitSize)))
-		r.Mod(r, ecc.BLS12_377.ScalarField())
+		r.Mod(r, ecc.BN254.ScalarField())
 	}
 	return r
 }
@@ -71,6 +73,10 @@ func decomposeBitsExact(data *big.Int) []uint {
 		ret = append(ret, uint(bit.Uint64()))
 	}
 	return ret
+}
+
+func PackBitsToInt(bits []uint, bitSize int) []*big.Int {
+	return packBitsToInt(bits, bitSize)
 }
 
 func packBitsToInt(bits []uint, bitSize int) []*big.Int {
@@ -159,6 +165,30 @@ func fromInterface(input interface{}) *big.Int {
 		r.SetBytes(v)
 	}
 	return &r
+}
+
+// Inspired by https://github.com/Consensys/gnark/blob/429616e33c97ed21113dd87787c043e8fb43720c/frontend/cs/scs/api.go#L523
+// To reduce constraints comsumption, use predefined number of variable's bits.
+func Cmp(api frontend.API, i1, i2 frontend.Variable, nbBits int) frontend.Variable {
+	bi1 := bits.ToBinary(api, i1, bits.WithNbDigits(nbBits))
+	bi2 := bits.ToBinary(api, i2, bits.WithNbDigits(nbBits))
+
+	var res frontend.Variable
+	res = 0
+
+	for i := nbBits - 1; i >= 0; i-- {
+		iszeroi1 := api.IsZero(bi1[i])
+		iszeroi2 := api.IsZero(bi2[i])
+
+		i1i2 := api.And(bi1[i], iszeroi2)
+		i2i1 := api.And(bi2[i], iszeroi1)
+
+		n := api.Select(i2i1, -1, 0)
+		m := api.Select(i1i2, 1, n)
+
+		res = api.Select(api.IsZero(res), m, res)
+	}
+	return res
 }
 
 func mustWriteToBytes(w io.WriterTo) []byte {
@@ -257,4 +287,8 @@ func check(err error) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func CheckNumberPowerOfTwo(n int) bool {
+	return n&(n-1) == 0
 }
