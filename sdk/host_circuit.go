@@ -283,7 +283,6 @@ func dryRun(in CircuitInput, guest AppCircuit) (OutputCommitment, []byte, error)
 
 	circuit := &HostCircuit{Input: in, Guest: guest}
 	assignment := &HostCircuit{Input: in, Guest: guest}
-	fmt.Println("in.DummyReceiptInputCommitment", in.DummyReceiptInputCommitment)
 
 	err := test.IsSolved(circuit, assignment, ecc.BN254.ScalarField())
 	if err != nil {

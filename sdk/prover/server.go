@@ -220,8 +220,7 @@ func (s *server) buildInput(req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.
 		return nil, nil, "", newErr(code, format, args...)
 	}
 
-	// TODO: remove hardcode 1 as src chainId
-	brevisApp, err := sdk.NewBrevisApp(1)
+	brevisApp, err := sdk.NewBrevisApp(req.SrcChainId)
 	if err != nil {
 		return makeErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to new brevis app: %s", err.Error())
 	}
