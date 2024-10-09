@@ -99,7 +99,7 @@ func Setup(ccs constraint.ConstraintSystem, cacheDir string) (pk plonk.ProvingKe
 	}
 	fmt.Printf("setup done in %s\n", time.Since(before))
 
-	// printVkHash(vk)
+	printVkHash(vk)
 
 	return
 }
