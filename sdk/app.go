@@ -245,7 +245,7 @@ func (q *BrevisApp) PrepareRequest(
 	q.srcChainId = srcChainId
 	q.dstChainId = dstChainId
 
-	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, vk, witness)
+	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, q.maxReceipts, q.maxStorage, q.maxTxs, vk, witness)
 	if err != nil {
 		return
 	}
@@ -432,7 +432,7 @@ func (q *BrevisApp) prepareQueryForBrevisPartnerFlow(
 	q.srcChainId = srcChainId
 	q.dstChainId = dstChainId
 
-	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, vk, witness)
+	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, q.maxReceipts, q.maxStorage, q.maxTxs, vk, witness)
 	if err != nil {
 		err = fmt.Errorf("failed to build app circuit info: %s", err.Error())
 		return
@@ -455,11 +455,13 @@ func (q *BrevisApp) prepareQueryForBrevisPartnerFlow(
 					OutputCommitment:     appCircuitInfo.OutputCommitment,
 					VkHash:               vkHash.Hex(),
 					InputCommitments:     appCircuitInfo.InputCommitments,
-					TogglesCommitment:    appCircuitInfo.TogglesCommitment,
 					Toggles:              appCircuitInfo.Toggles,
 					Output:               appCircuitInfo.Output,
 					CallbackAddr:         hexutil.Encode(appContract[:]),
 					InputCommitmentsRoot: appCircuitInfo.InputCommitmentsRoot,
+					MaxReceipts:          appCircuitInfo.MaxReceipts,
+					MaxStorage:           appCircuitInfo.MaxStorage,
+					MaxTx:                appCircuitInfo.MaxTx,
 				},
 			},
 		},
@@ -531,8 +533,21 @@ func (q *BrevisApp) checkAllocations(cb AppCircuit) error {
 func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 	leafs := make([]*big.Int, NumMaxDataPoints)
 	hasher := utils.NewPoseidonBn254()
-	// // assign 0 to input commit for dummy and actual data hash for non-dummies
+	// assign 0 to input commit for dummy and actual data hash for non-dummies
 	j := 0
+
+	ric := brevisCommon.DummyReceiptInputCommitment[q.srcChainId]
+	if len(ric) == 0 {
+		panic(fmt.Sprintf("cannot find dummy receipt info for chain %d", q.srcChainId))
+	}
+	ricData, err := hexutil.Decode(ric)
+	if err != nil {
+		panic(err.Error())
+	}
+	if len(ricData) == 0 {
+		panic(fmt.Sprintf("cannot decode dummy receipt info for chain %d", q.srcChainId))
+	}
+	w.DummyReceiptInputCommitment = ricData
 
 	for i, receipt := range w.Receipts.Raw {
 		if fromInterface(w.Receipts.Toggles[i]).Sign() != 0 {
@@ -543,23 +558,25 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 			w.InputCommitments[j] = result
 			leafs[j] = result
 		} else {
-			dummyIC := brevisCommon.DummyReceiptInputCommitment[q.srcChainId]
-			if len(dummyIC) == 0 {
-				panic(fmt.Sprintf("cannot find dummy receipt info for chain %d", q.srcChainId))
-			}
-			icData, err := hexutil.Decode(dummyIC)
-			if err != nil {
-				panic(err.Error())
-			}
-			if len(icData) == 0 {
-				panic(fmt.Sprintf("cannot decode dummy receipt info for chain %d", q.srcChainId))
-			}
-			w.InputCommitments[j] = icData
-			w.DummyReceiptInputCommitment = icData
-			leafs[j] = new(big.Int).SetBytes(icData)
+			w.InputCommitments[j] = ricData
+			leafs[j] = new(big.Int).SetBytes(ricData)
 		}
 		j++
 	}
+
+	sic := brevisCommon.DummyStorageInputCommitment[q.srcChainId]
+	if len(sic) == 0 {
+		panic(fmt.Sprintf("cannot find dummy receipt info for chain %d", q.srcChainId))
+	}
+	sicData, err := hexutil.Decode(sic)
+	if err != nil {
+		panic(err.Error())
+	}
+	if len(sicData) == 0 {
+		panic(fmt.Sprintf("cannot decode dummy receipt info for chain %d", q.srcChainId))
+	}
+	w.DummyStorageInputCommitment = sicData
+
 	for i, slot := range w.StorageSlots.Raw {
 		if fromInterface(w.StorageSlots.Toggles[i]).Sign() != 0 {
 			result, err := doHash(hasher, slot.goPack())
@@ -569,23 +586,25 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 			w.InputCommitments[j] = result
 			leafs[j] = result
 		} else {
-			dummyIC := brevisCommon.DummyStorageInputCommitment[q.srcChainId]
-			if len(dummyIC) == 0 {
-				panic(fmt.Sprintf("cannot find dummy receipt info for chain %d", q.srcChainId))
-			}
-			icData, err := hexutil.Decode(dummyIC)
-			if err != nil {
-				panic(err.Error())
-			}
-			if len(icData) == 0 {
-				panic(fmt.Sprintf("cannot decode dummy receipt info for chain %d", q.srcChainId))
-			}
-			w.InputCommitments[j] = icData
-			w.DummyStorageInputCommitment = icData
-			leafs[j] = new(big.Int).SetBytes(icData)
+			w.InputCommitments[j] = sicData
+			leafs[j] = new(big.Int).SetBytes(sicData)
 		}
 		j++
 	}
+
+	tic := brevisCommon.DummyTransactionInputCommitment[q.srcChainId]
+	if len(tic) == 0 {
+		panic(fmt.Sprintf("cannot find dummy receipt info for chain %d", q.srcChainId))
+	}
+	ticData, err := hexutil.Decode(tic)
+	if err != nil {
+		panic(err.Error())
+	}
+	if len(ticData) == 0 {
+		panic(fmt.Sprintf("cannot decode dummy receipt info for chain %d", q.srcChainId))
+	}
+	w.DummyTransactionInputCommitment = ticData
+
 	for i, tx := range w.Transactions.Raw {
 		if fromInterface(w.Transactions.Toggles[i]).Sign() != 0 {
 			result, err := doHash(hasher, tx.goPack())
@@ -595,21 +614,9 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 			w.InputCommitments[j] = result
 			leafs[j] = result
 		} else {
-			dummyIC := brevisCommon.DummyTransactionInputCommitment[q.srcChainId]
-			if len(dummyIC) == 0 {
-				panic(fmt.Sprintf("cannot find dummy receipt info for chain %d", q.srcChainId))
-			}
-			icData, err := hexutil.Decode(dummyIC)
-			if err != nil {
-				panic(err.Error())
-			}
-			if len(icData) == 0 {
-				panic(fmt.Sprintf("cannot decode dummy receipt info for chain %d", q.srcChainId))
-			}
-			dic := icData
-			w.InputCommitments[j] = dic
-			w.DummyTransactionInputCommitment = dic
-			leafs[j] = new(big.Int).SetBytes(dic)
+
+			w.InputCommitments[j] = ticData
+			leafs[j] = new(big.Int).SetBytes(ticData)
 		}
 		j++
 	}
@@ -620,7 +627,6 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 		leafs[i] = new(big.Int).SetBytes(defaultTxInputCommitment)
 	}
 
-	var err error
 	w.InputCommitmentsRoot, err = CalPoseidonBn254MerkleTree(leafs)
 	if err != nil {
 		panic(fmt.Sprintf("failed to dp sub hash merkel with poseidon bn254: %s", err.Error()))

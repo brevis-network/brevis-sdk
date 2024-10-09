@@ -11,7 +11,9 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
-func buildAppCircuitInfo(in CircuitInput, vk plonk.VerifyingKey, witness witness.Witness) (*commonproto.AppCircuitInfo, error) {
+func buildAppCircuitInfo(in CircuitInput,
+	maxReceipts, maxStorage, maxTxs int,
+	vk plonk.VerifyingKey, witness witness.Witness) (*commonproto.AppCircuitInfo, error) {
 	inputCommitments := make([]string, len(in.InputCommitments))
 	for i, value := range in.InputCommitments {
 		inputCommitments[i] = fmt.Sprintf("0x%x", value)
@@ -31,12 +33,14 @@ func buildAppCircuitInfo(in CircuitInput, vk plonk.VerifyingKey, witness witness
 		OutputCommitment:     hexutil.Encode(in.OutputCommitment.Hash().Bytes()),
 		Vk:                   hexutil.Encode(mustWriteToBytes(vk)),
 		InputCommitments:     inputCommitments,
-		TogglesCommitment:    fmt.Sprintf("0x%x", in.TogglesCommitment),
 		Toggles:              toggles,
 		UseCallback:          true,
 		Output:               hexutil.Encode(in.dryRunOutput),
 		InputCommitmentsRoot: fmt.Sprintf("0x%x", in.InputCommitmentsRoot),
 		Witness:              hexutil.Encode(mustWriteToBytes(publicWitness)),
+		MaxReceipts:          uint32(maxReceipts),
+		MaxStorage:           uint32(maxStorage),
+		MaxTx:                uint32(maxTxs),
 	}, nil
 }
 

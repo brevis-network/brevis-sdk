@@ -54,9 +54,9 @@ func DefaultAppCircuit() *AppCircuit {
 var _ sdk.AppCircuit = &AppCircuit{}
 
 func (c *AppCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions int) {
-    // When we return 1, 2, 3, it means that we are allowing our circuit to process 
-    // a maximum of 1 receipts, 2 storages, and 3 transactions
-    return 1, 2, 3
+    // When we return 32, 32, 64, it means that we are allowing our circuit to process 
+    // a maximum of 32 receipts, 32 storages, and 64 transactions
+    return 32, 32, 64
 }
 
 var ConstEventID = ParseEventID(/* 0x123456... */)

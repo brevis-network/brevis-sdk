@@ -43,7 +43,7 @@ type CircuitInput struct {
 	// values
 	InputCommitmentsRoot frontend.Variable `gnark:",public"`
 	InputCommitments     []frontend.Variable
-	TogglesCommitment    frontend.Variable `gnark:",public"`
+	TogglesCommitment    frontend.Variable
 	// OutputCommitment is a keccak256 commitment to the computation results of the
 	// developer's circuit. The output of this commitment is revealed by the
 	// developer in their application contract.
