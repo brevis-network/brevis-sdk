@@ -622,9 +622,8 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 	}
 
 	for i := j; i < NumMaxDataPoints; i++ {
-		defaultTxInputCommitment := hexutil.MustDecode("0x052f1ad2d21f9127238a8a087cce19db7138c34b5676234ca5bac022f5367ca3")
-		w.InputCommitments[i] = defaultTxInputCommitment
-		leafs[i] = new(big.Int).SetBytes(defaultTxInputCommitment)
+		w.InputCommitments[i] = ticData
+		leafs[i] = new(big.Int).SetBytes(ticData)
 	}
 
 	w.InputCommitmentsRoot, err = CalPoseidonBn254MerkleTree(leafs)
