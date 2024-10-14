@@ -5,6 +5,7 @@ go 1.21.5
 require (
 	github.com/brevis-network/zk-utils v0.0.0-20240916014259-e0a7a7e4fcda
 	github.com/cbergoon/merkletree v0.2.0
+	github.com/celer-network/goutils v0.2.0
 	github.com/consensys/gnark v0.10.0
 	github.com/consensys/gnark-crypto v0.12.2-0.20240215234832-d72fcb379d3e
 	github.com/ethereum/go-ethereum v1.14.8
@@ -20,13 +21,13 @@ require (
 )
 
 require (
-	github.com/celer-network/goutils v0.2.0 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/ingonyama-zk/icicle/v2 v2.0.3 // indirect
 )
 
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
+	github.com/OpenAssetStandards/poseidon-goldilocks-go v0.0.0
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/bits-and-blooms/bitset v1.10.0 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
@@ -72,4 +73,7 @@ require (
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
-replace github.com/consensys/gnark => github.com/celer-network/gnark v0.1.0
+replace (
+	github.com/OpenAssetStandards/poseidon-goldilocks-go => github.com/brevis-network/poseidon-goldilocks-go v0.0.0-20240826082508-8017eb90f413
+	github.com/consensys/gnark => github.com/celer-network/gnark v0.1.0
+)

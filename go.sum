@@ -16,6 +16,8 @@ github.com/bits-and-blooms/bitset v1.10.0 h1:ePXTeiPEazB5+opbv5fr8umg2R/1NlzgDsy
 github.com/bits-and-blooms/bitset v1.10.0/go.mod h1:7hO7Gc7Pp1vODcmWvKMRA9BNmbv6a/7QIWpPxHddWR8=
 github.com/blang/semver/v4 v4.0.0 h1:1PFHFE6yCCTv8C1TeyNNarDzntLi7wMI5i/pzqYIsAM=
 github.com/blang/semver/v4 v4.0.0/go.mod h1:IbckMUScFkM3pff0VJDNKRiT6TG/YpiHIM2yvyW5YoQ=
+github.com/brevis-network/poseidon-goldilocks-go v0.0.0-20240826082508-8017eb90f413 h1:Q1+JagFYZ/atuJejVOfxBSeYGqeVkRVWXqaGu03HmUQ=
+github.com/brevis-network/poseidon-goldilocks-go v0.0.0-20240826082508-8017eb90f413/go.mod h1:sGddb8GeVcQErqlTrfUIP/2SmIzpG7DmPsFy3tBY9KQ=
 github.com/brevis-network/zk-hash v0.0.0-20240903111749-fedffbe8a45c h1:+tXzO1P9S0FT4uQ7kw3xSe0BpxnOH+VazNxQstX0qXI=
 github.com/brevis-network/zk-hash v0.0.0-20240903111749-fedffbe8a45c/go.mod h1:fMfTUW6bGRcOk8Vm0c82Ob8uEWysWsev9d4mn609skg=
 github.com/brevis-network/zk-utils v0.0.0-20240916014259-e0a7a7e4fcda h1:+IpTDojk3mCE811iIC4v/ecyIYfbG8X1sltgTDrXY3o=
