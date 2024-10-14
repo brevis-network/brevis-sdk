@@ -29,6 +29,7 @@ type ReceiptData struct {
 	BlockNum     *big.Int                      `json:"block_num,omitempty"`
 	BlockBaseFee *big.Int                      `json:"block_base_fee,omitempty"`
 	TxHash       common.Hash                   `json:"tx_hash,omitempty"`
+	MptKeyPath   *big.Int                      `json:"mpt_key_path,omitempty"`
 	Fields       [NumMaxLogFields]LogFieldData `json:"fields,omitempty"`
 }
 
