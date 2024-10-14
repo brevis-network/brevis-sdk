@@ -70,12 +70,13 @@ type TransactionData struct {
 	// dynamic-fee tx (type 2)
 	GasTipCapOrGasPrice *big.Int `json:"max_priority_fee_per_gas,omitempty"`
 	// GasFeeCap is always 0 for legacy tx
-	GasFeeCap *big.Int       `json:"gas_price_or_fee_cap,omitempty"`
-	GasLimit  uint64         `json:"gas_limit,omitempty"`
-	From      common.Address `json:"from,omitempty"`
-	To        common.Address `json:"to,omitempty"`
-	Value     *big.Int       `json:"value,omitempty"`
-	LeafHash  common.Hash    `json:"leaf_hash,omitempty"`
+	GasFeeCap  *big.Int       `json:"gas_price_or_fee_cap,omitempty"`
+	GasLimit   uint64         `json:"gas_limit,omitempty"`
+	From       common.Address `json:"from,omitempty"`
+	To         common.Address `json:"to,omitempty"`
+	Value      *big.Int       `json:"value,omitempty"`
+	MptKeyPath *big.Int       `json:"mpt_key_path,omitempty"`
+	LeafHash   common.Hash    `json:"leaf_hash,omitempty"`
 }
 
 type rawData[T ReceiptData | StorageData | TransactionData] struct {
