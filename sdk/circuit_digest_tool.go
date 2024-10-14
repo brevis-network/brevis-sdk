@@ -18,6 +18,12 @@ var (
 	TransactionVkHashHex = "0x1f492045728b8f39069030857cb307b4873fd3d9c566436935ffdafca19cc326"
 	MiddleNodeVkHashHex  = "0x001c0bf04a06901970f9774c51ae5fa570a874836b705d0a9587769fe7f523ce"
 
+	ReceiptCircuitDigestHash        = "0x0c4ee30e1507f305c335d97b6dd529a212aa62084638bdf22e0a35b57514bf8f"
+	TxCircuitDigestHash             = "0x547cca33d38ea15e0b40901a89add6c47f2e3725317cf5493b3845ceb74b0edd"
+	StorageCircuitDigestHash        = "0xe7396c8401f2520fc8fa69a562f592ed701e25df5444b6b65012493d26e9085c"
+	P2AggRecursionCircuitDigestHash = ""
+	P2Bn128WrapCircuitDigestHash    = ""
+
 	ReceiptVkHash     = utils.Hex2BigInt(ReceiptVkHashHex)
 	StorageVkHash     = utils.Hex2BigInt(StorageVkHashHex)
 	TransactionVkHash = utils.Hex2BigInt(TransactionVkHashHex)
