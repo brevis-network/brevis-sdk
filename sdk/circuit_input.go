@@ -158,6 +158,7 @@ const NumMaxLogFields = 4
 type Receipt struct {
 	BlockNum     Uint32
 	BlockBaseFee Uint248
+	MptKeyPath   Uint32
 	Fields       [NumMaxLogFields]LogField
 }
 
@@ -169,6 +170,7 @@ func defaultReceipt() Receipt {
 	r := Receipt{
 		BlockNum:     newU32(0),
 		BlockBaseFee: newU248(0),
+		MptKeyPath:   newU32(0),
 		Fields:       [NumMaxLogFields]LogField{},
 	}
 	for i := range r.Fields {
@@ -219,6 +221,8 @@ func (r Receipt) String() string { return "Receipt" }
 type LogField struct {
 	// The contract from which the event is emitted
 	Contract Uint248
+	// the log position in the receipt
+	LogPos Uint32
 	// The event ID of the event to which the field belong (aka topics[0])
 	EventID Uint248
 	// Whether the field is a topic (aka "indexed" as in solidity events)
@@ -233,6 +237,7 @@ type LogField struct {
 func defaultLogField() LogField {
 	return LogField{
 		Contract: newU248(0),
+		LogPos:   newU32(0),
 		EventID:  newU248(0),
 		IsTopic:  newU248(0),
 		Index:    newU248(0),
@@ -245,6 +250,7 @@ var _ CircuitVariable = LogField{}
 func (f LogField) Values() []frontend.Variable {
 	var ret []frontend.Variable
 	ret = append(ret, f.Contract.Values()...)
+	ret = append(ret, f.LogPos.Values()...)
 	ret = append(ret, f.EventID.Values()...)
 	ret = append(ret, f.IsTopic.Values()...)
 	ret = append(ret, f.Index.Values()...)
@@ -257,6 +263,9 @@ func (f LogField) FromValues(vs ...frontend.Variable) CircuitVariable {
 
 	start, end := uint32(0), f.Contract.NumVars()
 	nf.Contract = f.Contract.FromValues(vs[start:end]...).(Uint248)
+
+	start, end = end, end+f.LogPos.NumVars()
+	nf.LogPos = f.LogPos.FromValues(vs[start:end]...).(Uint32)
 
 	start, end = end, end+f.EventID.NumVars()
 	nf.EventID = f.EventID.FromValues(vs[start:end]...).(Uint248)
@@ -276,8 +285,12 @@ func (f LogField) FromValues(vs ...frontend.Variable) CircuitVariable {
 func (f LogField) String() string { return "" }
 
 func (f LogField) NumVars() uint32 {
-	return f.Contract.NumVars() + f.EventID.NumVars() +
-		f.IsTopic.NumVars() + f.Index.NumVars() + f.Value.NumVars()
+	return f.Contract.NumVars() +
+		f.LogPos.NumVars() +
+		f.EventID.NumVars() +
+		f.IsTopic.NumVars() +
+		f.Index.NumVars() +
+		f.Value.NumVars()
 }
 
 // pack packs the log fields into Bn254 scalars
@@ -293,8 +306,10 @@ func (r Receipt) pack(api frontend.API) []frontend.Variable {
 	var bits []frontend.Variable
 	bits = append(bits, api.ToBinary(r.BlockNum.Val, 8*4)...)
 	bits = append(bits, api.ToBinary(r.BlockBaseFee.Val, 8*16)...)
+	bits = append(bits, api.ToBinary(r.MptKeyPath.Val, 4*8)...)
 	for _, field := range r.Fields {
 		bits = append(bits, api.ToBinary(field.Contract.Val, 8*20)...)
+		bits = append(bits, api.ToBinary(field.LogPos, 8*2)...)
 		bits = append(bits, api.ToBinary(field.EventID.Val, 8*6)...)
 		bits = append(bits, api.ToBinary(field.IsTopic.Val, 1)...)
 		bits = append(bits, api.ToBinary(field.Index.Val, 7)...)
@@ -318,6 +333,7 @@ func (r Receipt) goPack() []*big.Int {
 
 	for _, field := range r.Fields {
 		bits = append(bits, decomposeBits(fromInterface(field.Contract.Val), 8*20)...)
+		bits = append(bits, decomposeBits(fromInterface(field.LogPos.Val), 8*2)...)
 		bits = append(bits, decomposeBits(fromInterface(field.EventID.Val), 8*6)...)
 		bits = append(bits, decomposeBits(fromInterface(field.IsTopic.Val), 1)...)
 		bits = append(bits, decomposeBits(fromInterface(field.Index.Val), 7)...)
@@ -440,6 +456,7 @@ type Transaction struct {
 	// ChainId  Uint248
 	BlockNum     Uint32
 	BlockBaseFee Uint248
+	MptKeyPath   Uint32
 	// Nonce    Uint248
 	// GasTipCapOrGasPrice is GasPrice for legacy tx (type 0) and GasTipCapOap for
 	// dynamic-fee tx (type 2)
@@ -458,6 +475,7 @@ func defaultTransaction() Transaction {
 		// ChainId:             newU248(0),
 		BlockNum:     newU32(0),
 		BlockBaseFee: newU248(0),
+		MptKeyPath:   newU32(0),
 		// Nonce:               newU248(0),
 		// GasTipCapOrGasPrice: newU248(0),
 		// GasFeeCap:           newU248(0),
@@ -483,6 +501,7 @@ func (t Transaction) Values() []frontend.Variable {
 	// ret = append(ret, t.To.Values()...)
 	// ret = append(ret, t.Value.Values()...)
 	ret = append(ret, t.BlockBaseFee.Values()...)
+	ret = append(ret, t.MptKeyPath.Values()...)
 	ret = append(ret, t.LeafHash.Values()...)
 	return ret
 }
@@ -496,6 +515,9 @@ func (t Transaction) FromValues(vs ...frontend.Variable) CircuitVariable {
 
 	start, end := end, end+t.BlockNum.NumVars()
 	nr.BlockNum = t.BlockNum.FromValues(vs[start:end]...).(Uint32)
+
+	start, end = end, end+t.MptKeyPath.NumVars()
+	nr.MptKeyPath = t.MptKeyPath.FromValues(vs[start:end]...).(Uint32)
 
 	// start, end = end, end+t.Nonce.NumVars()
 	// nr.Nonce = t.Nonce.FromValues(vs[start:end]...).(Uint248)
@@ -533,6 +555,7 @@ func (t Transaction) NumVars() uint32 {
 		// t.GasFeeCap, t.GasLimit, t.From, t.To, t.Value,
 		t.BlockNum,
 		t.BlockBaseFee,
+		t.MptKeyPath,
 		t.LeafHash,
 	}
 	sum := uint32(0)
@@ -561,6 +584,7 @@ func (t Transaction) pack(api frontend.API) []variable {
 	var bits []variable
 	bits = append(bits, api.ToBinary(t.BlockNum.Val, 8*4)...)
 	bits = append(bits, api.ToBinary(t.BlockBaseFee.Val, 8*16)...)
+	bits = append(bits, api.ToBinary(t.MptKeyPath, 8*4))
 	// bits = append(bits, api.ToBinary(t.ChainId.Val, 8*4)...)
 	// bits = append(bits, api.ToBinary(t.Nonce.Val, 8*4)...)
 	// bits = append(bits, api.ToBinary(t.GasTipCapOrGasPrice.Val, 8*8)...)
@@ -581,6 +605,7 @@ func (t Transaction) goPack() []*big.Int {
 	var bits []uint
 	bits = append(bits, decomposeBits(fromInterface(t.BlockNum.Val), 8*4)...)
 	bits = append(bits, decomposeBits(fromInterface(t.BlockBaseFee.Val), 8*16)...)
+	bits = append(bits, decomposeBits(fromInterface(t.MptKeyPath.Val), 8*4)...)
 	// bits = append(bits, decomposeBits(fromInterface(t.ChainId.Val), 8*4)...)
 	// bits = append(bits, decomposeBits(fromInterface(t.Nonce.Val), 8*4)...)
 	// bits = append(bits, decomposeBits(fromInterface(t.GasTipCapOrGasPrice.Val), 8*8)...)

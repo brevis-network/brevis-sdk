@@ -25,9 +25,9 @@ func TestCircuit(t *testing.T) {
 		BlockNum: big.NewInt(18064070),
 		TxHash:   common.HexToHash("53b37ec7975d217295f4bdadf8043b261fc49dccc16da9b9fc8b9530845a5794"),
 		Fields: [sdk.NumMaxLogFields]sdk.LogFieldData{
-			{Contract: usdcPool, LogIndex: 3, EventID: swapEvent, IsTopic: false, FieldIndex: 0, Value: amount0},
-			{Contract: usdcPool, LogIndex: 3, EventID: swapEvent, IsTopic: true, FieldIndex: 2, Value: recipient},
-			{Contract: usdc, LogIndex: 2, EventID: transferEvent, IsTopic: true, FieldIndex: 1, Value: from},
+			{Contract: usdcPool, LogPos: 3, EventID: swapEvent, IsTopic: false, FieldIndex: 0, Value: amount0},
+			{Contract: usdcPool, LogPos: 3, EventID: swapEvent, IsTopic: true, FieldIndex: 2, Value: recipient},
+			{Contract: usdc, LogPos: 2, EventID: transferEvent, IsTopic: true, FieldIndex: 1, Value: from},
 		},
 	})
 	app.AddStorage(sdk.StorageData{

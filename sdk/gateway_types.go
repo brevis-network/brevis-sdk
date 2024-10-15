@@ -52,7 +52,7 @@ func buildReceiptInfos(r rawData[ReceiptData], max int) (infos []*gwproto.Receip
 			// only use non-empty LogFieldData
 			if f != empty {
 				logExtractInfo = append(logExtractInfo, &gwproto.LogExtractInfo{
-					LogIndex:       uint64(f.LogIndex),
+					LogPos:         uint64(f.LogPos),
 					ValueFromTopic: f.IsTopic,
 					ValueIndex:     uint64(f.FieldIndex),
 				})

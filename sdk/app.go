@@ -29,6 +29,7 @@ type ReceiptData struct {
 	BlockNum     *big.Int                      `json:"block_num,omitempty"`
 	BlockBaseFee *big.Int                      `json:"block_base_fee,omitempty"`
 	TxHash       common.Hash                   `json:"tx_hash,omitempty"`
+	MptKeyPath   *big.Int                      `json:"mpt_key_path,omitempty"`
 	Fields       [NumMaxLogFields]LogFieldData `json:"fields,omitempty"`
 }
 
@@ -36,8 +37,8 @@ type ReceiptData struct {
 type LogFieldData struct {
 	// The contract from which the event is emitted
 	Contract common.Address `json:"contract,omitempty"`
-	// the index of the log in the receipt
-	LogIndex uint `json:"log_index,omitempty"`
+	// the log's position in the receipt
+	LogPos uint `json:"log_index,omitempty"`
 	// The event ID of the event to which the field belong (aka topics[0])
 	EventID common.Hash `json:"event_id,omitempty"`
 	// Whether the field is a topic (aka "indexed" as in solidity events)
@@ -69,12 +70,13 @@ type TransactionData struct {
 	// dynamic-fee tx (type 2)
 	GasTipCapOrGasPrice *big.Int `json:"max_priority_fee_per_gas,omitempty"`
 	// GasFeeCap is always 0 for legacy tx
-	GasFeeCap *big.Int       `json:"gas_price_or_fee_cap,omitempty"`
-	GasLimit  uint64         `json:"gas_limit,omitempty"`
-	From      common.Address `json:"from,omitempty"`
-	To        common.Address `json:"to,omitempty"`
-	Value     *big.Int       `json:"value,omitempty"`
-	LeafHash  common.Hash    `json:"leaf_hash,omitempty"`
+	GasFeeCap  *big.Int       `json:"gas_price_or_fee_cap,omitempty"`
+	GasLimit   uint64         `json:"gas_limit,omitempty"`
+	From       common.Address `json:"from,omitempty"`
+	To         common.Address `json:"to,omitempty"`
+	Value      *big.Int       `json:"value,omitempty"`
+	MptKeyPath *big.Int       `json:"mpt_key_path,omitempty"`
+	LeafHash   common.Hash    `json:"leaf_hash,omitempty"`
 }
 
 type rawData[T ReceiptData | StorageData | TransactionData] struct {
