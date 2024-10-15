@@ -37,8 +37,8 @@ type ReceiptData struct {
 type LogFieldData struct {
 	// The contract from which the event is emitted
 	Contract common.Address `json:"contract,omitempty"`
-	// the index of the log in the receipt
-	LogIndex uint `json:"log_index,omitempty"`
+	// the log's position in the receipt
+	LogPos uint `json:"log_index,omitempty"`
 	// The event ID of the event to which the field belong (aka topics[0])
 	EventID common.Hash `json:"event_id,omitempty"`
 	// Whether the field is a topic (aka "indexed" as in solidity events)
