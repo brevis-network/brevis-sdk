@@ -36,7 +36,7 @@ func main() {
 	check(err)
 	logFieldData := sdk.LogFieldData{
 		Contract:   utils.Hex2Addr("0xec53bF9167f50cDEB3Ae105f56099aaaB9061F83"),
-		LogIndex:   0,
+		LogPos:     0,
 		EventID:    utils.Hex2Hash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
 		IsTopic:    false,
 		FieldIndex: 0,
@@ -45,7 +45,7 @@ func main() {
 
 	logFieldData1 := sdk.LogFieldData{
 		Contract:   utils.Hex2Addr("0xec53bF9167f50cDEB3Ae105f56099aaaB9061F83"),
-		LogIndex:   0,
+		LogPos:     0,
 		EventID:    utils.Hex2Hash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"),
 		IsTopic:    true,
 		FieldIndex: 2,

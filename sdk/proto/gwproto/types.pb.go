@@ -97,7 +97,7 @@ type LogExtractInfo struct {
 	unknownFields protoimpl.UnknownFields
 
 	ContractAddress string `protobuf:"bytes,1,opt,name=contract_address,json=contractAddress,proto3" json:"contract_address,omitempty"`
-	LogIndex        uint64 `protobuf:"varint,2,opt,name=log_index,json=logIndex,proto3" json:"log_index,omitempty"`
+	LogPos        uint64 `protobuf:"varint,2,opt,name=log_index,json=logIndex,proto3" json:"log_index,omitempty"`
 	LogTopic0       string `protobuf:"bytes,3,opt,name=log_topic0,json=logTopic0,proto3" json:"log_topic0,omitempty"`
 	ValueFromTopic  bool   `protobuf:"varint,4,opt,name=value_from_topic,json=valueFromTopic,proto3" json:"value_from_topic,omitempty"`
 	ValueIndex      uint64 `protobuf:"varint,5,opt,name=value_index,json=valueIndex,proto3" json:"value_index,omitempty"`
@@ -146,7 +146,7 @@ func (x *LogExtractInfo) GetContractAddress() string {
 
 func (x *LogExtractInfo) GetLogIndex() uint64 {
 	if x != nil {
-		return x.LogIndex
+		return x.LogPos
 	}
 	return 0
 }
