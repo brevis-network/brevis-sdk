@@ -221,8 +221,8 @@ func (r Receipt) String() string { return "Receipt" }
 type LogField struct {
 	// The contract from which the event is emitted
 	Contract Uint248
-	// the log location at the receipt
-	LogIndex Uint32
+	// the log position in the receipt
+	LogPos Uint32
 	// The event ID of the event to which the field belong (aka topics[0])
 	EventID Uint248
 	// Whether the field is a topic (aka "indexed" as in solidity events)
@@ -237,7 +237,7 @@ type LogField struct {
 func defaultLogField() LogField {
 	return LogField{
 		Contract: newU248(0),
-		LogIndex: newU32(0),
+		LogPos:   newU32(0),
 		EventID:  newU248(0),
 		IsTopic:  newU248(0),
 		Index:    newU248(0),
@@ -250,7 +250,7 @@ var _ CircuitVariable = LogField{}
 func (f LogField) Values() []frontend.Variable {
 	var ret []frontend.Variable
 	ret = append(ret, f.Contract.Values()...)
-	ret = append(ret, f.LogIndex.Values()...)
+	ret = append(ret, f.LogPos.Values()...)
 	ret = append(ret, f.EventID.Values()...)
 	ret = append(ret, f.IsTopic.Values()...)
 	ret = append(ret, f.Index.Values()...)
@@ -264,8 +264,8 @@ func (f LogField) FromValues(vs ...frontend.Variable) CircuitVariable {
 	start, end := uint32(0), f.Contract.NumVars()
 	nf.Contract = f.Contract.FromValues(vs[start:end]...).(Uint248)
 
-	start, end = end, end+f.LogIndex.NumVars()
-	nf.LogIndex = f.LogIndex.FromValues(vs[start:end]...).(Uint32)
+	start, end = end, end+f.LogPos.NumVars()
+	nf.LogPos = f.LogPos.FromValues(vs[start:end]...).(Uint32)
 
 	start, end = end, end+f.EventID.NumVars()
 	nf.EventID = f.EventID.FromValues(vs[start:end]...).(Uint248)
@@ -286,7 +286,7 @@ func (f LogField) String() string { return "" }
 
 func (f LogField) NumVars() uint32 {
 	return f.Contract.NumVars() +
-		f.LogIndex.NumVars() +
+		f.LogPos.NumVars() +
 		f.EventID.NumVars() +
 		f.IsTopic.NumVars() +
 		f.Index.NumVars() +
@@ -309,7 +309,7 @@ func (r Receipt) pack(api frontend.API) []frontend.Variable {
 	bits = append(bits, api.ToBinary(r.MptKeyPath.Val, 4*8)...)
 	for _, field := range r.Fields {
 		bits = append(bits, api.ToBinary(field.Contract.Val, 8*20)...)
-		bits = append(bits, api.ToBinary(field.LogIndex, 8*2)...)
+		bits = append(bits, api.ToBinary(field.LogPos, 8*2)...)
 		bits = append(bits, api.ToBinary(field.EventID.Val, 8*6)...)
 		bits = append(bits, api.ToBinary(field.IsTopic.Val, 1)...)
 		bits = append(bits, api.ToBinary(field.Index.Val, 7)...)
@@ -333,7 +333,7 @@ func (r Receipt) goPack() []*big.Int {
 
 	for _, field := range r.Fields {
 		bits = append(bits, decomposeBits(fromInterface(field.Contract.Val), 8*20)...)
-		bits = append(bits, decomposeBits(fromInterface(field.LogIndex.Val), 8*2)...)
+		bits = append(bits, decomposeBits(fromInterface(field.LogPos.Val), 8*2)...)
 		bits = append(bits, decomposeBits(fromInterface(field.EventID.Val), 8*6)...)
 		bits = append(bits, decomposeBits(fromInterface(field.IsTopic.Val), 1)...)
 		bits = append(bits, decomposeBits(fromInterface(field.Index.Val), 7)...)
