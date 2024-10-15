@@ -19,7 +19,7 @@ func TestDemo(t *testing.T) {
 
 	logFieldData := sdk.LogFieldData{
 		Contract:   utils.Hex2Addr("0x961ad289351459a45fc90884ef3ab0278ea95dde"),
-		LogIndex:   0,
+		LogPos:     0,
 		EventID:    utils.Hex2Hash("0xf6a97944f31ea060dfde0566e4167c1a1082551e64b60ecb14d599a9d023d451"),
 		IsTopic:    false,
 		FieldIndex: 0,

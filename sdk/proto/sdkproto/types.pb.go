@@ -96,7 +96,7 @@ type Field struct {
 	// address. the contract which emitted the log
 	Contract string `protobuf:"bytes,1,opt,name=contract,proto3" json:"contract,omitempty"`
 	// the index of the log in the transaction receipt, starting from 0.
-	LogIndex uint32 `protobuf:"varint,2,opt,name=log_index,json=logIndex,proto3" json:"log_index,omitempty"`
+	LogPos uint32 `protobuf:"varint,2,opt,name=log_index,json=logIndex,proto3" json:"log_index,omitempty"`
 	// the event id (aka topic[0]) of the log
 	EventId string `protobuf:"bytes,3,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
 	// the value of the field we want to prove
@@ -148,7 +148,7 @@ func (x *Field) GetContract() string {
 
 func (x *Field) GetLogIndex() uint32 {
 	if x != nil {
-		return x.LogIndex
+		return x.LogPos
 	}
 	return 0
 }

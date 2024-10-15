@@ -114,7 +114,7 @@ func convertProtoFieldToSdkLogField(in *sdkproto.Field) (sdk.LogFieldData, error
 	}
 	return sdk.LogFieldData{
 		Contract:   hex2Addr(in.Contract),
-		LogIndex:   uint(in.LogIndex),
+		LogPos:     uint(in.LogPos),
 		EventID:    hex2Hash(in.EventId),
 		IsTopic:    in.IsTopic,
 		FieldIndex: uint(in.FieldIndex),
