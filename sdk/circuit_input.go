@@ -309,7 +309,7 @@ func (r Receipt) pack(api frontend.API) []frontend.Variable {
 	bits = append(bits, api.ToBinary(r.MptKeyPath.Val, 4*8)...)
 	for _, field := range r.Fields {
 		bits = append(bits, api.ToBinary(field.Contract.Val, 8*20)...)
-		bits = append(bits, api.ToBinary(field.LogPos, 8*2)...)
+		bits = append(bits, api.ToBinary(field.LogPos.Val, 8*2)...)
 		bits = append(bits, api.ToBinary(field.EventID.Val, 8*6)...)
 		bits = append(bits, api.ToBinary(field.IsTopic.Val, 1)...)
 		bits = append(bits, api.ToBinary(field.Index.Val, 7)...)
@@ -330,7 +330,7 @@ func (r Receipt) goPack() []*big.Int {
 	var bits []uint
 	bits = append(bits, decomposeBits(fromInterface(r.BlockNum.Val), 8*4)...)
 	bits = append(bits, decomposeBits(fromInterface(r.BlockBaseFee.Val), 8*16)...)
-
+	bits = append(bits, decomposeBits(fromInterface(r.MptKeyPath.Val), 8*4)...)
 	for _, field := range r.Fields {
 		bits = append(bits, decomposeBits(fromInterface(field.Contract.Val), 8*20)...)
 		bits = append(bits, decomposeBits(fromInterface(field.LogPos.Val), 8*2)...)
@@ -567,7 +567,7 @@ func (t Transaction) NumVars() uint32 {
 
 func (t Transaction) String() string { return "Transaction" }
 
-func (t Transaction) Pack(api frontend.API) []variable {
+func (t Transaction) Pack(api frontend.API) []frontend.Variable {
 	return t.pack(api)
 }
 
@@ -584,7 +584,7 @@ func (t Transaction) pack(api frontend.API) []variable {
 	var bits []variable
 	bits = append(bits, api.ToBinary(t.BlockNum.Val, 8*4)...)
 	bits = append(bits, api.ToBinary(t.BlockBaseFee.Val, 8*16)...)
-	bits = append(bits, api.ToBinary(t.MptKeyPath, 8*4))
+	bits = append(bits, api.ToBinary(t.MptKeyPath.Val, 8*4)...)
 	// bits = append(bits, api.ToBinary(t.ChainId.Val, 8*4)...)
 	// bits = append(bits, api.ToBinary(t.Nonce.Val, 8*4)...)
 	// bits = append(bits, api.ToBinary(t.GasTipCapOrGasPrice.Val, 8*8)...)
