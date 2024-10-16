@@ -727,6 +727,7 @@ func (q *BrevisApp) assignReceipts(maxReceipts int, in *CircuitInput) error {
 		in.Receipts.Raw[i] = Receipt{
 			BlockNum:     newU32(receipt.BlockNum),
 			BlockBaseFee: newU248(receipt.BlockBaseFee),
+			MptKeyPath:   newU32(receipt.MptKeyPath),
 			Fields:       buildLogFields(receipt.Fields),
 		}
 		in.Receipts.Toggles[i] = 1
@@ -741,6 +742,7 @@ func (q *BrevisApp) assignReceipts(maxReceipts int, in *CircuitInput) error {
 		in.Receipts.Raw[j] = Receipt{
 			BlockNum:     newU32(receipt.BlockNum),
 			BlockBaseFee: newU248(receipt.BlockBaseFee),
+			MptKeyPath:   newU32(receipt.MptKeyPath),
 			Fields:       buildLogFields(receipt.Fields),
 		}
 		in.Receipts.Toggles[j] = 1
@@ -771,6 +773,7 @@ func buildLogFields(fs [NumMaxLogFields]LogFieldData) (fields [NumMaxLogFields]L
 		}
 		fields[i] = LogField{
 			Contract: ConstUint248(f.Contract),
+			LogPos:   ConstUint32(f.LogPos),
 			// we only constrain the first 6 bytes of EventID in circuit for performance reasons
 			// 6 bytes give us 1/2^48 chance of two logs of different IDs clashing per contract.
 			EventID: ConstUint248(f.EventID[:6]),
@@ -846,6 +849,7 @@ func buildTx(t TransactionData) Transaction {
 		// ChainId:             ConstUint248(t.ChainId),
 		BlockNum:     ConstUint32(t.BlockNum),
 		BlockBaseFee: newU248(t.BlockBaseFee),
+		MptKeyPath:   newU32(t.MptKeyPath),
 		// Nonce:               ConstUint248(t.Nonce),
 		// GasTipCapOrGasPrice: ConstUint248(t.GasTipCapOrGasPrice),
 		// GasFeeCap:           ConstUint248(t.GasFeeCap),
