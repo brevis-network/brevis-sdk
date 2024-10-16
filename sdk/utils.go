@@ -122,9 +122,8 @@ func fromInterface(input interface{}) *big.Int {
 	if input == nil {
 		return big.NewInt(0)
 	}
-	in := input.(interface{})
 	var r big.Int
-	switch v := in.(type) {
+	switch v := input.(type) {
 	case big.Int:
 		r.Set(&v)
 	case *big.Int:
@@ -163,6 +162,8 @@ func fromInterface(input interface{}) *big.Int {
 		r.SetBytes(v[:])
 	case []byte:
 		r.SetBytes(v)
+	default:
+		panic("unsupported type for conversion to *big.Int: " + fmt.Sprintf("%T", input))
 	}
 	return &r
 }
