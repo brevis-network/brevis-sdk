@@ -29,23 +29,23 @@ var (
 	TransactionVkHash = utils.Hex2BigInt(TransactionVkHashHex)
 	MiddleNodeVkHash  = utils.Hex2BigInt(MiddleNodeVkHashHex)
 
-	ReceiptNode = Hash2HashNode{
+	ReceiptNode = Hash2HashDigestNode{
 		CircuitDigest: ReceiptD,
 		VkHash:        ReceiptVkHash,
 	}
 
-	StorageNode = Hash2HashNode{
+	StorageNode = Hash2HashDigestNode{
 		CircuitDigest: StorageD,
 		VkHash:        StorageVkHash,
 	}
 
-	TransactionNode = Hash2HashNode{
+	TransactionNode = Hash2HashDigestNode{
 		CircuitDigest: TransactionD,
 		VkHash:        TransactionVkHash,
 	}
 )
 
-type Hash2HashNode struct {
+type Hash2HashDigestNode struct {
 	CircuitDigest *big.Int
 	VkHash        *big.Int
 }
@@ -56,7 +56,7 @@ func GetHash2HashCircuitDigest(receiptCount, storageCount, transactionCount int)
 		return nil, err
 	}
 
-	var totalLeafs []Hash2HashNode
+	var totalLeafs []Hash2HashDigestNode
 	for i := 0; i < receiptLeafCount; i++ {
 		totalLeafs = append(totalLeafs, ReceiptNode)
 	}
@@ -79,7 +79,7 @@ func GetHash2HashCircuitDigest(receiptCount, storageCount, transactionCount int)
 			if hashErr != nil {
 				return nil, fmt.Errorf("fail to hash in CalOneHash2HashNodeDigest, %d %d -> %d err: %v", 2*i, 2*i+1, i, hashErr)
 			}
-			totalLeafs[i] = Hash2HashNode{
+			totalLeafs[i] = Hash2HashDigestNode{
 				CircuitDigest: parent,
 				VkHash:        MiddleNodeVkHash,
 			}
@@ -88,7 +88,7 @@ func GetHash2HashCircuitDigest(receiptCount, storageCount, transactionCount int)
 	}
 }
 
-func CalOneHash2HashNodeDigest(left, right Hash2HashNode) (*big.Int, error) {
+func CalOneHash2HashNodeDigest(left, right Hash2HashDigestNode) (*big.Int, error) {
 	poseidonHasher := zkhashutils.NewPoseidonBn254()
 	poseidonHasher.Write(left.CircuitDigest)
 	poseidonHasher.Write(right.CircuitDigest)
@@ -96,6 +96,11 @@ func CalOneHash2HashNodeDigest(left, right Hash2HashNode) (*big.Int, error) {
 	poseidonHasher.Write(right.VkHash)
 
 	return poseidonHasher.Sum()
+}
+
+type Plonky2DigestNode struct {
+	PubCircuitDigest *big.Int
+	CurCircuitDigest *big.Int
 }
 
 func GetPlonky2CircuitDigest(receiptCount, storageCount, transactionCount int) (*pgoldilocks.HashOut256, error) {
