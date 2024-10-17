@@ -2,8 +2,9 @@ package sdk
 
 import (
 	"fmt"
-	"github.com/consensys/gnark/frontend"
 	"math/big"
+
+	"github.com/consensys/gnark/frontend"
 )
 
 type Int248 struct {
@@ -33,7 +34,7 @@ func ConstInt248(v *big.Int) Int248 {
 	}
 
 	abs := new(big.Int).Abs(v)
-	absBits := decomposeBitsExact(abs)
+	absBits := decomposeBitsExactOfAbs(abs)
 
 	if v.Sign() < 0 {
 		bits := twosComplement(absBits, 248)

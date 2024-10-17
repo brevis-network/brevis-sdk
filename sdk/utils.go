@@ -36,6 +36,19 @@ func recomposeBig(data []*big.Int, bitSize int) *big.Int {
 }
 
 func decompose[T uint | byte](data *big.Int, bitSize uint, length uint) []T {
+	var maxBitSize uint
+	switch any(*new(T)).(type) {
+	case uint:
+		maxBitSize = 64
+	case byte:
+		maxBitSize = 8
+	default:
+		panic("unsupported type for decomposition")
+	}
+	if bitSize > maxBitSize {
+		panic(fmt.Errorf("bitSize %d exceeds the bit capacity of type %T", bitSize, *new(T)))
+	}
+
 	res := decomposeBig(data, bitSize, length)
 	ret := make([]T, length)
 	for i, limb := range res {
@@ -69,7 +82,7 @@ func decomposeBig(data *big.Int, bitSize, length uint) []*big.Int {
 	return decomposeAndSlice(data, bitSize, length)
 }
 
-func decomposeBitsExact(data *big.Int) []uint {
+func decomposeBitsExactOfAbs(data *big.Int) []uint {
 	abs := new(big.Int).Abs(data)
 	var ret []uint
 	for abs.Sign() > 0 {
