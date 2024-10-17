@@ -48,6 +48,11 @@ func decomposeAndSlice(data *big.Int, bitSize, length uint) []*big.Int {
 	decomposed := make([]*big.Int, length)
 	base := new(big.Int).Lsh(big.NewInt(1), bitSize)
 	d := new(big.Int).Set(data)
+
+	if d.Sign() < 0 {
+		panic(fmt.Errorf("negative values are not supported: %s", d.String()))
+	}
+
 	for i := 0; i < int(length); i++ {
 		rem := new(big.Int)
 		d.DivMod(d, base, rem)
