@@ -113,7 +113,9 @@ func (api *CircuitAPI) addOutput(bits []variable) {
 	// the input to be big-endian bytes, but the bits in each byte are little endian
 	b := flipByGroups(bits, 8)
 	api.output = append(api.output, b...)
-	dryRunOutput = append(dryRunOutput, bits2Bytes(b)...)
+	if len(b) > 0 && !frontend.IsCanonical(b[0]) /*only set dryRunOutput when dryRun*/ {
+		dryRunOutput = append(dryRunOutput, bits2Bytes(b)...)
+	}
 }
 
 // AssertInputsAreUnique Asserts that all input data (Transaction, Receipt,
