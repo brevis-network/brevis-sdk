@@ -125,7 +125,12 @@ func (api *Uint32API) Sqrt(a Uint32) Uint32 {
 	if err != nil {
 		panic(fmt.Errorf("failed to initialize SqrtHint instance: %s", err.Error()))
 	}
-	return newU32(out[0])
+	s := out[0]
+	api.g.AssertIsLessOrEqual(api.g.Mul(s, s), a.Val) // s**2 <= a
+	incS := api.g.Add(s, 1)
+	next := api.g.Mul(incS, incS)
+	api.g.IsZero(api.g.Add(api.g.Cmp(a.Val, next), 1)) // a < (s+1)**2
+	return newU32(s)
 }
 
 // IsZero returns 1 if a == 0, and 0 otherwise

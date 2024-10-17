@@ -133,7 +133,12 @@ func (api *Uint248API) Sqrt(a Uint248) Uint248 {
 	if err != nil {
 		panic(fmt.Errorf("failed to initialize SqrtHint instance: %s", err.Error()))
 	}
-	return newU248(out[0])
+	s := out[0]
+	api.g.AssertIsLessOrEqual(api.g.Mul(s, s), a.Val) // s**2 <= a
+	incS := api.g.Add(s, 1)
+	next := api.g.Mul(incS, incS)
+	api.g.IsZero(api.g.Add(api.g.Cmp(a.Val, next), 1)) // a < (s+1)**2
+	return newU248(s)
 }
 
 // IsZero returns 1 if a == 0, and 0 otherwise
