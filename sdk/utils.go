@@ -232,16 +232,34 @@ func parseBitStr(s string) []frontend.Variable {
 }
 
 func twosComplement(bits []uint, n int) []uint {
+
+	if len(bits) >= n && !isValidEdgeCase(bits, n) {
+		panic(fmt.Errorf("invalid input: bit length %d exceeds n-1 bits", len(bits)))
+	}
+
 	padded := padBitsRight(bits, n, 0)
 	flipped := flipBits(padded)
 	a := recompose(flipped, 1)
 	a.Add(a, big.NewInt(1))
-	d := decomposeAndSlice(a, 1, 248)
+	d := decomposeAndSlice(a, 1, uint(n))
 	ret := make([]uint, len(d))
 	for i, b := range d {
 		ret[i] = uint(b.Uint64())
 	}
 	return ret
+}
+
+func isValidEdgeCase(bits []uint, n int) bool {
+	if len(bits) != n {
+		return false
+	}
+	// Check if the input is [0, ..., 0, 1].
+	for i := 0; i < n-1; i++ {
+		if bits[i] != 0 {
+			return false
+		}
+	}
+	return bits[n-1] == 1
 }
 
 func flipBits(bits []uint) []uint {
