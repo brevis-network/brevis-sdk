@@ -54,9 +54,9 @@ func (v Bytes32) String() string {
 	return fmt.Sprintf("%x%x", left, right)
 }
 
-// ConstBytes32 initializes a constant Bytes32 circuit variable. Panics if the
+// ConstFromBigEndianBytes initializes a constant Bytes32 circuit variable. Panics if the
 // length of the supplied data bytes is larger than 32.
-func ConstBytes32(data []byte) Bytes32 {
+func ConstFromBigEndianBytes(data []byte) Bytes32 {
 	if len(data) > 32 {
 		panic(fmt.Errorf("ConstBytes32 called with data of length %d", len(data)))
 	}

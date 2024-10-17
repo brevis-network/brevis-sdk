@@ -21,13 +21,13 @@ func (c *AppCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions int) {
 var UniswapV2PairUsdcEth = sdk.ConstUint248(
 	common.HexToAddress("0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc"))
 
-var SlotBlockTimestampLastAndReserves = sdk.ConstBytes32(
+var SlotBlockTimestampLastAndReserves = sdk.ConstFromBigEndianBytes(
 	common.FromHex("0x0000000000000000000000000000000000000000000000000000000000000008"))
 
-var SlotPrice0CumulativeLast = sdk.ConstBytes32(
+var SlotPrice0CumulativeLast = sdk.ConstFromBigEndianBytes(
 	common.FromHex("0x0000000000000000000000000000000000000000000000000000000000000009"))
 
-var SlotPrice1CumulativeLast = sdk.ConstBytes32(
+var SlotPrice1CumulativeLast = sdk.ConstFromBigEndianBytes(
 	common.FromHex("0x000000000000000000000000000000000000000000000000000000000000000a"))
 
 func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {

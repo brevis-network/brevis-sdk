@@ -241,7 +241,7 @@ func defaultLogField() LogField {
 		EventID:  newU248(0),
 		IsTopic:  newU248(0),
 		Index:    newU248(0),
-		Value:    ConstBytes32([]byte{}),
+		Value:    ConstFromBigEndianBytes([]byte{}),
 	}
 }
 
@@ -373,8 +373,8 @@ func defaultStorageSlot() StorageSlot {
 		BlockNum:     newU32(0),
 		BlockBaseFee: newU248(0),
 		Contract:     newU248(0),
-		Slot:         ConstBytes32([]byte{}),
-		Value:        ConstBytes32([]byte{}),
+		Slot:         ConstFromBigEndianBytes([]byte{}),
+		Value:        ConstFromBigEndianBytes([]byte{}),
 	}
 }
 
@@ -483,7 +483,7 @@ func defaultTransaction() Transaction {
 		// From:                newU248(0),
 		// To:                  newU248(0),
 		// Value:               ConstBytes32([]byte{}),
-		LeafHash: ConstBytes32([]byte{}),
+		LeafHash: ConstFromBigEndianBytes([]byte{}),
 	}
 }
 

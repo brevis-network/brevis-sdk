@@ -779,7 +779,7 @@ func buildLogFields(fs [NumMaxLogFields]LogFieldData) (fields [NumMaxLogFields]L
 			EventID: ConstUint248(f.EventID[:6]),
 			IsTopic: ConstUint248(f.IsTopic),
 			Index:   ConstUint248(f.FieldIndex),
-			Value:   ConstBytes32(f.Value[:]),
+			Value:   ConstFromBigEndianBytes(f.Value[:]),
 		}
 	}
 	return
@@ -815,8 +815,8 @@ func buildStorageSlot(s StorageData) StorageSlot {
 		BlockNum:     newU32(s.BlockNum),
 		BlockBaseFee: newU248(s.BlockBaseFee),
 		Contract:     ConstUint248(s.Address),
-		Slot:         ConstBytes32(s.Slot[:]),
-		Value:        ConstBytes32(s.Value[:]),
+		Slot:         ConstFromBigEndianBytes(s.Slot[:]),
+		Value:        ConstFromBigEndianBytes(s.Value[:]),
 	}
 }
 
@@ -857,7 +857,7 @@ func buildTx(t TransactionData) Transaction {
 		// From:                ConstUint248(t.From),
 		// To:                  ConstUint248(t.To),
 		// Value:               ConstBytes32(t.Value.Bytes()),
-		LeafHash: ConstBytes32(t.LeafHash.Bytes()),
+		LeafHash: ConstFromBigEndianBytes(t.LeafHash.Bytes()),
 	}
 }
 

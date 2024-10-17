@@ -37,7 +37,7 @@ var UsdcPoolAddress = sdk.ConstUint248(
 	common.HexToAddress("0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640"))
 var UsdcAddress = sdk.ConstUint248(
 	common.HexToAddress("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"))
-var Salt = sdk.ConstBytes32(
+var Salt = sdk.ConstFromBigEndianBytes(
 	hexutil.MustDecode("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"))
 
 func (c *AppCircuit) Allocate() (maxReceipts, maxSlots, maxTransactions int) {
