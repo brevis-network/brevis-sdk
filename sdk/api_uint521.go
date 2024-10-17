@@ -2,9 +2,10 @@ package sdk
 
 import (
 	"fmt"
+	"math/big"
+
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/math/emulated"
-	"math/big"
 )
 
 var u521Field *emulated.Field[Uint521Field]
@@ -61,6 +62,12 @@ func newU521(el *emulated.Element[Uint521Field]) Uint521 {
 func ConstUint521(i interface{}) Uint521 {
 	ensureNotCircuitVariable(i)
 	v := fromInterface(i)
+	if v.Sign() < 0 {
+		panic("cannot initialize Uint521 with negative number")
+	}
+	if v.BitLen() > 521 {
+		panic("cannot initialize Uint521 with bit length > 521")
+	}
 	el := emulated.ValueOf[Uint521Field](v)
 	return newU521(&el)
 }

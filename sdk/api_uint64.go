@@ -31,7 +31,14 @@ func newU64s(vs ...frontend.Variable) List[Uint64] {
 // the string
 func ConstUint64(i interface{}) Uint64 {
 	ensureNotCircuitVariable(i)
-	return newU64(fromInterface(i))
+	v := fromInterface(i)
+	if v.Sign() < 0 {
+		panic("cannot initialize Uint64 with negative number")
+	}
+	if v.BitLen() > 64 {
+		panic("cannot initialize Uint64 with bit length > 64")
+	}
+	return newU64(v)
 }
 
 func (v Uint64) Values() []frontend.Variable {

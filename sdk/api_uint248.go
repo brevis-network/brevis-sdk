@@ -2,8 +2,9 @@ package sdk
 
 import (
 	"fmt"
-	"github.com/consensys/gnark/frontend"
 	"math/big"
+
+	"github.com/consensys/gnark/frontend"
 )
 
 type Uint248 struct {
@@ -31,7 +32,14 @@ func newU248s(vs ...frontend.Variable) List[Uint248] {
 // the string
 func ConstUint248(i interface{}) Uint248 {
 	ensureNotCircuitVariable(i)
-	return newU248(fromInterface(i))
+	v := fromInterface(i)
+	if v.Sign() < 0 {
+		panic("cannot initialize Uint248 with negative number")
+	}
+	if v.BitLen() > 248 {
+		panic("cannot initialize Uint248 with bit length > 248")
+	}
+	return newU248(v)
 }
 
 // ParseEventID initializes a circuit Uint248 from bytes. Only the first 6 bytes

@@ -31,7 +31,14 @@ func newU32s(vs ...frontend.Variable) List[Uint32] {
 // the string
 func ConstUint32(i interface{}) Uint32 {
 	ensureNotCircuitVariable(i)
-	return newU32(fromInterface(i))
+	v := fromInterface(i)
+	if v.Sign() < 0 {
+		panic("cannot initialize Uint32 with negative number")
+	}
+	if v.BitLen() > 32 {
+		panic("cannot initialize Uint32 with bit length > 32")
+	}
+	return newU32(v)
 }
 
 func (v Uint32) Values() []frontend.Variable {
