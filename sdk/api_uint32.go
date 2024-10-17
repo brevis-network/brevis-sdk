@@ -115,6 +115,7 @@ func (api *Uint32API) Div(a, b Uint32) (quotient, remainder Uint32) {
 	q, r := out[0], out[1]
 	orig := api.g.Add(api.g.Mul(q, b.Val), r)
 	api.g.AssertIsEqual(orig, a.Val)
+	api.g.IsZero(api.g.Sub(q, api.g.Div(a.Val, b.Val)))
 	return newU32(q), newU32(r)
 }
 

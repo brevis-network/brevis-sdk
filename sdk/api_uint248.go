@@ -123,6 +123,7 @@ func (api *Uint248API) Div(a, b Uint248) (quotient, remainder Uint248) {
 	q, r := out[0], out[1]
 	orig := api.g.Add(api.g.Mul(q, b.Val), r)
 	api.g.AssertIsEqual(orig, a.Val)
+	api.g.IsZero(api.g.Sub(q, api.g.Div(a.Val, b.Val)))
 	return newU248(q), newU248(r)
 }
 
