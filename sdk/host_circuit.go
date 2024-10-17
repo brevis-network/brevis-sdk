@@ -67,6 +67,12 @@ func (c *HostCircuit) Define(gapi frontend.API) error {
 	dryRunOutputCommit = outputCommit
 	gapi.AssertIsEqual(outputCommit[0], c.Input.OutputCommitment[0])
 	gapi.AssertIsEqual(outputCommit[1], c.Input.OutputCommitment[1])
+
+	// add commitment, then the proof will have same size without use assertUniq or not.
+	multicommit.WithCommitment(gapi, func(api frontend.API, gamma frontend.Variable) error {
+		api.AssertIsEqual(inputCommitmentRoot, c.Input.InputCommitmentsRoot)
+		return nil
+	}, c.Input.InputCommitmentsRoot)
 	return nil
 }
 
