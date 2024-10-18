@@ -2,14 +2,14 @@ package sdk
 
 import (
 	"fmt"
+	"math/big"
+
 	pgoldilocks "github.com/OpenAssetStandards/poseidon-goldilocks-go"
 	"github.com/brevis-network/brevis-sdk/common/utils"
 	zkhashutils "github.com/brevis-network/zk-hash/utils"
-	"github.com/celer-network/goutils/log"
 	"github.com/consensys/gnark/backend/plonk"
 	"github.com/consensys/gnark/std/algebra/emulated/sw_bn254"
 	replonk "github.com/consensys/gnark/std/recursion/plonk"
-	"math/big"
 )
 
 var (
@@ -74,7 +74,6 @@ func CalBrevisCircuitDigest(receiptCount, storageCount, transactionCount int, ap
 
 	appVkHashBytes := utils.CalculateAppVkHashForBn254(reVk)
 	appVkHashBigInt := new(big.Int).SetBytes(appVkHashBytes)
-	log.Infof("app vk hashL %s", appVkHashBigInt)
 
 	hash2HashDigest, err := GetHash2HashCircuitDigest(receiptCount, storageCount, transactionCount)
 	if err != nil {
@@ -167,14 +166,9 @@ func GetPlonky2CircuitDigestFromWrapBn128(receiptCount, storageCount, transactio
 		return nil, err
 	}
 
-	log.Infof("plonky2RootNode PubCircuitDigest: %d %d %d %d", plonky2RootNode.PubCircuitDigest[0], plonky2RootNode.PubCircuitDigest[1], plonky2RootNode.PubCircuitDigest[2], plonky2RootNode.PubCircuitDigest[3])
-	log.Infof("plonky2RootNode CurCircuitDigest: %d %d %d %d", plonky2RootNode.CurCircuitDigest[0], plonky2RootNode.CurCircuitDigest[1], plonky2RootNode.CurCircuitDigest[2], plonky2RootNode.CurCircuitDigest[3])
-
 	var data []uint64
 	data = append(data, plonky2RootNode.PubCircuitDigest[:]...)
 	data = append(data, plonky2RootNode.CurCircuitDigest[:]...)
-
-	log.Infof("data: %v", data)
 
 	return pgoldilocks.HashNoPadU64Array(data[:])
 }

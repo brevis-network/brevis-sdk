@@ -125,7 +125,7 @@ func printVkHash(vk plonk.VerifyingKey, maxReceipt, maxStorage, total int) {
 	}
 	fmt.Println()
 	fmt.Println("///////////////////////////////////////////////////////////////////////////////")
-	fmt.Printf("// vk hash: %s\n", vkHash)
+	fmt.Printf("// vk hash: 0x%x\n", vkHash.Bytes())
 	fmt.Println("///////////////////////////////////////////////////////////////////////////////")
 	fmt.Println()
 }
