@@ -5,6 +5,7 @@ import (
 	pgoldilocks "github.com/OpenAssetStandards/poseidon-goldilocks-go"
 	"github.com/brevis-network/brevis-sdk/common/utils"
 	zkhashutils "github.com/brevis-network/zk-hash/utils"
+	"github.com/celer-network/goutils/log"
 	"math/big"
 )
 
@@ -32,7 +33,7 @@ var (
 	TxCircuitDigestHash                   = &pgoldilocks.HashOut256{4468797703754107005, 1772380112937592888, 10819062548913493240, 12550953239004764174}
 	P2AggRecursionLeafCircuitDigestHash   = &pgoldilocks.HashOut256{6297162860691876658, 7207440660511781486, 956392925008767441, 15443083968980057808}
 	P2AggRecursionNoLeafCircuitDigestHash = &pgoldilocks.HashOut256{14561383570925761150, 12116100132768392867, 2216989100987824959, 11720816772597981334}
-	P2Bn128WrapCircuitDigestHash          = utils.Hex2BigInt("0x2484541239EC3173C86783B3F4EBAF41647A64F17A00571D9213CC34563B03DE")
+	P2Bn128WrapCircuitDigestHash          = utils.Hex2BigInt("0x2484541239ec3173c86783b3f4ebaf41647a64f17a00571d9213cc34563b03de")
 
 	ReceiptVkHash     = utils.Hex2BigInt(ReceiptVkHashHex)
 	StorageVkHash     = utils.Hex2BigInt(StorageVkHashHex)
@@ -56,14 +57,17 @@ var (
 
 	ReceiptPlonky2Node = Plonky2DigestNode{
 		CurCircuitDigest: ReceiptCircuitDigestHash,
+		IsLeafNode:       true,
 	}
 
 	StoragePlonky2Node = Plonky2DigestNode{
 		CurCircuitDigest: StorageCircuitDigestHash,
+		IsLeafNode:       true,
 	}
 
 	TransactionPlonky2Node = Plonky2DigestNode{
 		CurCircuitDigest: TxCircuitDigestHash,
+		IsLeafNode:       true,
 	}
 )
 
@@ -123,7 +127,22 @@ func CalOneHash2HashNodeDigest(left, right Hash2HashDigestNode) (*big.Int, error
 type Plonky2DigestNode struct {
 	PubCircuitDigest *pgoldilocks.HashOut256 // in pub
 	CurCircuitDigest *pgoldilocks.HashOut256 // in json
-	IsLeaf           bool
+	IsLeafNode       bool
+}
+
+func GetPlonky2CircuitDigestFromWrapBn128(receiptCount, storageCount, transactionCount int) (*pgoldilocks.HashOut256, error) {
+	plonky2RootNode, err := GetPlonky2CircuitDigest(receiptCount, storageCount, transactionCount)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Infof("plonky2RootNode PubCircuitDigest: %d %d %d %d", plonky2RootNode.PubCircuitDigest[0], plonky2RootNode.PubCircuitDigest[1], plonky2RootNode.PubCircuitDigest[2], plonky2RootNode.PubCircuitDigest[3])
+	log.Infof("plonky2RootNode CurCircuitDigest: %d %d %d %d", plonky2RootNode.CurCircuitDigest[0], plonky2RootNode.CurCircuitDigest[1], plonky2RootNode.CurCircuitDigest[2], plonky2RootNode.CurCircuitDigest[3])
+
+	var data []uint64
+	data = append(data, plonky2RootNode.PubCircuitDigest[:]...)
+	data = append(data, plonky2RootNode.CurCircuitDigest[:]...)
+	return pgoldilocks.HashNoPadU64Array(data[:])
 }
 
 func GetPlonky2CircuitDigest(receiptCount, storageCount, transactionCount int) (*Plonky2DigestNode, error) {
@@ -143,12 +162,11 @@ func GetPlonky2CircuitDigest(receiptCount, storageCount, transactionCount int) (
 		totalLeafs = append(totalLeafs, TransactionPlonky2Node)
 	}
 	if len(totalLeafs) != totalLeafCount {
-		return nil, fmt.Errorf("len(totalLeafs) != totalLeafCount, %d %d", totalLeafs, totalLeafCount)
+		return nil, fmt.Errorf("len(totalLeafs) != totalLeafCount, %d %d", len(totalLeafs), totalLeafCount)
 	}
 	elementCount := totalLeafCount
 	for {
 		if elementCount == 1 {
-			// TODO
 			return &totalLeafs[0], nil
 		}
 		for i := 0; i < elementCount/2; i++ {
@@ -156,7 +174,7 @@ func GetPlonky2CircuitDigest(receiptCount, storageCount, transactionCount int) (
 			if hashErr != nil {
 				return nil, fmt.Errorf("fail to hash in CalOneHash2HashNodeDigest, %d %d -> %d err: %v", 2*i, 2*i+1, i, hashErr)
 			}
-			if totalLeafs[2*i].IsLeaf {
+			if totalLeafs[2*i].IsLeafNode {
 				totalLeafs[i] = Plonky2DigestNode{
 					PubCircuitDigest: parent,
 					CurCircuitDigest: P2AggRecursionLeafCircuitDigestHash,
@@ -173,17 +191,36 @@ func GetPlonky2CircuitDigest(receiptCount, storageCount, transactionCount int) (
 }
 
 func CalOnePlonky2NodeDigest(left, right Plonky2DigestNode) (*pgoldilocks.HashOut256, error) {
-	var preimage []uint64
-
-	if !left.IsLeaf {
-		preimage = append(preimage, left.PubCircuitDigest[:]...)
-		preimage = append(preimage, right.PubCircuitDigest[:]...)
+	if left.IsLeafNode != right.IsLeafNode {
+		return nil, fmt.Errorf("left leaf not equal to right leaf, left: %+v, right: %+v", left, right)
 	}
 
-	preimage = append(preimage, left.CurCircuitDigest[:]...)
-	preimage = append(preimage, right.CurCircuitDigest[:]...)
+	if left.IsLeafNode {
+		var preimage []uint64
 
-	return pgoldilocks.HashNoPadU64Array(preimage)
+		preimage = append(preimage, left.CurCircuitDigest[:]...)
+		preimage = append(preimage, right.CurCircuitDigest[:]...)
+
+		return pgoldilocks.HashNoPadU64Array(preimage)
+	} else {
+		var preimage1, preimage2, preimage3 []uint64
+		preimage1 = append(preimage1, left.PubCircuitDigest[:]...)
+		preimage1 = append(preimage1, right.PubCircuitDigest[:]...)
+		hash1, err := pgoldilocks.HashNoPadU64Array(preimage1)
+		if err != nil {
+			return nil, fmt.Errorf("fail to hash data preimage1, left:%+v, right: %+v, err:%v", left, right, err)
+		}
+		preimage2 = append(preimage2, left.CurCircuitDigest[:]...)
+		preimage2 = append(preimage2, right.CurCircuitDigest[:]...)
+		hash2, err := pgoldilocks.HashNoPadU64Array(preimage2)
+		if err != nil {
+			return nil, fmt.Errorf("fail to hash data preimage2, left:%+v, right: %+v, err:%v", left, right, err)
+		}
+		preimage3 = append(preimage3, hash1[:]...)
+		preimage3 = append(preimage3, hash2[:]...)
+
+		return pgoldilocks.HashNoPadU64Array(preimage3)
+	}
 }
 
 func GetAndCheckLeafCount(receiptCount, storageCount, transactionCount int) (receiptLeafCount int, storageLeafCount int, transactionLeafCount int, totalLeafCount int, err error) {
