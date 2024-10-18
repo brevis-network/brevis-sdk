@@ -141,6 +141,7 @@ func (api *Uint521API) Div(a, b Uint521) (quotient, remainder Uint521) {
 	num = api.f.Add(num, r)
 
 	api.f.AssertIsEqual(num, a.Element)
+	api.f.IsZero(api.f.Sub(q, api.f.Div(aEl, bEl)))
 
 	return newU521(q), newU521(r)
 }
