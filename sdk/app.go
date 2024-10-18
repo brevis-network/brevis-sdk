@@ -460,6 +460,7 @@ func (q *BrevisApp) prepareQueryForBrevisPartnerFlow(
 					MaxReceipts:          appCircuitInfo.MaxReceipts,
 					MaxStorage:           appCircuitInfo.MaxStorage,
 					MaxTx:                appCircuitInfo.MaxTx,
+					CircuitDigest:        hexutil.Encode(vkHash),
 				},
 			},
 		},
