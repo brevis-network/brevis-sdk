@@ -35,7 +35,7 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 func main() {
 	outDir := "$HOME/circuitOut/myBrevisApp"
 	srsDir := "$HOME/kzgsrs"
-	app, err := sdk.NewBrevisApp(1, "localhost:11080")
+	app, err := sdk.NewBrevisApp(1, "52.13.236.124:11080")
 	check(err)
 	logFieldData := sdk.LogFieldData{
 		Contract:   utils.Hex2Addr("0x4446e0f8417C1db113899929A8F3cEe8e0DcBCDb"),
@@ -83,7 +83,7 @@ func main() {
 	appCircuitAssignment := &AppCircuit{}
 	maxReceipt, maxStorage, _ := appCircuitAssignment.Allocate()
 
-	compiledCircuit, pk, vk, err := sdk.Compile(&AppCircuit{}, outDir, srsDir, maxReceipt, maxStorage, sdk.NumMaxDataPoints)
+	compiledCircuit, pk, vk, vkHash, err := sdk.Compile(&AppCircuit{}, outDir, srsDir, maxReceipt, maxStorage, sdk.NumMaxDataPoints)
 	check(err)
 	circuitInput, err := app.BuildCircuitInput(appCircuitAssignment)
 	check(err)
@@ -103,7 +103,7 @@ func main() {
 	proof.WriteTo(buf)
 	fmt.Println("Proof: ", hexutil.Encode(buf.Bytes()))
 
-	_, _, _, _, err = app.PrepareRequest(vk, witness, 1, 11155111, refundee, appContract, 400000, gwproto.QueryOption_ZK_MODE.Enum(), "", true)
+	_, _, _, _, err = app.PrepareRequest(vk, witness, 1, 11155111, refundee, appContract, 400000, gwproto.QueryOption_ZK_MODE.Enum(), "", true, vkHash)
 	check(err)
 
 	err = app.SubmitProof(proof)
