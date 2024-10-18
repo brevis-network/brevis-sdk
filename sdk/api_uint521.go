@@ -107,7 +107,7 @@ func (api *Uint521API) ToBinary(v Uint521, n int) List[Uint248] {
 	return ret
 }
 
-// Add returns a + b. Overflow can happen if a + b > 2^521
+// Add returns a + b. The result is reduced by modulo 2^521 - 1.
 func (api *Uint521API) Add(a, b Uint521) Uint521 {
 	return newU521(api.f.Add(a.Element, b.Element))
 }
@@ -117,7 +117,7 @@ func (api *Uint521API) Sub(a, b Uint521) Uint521 {
 	return newU521(api.f.Sub(a.Element, b.Element))
 }
 
-// Mul returns a * b. Overflow can happen if a * b > 2^521
+// Mul returns a * b. The result is reduced by modulo 2^521 - 1.
 func (api *Uint521API) Mul(a, b Uint521) Uint521 {
 	return newU521(api.f.Mul(a.Element, b.Element))
 }
