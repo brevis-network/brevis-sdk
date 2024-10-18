@@ -110,7 +110,7 @@ func TestE2E(t *testing.T) {
 	// the downloaded SRS in the process is saved to srsDir
 	maxReceipt, maxStorage, _ := appCircuitAssignment.Allocate()
 
-	compiledCircuit, pk, vk, err := sdk.Compile(&AppCircuit{}, outDir, srsDir, maxReceipt, maxStorage, sdk.NumMaxDataPoints)
+	compiledCircuit, pk, vk, vkHash, err := sdk.Compile(&AppCircuit{}, outDir, srsDir, maxReceipt, maxStorage, sdk.NumMaxDataPoints)
 	check(err)
 
 	fmt.Println("compilation/setup complete")
@@ -121,7 +121,7 @@ func TestE2E(t *testing.T) {
 
 	// Once you saved your ccs, pk, and vk files, you can read them back into memory
 	// for use with the provided utils
-	compiledCircuit, pk, vk, err = sdk.ReadSetupFrom(outDir)
+	compiledCircuit, pk, vk, vkHash, err = sdk.ReadSetupFrom(outDir)
 	check(err)
 
 	witness, publicWitness, err := sdk.NewFullWitness(appCircuitAssignment, circuitInput)
@@ -139,7 +139,7 @@ func TestE2E(t *testing.T) {
 	appContract := common.HexToAddress("0x73090023b8D731c4e87B3Ce9Ac4A9F4837b4C1bd")
 	refundee := common.HexToAddress("0x164Ef8f77e1C88Fb2C724D3755488bE4a3ba4342")
 
-	calldata, _, _, feeValue, err := app.PrepareRequest(vk, publicWitness, 1, 11155111, refundee, appContract, 400000, gwproto.QueryOption_ZK_MODE.Enum(), "", false)
+	calldata, _, _, feeValue, err := app.PrepareRequest(vk, publicWitness, 1, 11155111, refundee, appContract, 400000, gwproto.QueryOption_ZK_MODE.Enum(), "", false, vkHash)
 	check(err)
 	fmt.Printf("calldata 0x%x\nfeeValue %d Wei\n", calldata, feeValue)
 
