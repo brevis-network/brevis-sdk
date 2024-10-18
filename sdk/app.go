@@ -17,66 +17,70 @@ import (
 
 	"github.com/brevis-network/zk-hash/utils"
 	"github.com/brevis-network/zk-utils/common/eth"
+	"github.com/brevis-network/zk-utils/common/proof"
 	bn254_fr "github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/consensys/gnark/backend/plonk"
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 type ReceiptData struct {
-	BlockNum     *big.Int                      `json:"block_num,omitempty"`
-	BlockBaseFee *big.Int                      `json:"block_base_fee,omitempty"`
-	TxHash       common.Hash                   `json:"tx_hash,omitempty"`
-	MptKeyPath   *big.Int                      `json:"mpt_key_path,omitempty"`
-	Fields       [NumMaxLogFields]LogFieldData `json:"fields,omitempty"`
+	// BlockNum     *big.Int                      `json:"block_num,omitempty"`
+	// BlockBaseFee *big.Int                      `json:"block_base_fee,omitempty"`
+	TxHash common.Hash `json:"tx_hash,omitempty"`
+	// MptKeyPath   *big.Int                      `json:"mpt_key_path,omitempty"`
+	Fields [NumMaxLogFields]LogFieldData `json:"fields,omitempty"`
 }
 
 // LogFieldData represents a single field of an event.
 type LogFieldData struct {
-	// The contract from which the event is emitted
-	Contract common.Address `json:"contract,omitempty"`
+	// // The contract from which the event is emitted
+	// Contract common.Address `json:"contract,omitempty"`
 	// the log's position in the receipt
 	LogPos uint `json:"log_index,omitempty"`
-	// The event ID of the event to which the field belong (aka topics[0])
-	EventID common.Hash `json:"event_id,omitempty"`
+	// // The event ID of the event to which the field belong (aka topics[0])
+	// EventID common.Hash `json:"event_id,omitempty"`
 	// Whether the field is a topic (aka "indexed" as in solidity events)
 	IsTopic bool `json:"is_topic,omitempty"`
 	// The index of the field in either a log's topics or data. For example, if a
 	// field is the second topic of a log, then FieldIndex is 1; if a field is the
 	// third field in the RLP decoded data, then FieldIndex is 2.
 	FieldIndex uint `json:"field_index,omitempty"`
-	// The value of the field in event, aka the actual thing we care about, only
-	// 32-byte fixed length values are supported.
-	Value common.Hash `json:"value,omitempty"`
+	// // The value of the field in event, aka the actual thing we care about, only
+	// // 32-byte fixed length values are supported.
+	// Value common.Hash `json:"value,omitempty"`
 }
 
 type StorageData struct {
-	BlockNum     *big.Int       `json:"block_num,omitempty"`
-	BlockBaseFee *big.Int       `json:"block_base_fee,omitempty"`
-	Address      common.Address `json:"address,omitempty"`
-	Slot         common.Hash    `json:"slot,omitempty"`
-	Value        common.Hash    `json:"value,omitempty"`
+	BlockNum *big.Int `json:"block_num,omitempty"`
+	// BlockBaseFee *big.Int       `json:"block_base_fee,omitempty"`
+	Address common.Address `json:"address,omitempty"`
+	Slot    common.Hash    `json:"slot,omitempty"`
+	// Value        common.Hash    `json:"value,omitempty"`
 }
 
 type TransactionData struct {
-	Hash         common.Hash `json:"hash,omitempty"`
-	ChainId      *big.Int    `json:"chain_id,omitempty"`
-	BlockNum     *big.Int    `json:"block_num,omitempty"`
-	BlockBaseFee *big.Int    `json:"block_base_fee,omitempty"`
-	Nonce        uint64      `json:"nonce,omitempty"`
-	// GasTipCapOrGasPrice is GasPrice for legacy tx (type 0) and GasTipCapOap for
-	// dynamic-fee tx (type 2)
-	GasTipCapOrGasPrice *big.Int `json:"max_priority_fee_per_gas,omitempty"`
-	// GasFeeCap is always 0 for legacy tx
-	GasFeeCap  *big.Int       `json:"gas_price_or_fee_cap,omitempty"`
-	GasLimit   uint64         `json:"gas_limit,omitempty"`
-	From       common.Address `json:"from,omitempty"`
-	To         common.Address `json:"to,omitempty"`
-	Value      *big.Int       `json:"value,omitempty"`
-	MptKeyPath *big.Int       `json:"mpt_key_path,omitempty"`
-	LeafHash   common.Hash    `json:"leaf_hash,omitempty"`
+	Hash common.Hash `json:"hash,omitempty"`
+	// ChainId      *big.Int    `json:"chain_id,omitempty"`
+	// BlockNum     *big.Int    `json:"block_num,omitempty"`
+	// BlockBaseFee *big.Int    `json:"block_base_fee,omitempty"`
+	// Nonce        uint64      `json:"nonce,omitempty"`
+	// // GasTipCapOrGasPrice is GasPrice for legacy tx (type 0) and GasTipCapOap for
+	// // dynamic-fee tx (type 2)
+	// GasTipCapOrGasPrice *big.Int `json:"max_priority_fee_per_gas,omitempty"`
+	// // GasFeeCap is always 0 for legacy tx
+	// GasFeeCap  *big.Int       `json:"gas_price_or_fee_cap,omitempty"`
+	// GasLimit   uint64         `json:"gas_limit,omitempty"`
+	// From       common.Address `json:"from,omitempty"`
+	// To         common.Address `json:"to,omitempty"`
+	// Value      *big.Int       `json:"value,omitempty"`
+	// MptKeyPath *big.Int       `json:"mpt_key_path,omitempty"`
+	// LeafHash   common.Hash    `json:"leaf_hash,omitempty"`
 }
 
 type rawData[T ReceiptData | StorageData | TransactionData] struct {
@@ -115,6 +119,7 @@ func (q *rawData[T]) list(max int) []T {
 
 type BrevisApp struct {
 	gc            *GatewayClient
+	ec            *ethclient.Client
 	brevisRequest *abi.ABI
 
 	receipts    rawData[ReceiptData]
@@ -130,7 +135,20 @@ type BrevisApp struct {
 	maxReceipts, maxStorage, maxTxs int
 }
 
-func NewBrevisApp(srcChainId uint64, gatewayUrlOverride ...string) (*BrevisApp, error) {
+func NewBrevisApp(srcChainId uint64, rpcUrl string, gatewayUrlOverride ...string) (*BrevisApp, error) {
+	ec, err := ethclient.Dial(rpcUrl)
+	if err != nil {
+		return nil, err
+	}
+
+	chainId, err := ec.ChainID(context.Background())
+	if err != nil {
+		return nil, err
+	}
+
+	if srcChainId != chainId.Uint64() {
+		return nil, fmt.Errorf("invalid src chain id %d rpcUrl %s pair", srcChainId, rpcUrl)
+	}
 	gc, err := NewGatewayClient(gatewayUrlOverride...)
 	if err != nil {
 		return nil, err
@@ -187,19 +205,19 @@ func (q *BrevisApp) BuildCircuitInput(app AppCircuit) (CircuitInput, error) {
 	in := defaultCircuitInput(q.maxReceipts, q.maxStorage, q.maxTxs)
 
 	// receipt
-	err = q.assignReceipts(q.maxReceipts, &in)
+	err = q.assignReceipts(&in)
 	if err != nil {
 		return buildCircuitInputErr("failed to assign in from receipt queries", err)
 	}
 
 	// storage
-	err = q.assignStorageSlots(q.maxStorage, &in)
+	err = q.assignStorageSlots(&in)
 	if err != nil {
 		return buildCircuitInputErr("failed to assign in from storage queries", err)
 	}
 
 	// transaction
-	err = q.assignTransactions(q.maxTxs, &in)
+	err = q.assignTransactions(&in)
 	if err != nil {
 		return buildCircuitInputErr("failed to assign in from transaction queries", err)
 	}
@@ -721,7 +739,7 @@ func CalPoseidonBn254MerkleTree(leafs []*big.Int) (*big.Int, error) {
 	}
 }
 
-func (q *BrevisApp) assignReceipts(maxReceipts int, in *CircuitInput) error {
+func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
 	// assigning user appointed receipts at specific indices
 	for i, receipt := range q.receipts.special {
 		in.Receipts.Raw[i] = Receipt{
@@ -785,7 +803,7 @@ func buildLogFields(fs [NumMaxLogFields]LogFieldData) (fields [NumMaxLogFields]L
 	return
 }
 
-func (q *BrevisApp) assignStorageSlots(maxStorageSlots int, in *CircuitInput) (err error) {
+func (q *BrevisApp) assignStorageSlots(in *CircuitInput) (err error) {
 	// assigning user appointed data at specific indices
 	for i, val := range q.storageVals.special {
 		in.StorageSlots.Raw[i] = buildStorageSlot(val)
@@ -806,11 +824,11 @@ func (q *BrevisApp) assignStorageSlots(maxStorageSlots int, in *CircuitInput) (e
 	return nil
 }
 
-func BuildStorageSlot(s StorageData) StorageSlot {
-	return buildStorageSlot(s)
+func (q *BrevisApp) BuildStorageSlot(s StorageData) StorageSlot {
+	return q.buildStorageSlot(s)
 }
 
-func buildStorageSlot(s StorageData) StorageSlot {
+func (q *BrevisApp) buildStorageSlot(s StorageData) StorageSlot {
 	return StorageSlot{
 		BlockNum:     newU32(s.BlockNum),
 		BlockBaseFee: newU248(s.BlockBaseFee),
@@ -820,10 +838,14 @@ func buildStorageSlot(s StorageData) StorageSlot {
 	}
 }
 
-func (q *BrevisApp) assignTransactions(maxTransactions int, in *CircuitInput) (err error) {
+func (q *BrevisApp) assignTransactions(in *CircuitInput) (err error) {
 	// assigning user appointed data at specific indices
 	for i, t := range q.txs.special {
-		in.Transactions.Raw[i] = buildTx(t)
+		tx, err := q.buildTx(t)
+		if err != nil {
+			return err
+		}
+		in.Transactions.Raw[i] = tx
 		in.Transactions.Toggles[i] = 1
 	}
 
@@ -832,7 +854,11 @@ func (q *BrevisApp) assignTransactions(maxTransactions int, in *CircuitInput) (e
 		for in.Transactions.Toggles[j] == 1 {
 			j++
 		}
-		in.Transactions.Raw[i] = buildTx(t)
+		tx, err := q.buildTx(t)
+		if err != nil {
+			return err
+		}
+		in.Transactions.Raw[i] = tx
 		in.Transactions.Toggles[i] = 1
 		j++
 	}
@@ -840,16 +866,21 @@ func (q *BrevisApp) assignTransactions(maxTransactions int, in *CircuitInput) (e
 	return nil
 }
 
-func BuildTx(t TransactionData) Transaction {
-	return buildTx(t)
+func (q *BrevisApp) BuildTx(t TransactionData) (TransactionData, Transaction, error) {
+	return q.buildTx(t)
 }
 
-func buildTx(t TransactionData) Transaction {
+func (q *BrevisApp) buildTx(t TransactionData) (TransactionData, Transaction, error) {
+	leafHash, mptKey, blockNumber, baseFee, err := q.calculateTxLeafHashBlockBaseFeeAndMPTKey(t.Hash)
+	if err != nil {
+		return TransactionData{}, Transaction{}, err
+	}
+
 	return Transaction{
 		// ChainId:             ConstUint248(t.ChainId),
-		BlockNum:     ConstUint32(t.BlockNum),
-		BlockBaseFee: newU248(t.BlockBaseFee),
-		MptKeyPath:   newU32(t.MptKeyPath),
+		BlockNum:     ConstUint32(blockNumber),
+		BlockBaseFee: newU248(baseFee),
+		MptKeyPath:   newU32(mptKey),
 		// Nonce:               ConstUint248(t.Nonce),
 		// GasTipCapOrGasPrice: ConstUint248(t.GasTipCapOrGasPrice),
 		// GasFeeCap:           ConstUint248(t.GasFeeCap),
@@ -857,8 +888,8 @@ func buildTx(t TransactionData) Transaction {
 		// From:                ConstUint248(t.From),
 		// To:                  ConstUint248(t.To),
 		// Value:               ConstBytes32(t.Value.Bytes()),
-		LeafHash: ConstBytes32(t.LeafHash.Bytes()),
-	}
+		LeafHash: ConstBytes32(leafHash.Bytes()),
+	}, nil
 }
 
 func buildCircuitInputErr(m string, err error) (CircuitInput, error) {
@@ -873,4 +904,53 @@ func allocationMultipleErr(name string, queryCount int) error {
 func allocationLenErr(name string, queryCount, maxCount int) error {
 	return fmt.Errorf("# of %s queries (%d) must not exceed the allocated max %s (%d), check your AppCircuit.Allocate() method",
 		name, queryCount, name, maxCount)
+}
+
+func (q *BrevisApp) calculateMPTKeyWithIndex(index int) *big.Int {
+	var indexBuf []byte
+	keyIndex := rlp.AppendUint64(indexBuf[:0], uint64(index))
+	return new(big.Int).SetBytes(keyIndex)
+}
+
+func (q *BrevisApp) getReceiptTxMPTKeyAndBlockNumber(txHash common.Hash) (mptKey *big.Int, blockNumber *big.Int, err error) {
+	receipt, err := q.ec.TransactionReceipt(context.Background(), txHash)
+	if err != nil {
+		return nil, nil, fmt.Errorf("cannot get mpt key with wrong tx hash %s: %s", txHash.Hex(), err.Error())
+	}
+	mptKey = q.calculateMPTKeyWithIndex(int(receipt.TransactionIndex))
+	blockNumber = receipt.BlockNumber
+	return
+}
+
+func (q *BrevisApp) getBlockBaseFee(blkNum *big.Int) (baseFee *big.Int, err error) {
+	block, err := q.ec.BlockByNumber(context.Background(), blkNum)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get blk base fee with wrong blkNum %d: %s", blkNum, err.Error())
+	}
+	baseFee = block.BaseFee()
+	return
+}
+
+func (q *BrevisApp) calculateTxLeafHashBlockBaseFeeAndMPTKey(txHash common.Hash) (leafHash common.Hash, mptKey *big.Int, blockNumber *big.Int, baseFee *big.Int, err error) {
+	receipt, err := q.ec.TransactionReceipt(context.Background(), txHash)
+	if err != nil {
+		return common.Hash{}, nil, nil, nil, fmt.Errorf("cannot calculate tx leaf hash with wrong tx hash %s: %s", txHash.Hex(), err.Error())
+	}
+	mptKey = q.calculateMPTKeyWithIndex(int(receipt.TransactionIndex))
+	blockNumber = receipt.BlockNumber
+
+	block, err := q.ec.BlockByNumber(context.Background(), receipt.BlockNumber)
+	if err != nil {
+		return common.Hash{}, nil, nil, nil, fmt.Errorf("cannot calculate tx leaf hash with wrong tx hash %s: %s", txHash.Hex(), err.Error())
+	}
+	baseFee = block.BaseFee()
+
+	proofs, _, _, err := proof.GetTransactionProof(block, int(receipt.TransactionIndex))
+	if err != nil {
+		return common.Hash{}, nil, nil, nil, fmt.Errorf("cannot calculate tx leaf hash with wrong tx hash %s: %s", txHash.Hex(), err.Error())
+	}
+
+	leafHash = common.BytesToHash(crypto.Keccak256(proofs[len(proofs)-1]))
+
+	return
 }

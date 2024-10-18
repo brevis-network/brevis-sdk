@@ -2,18 +2,13 @@ package sdk
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"math/big"
 
-	"github.com/brevis-network/zk-utils/common/proof"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/math/bits"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/consensys/gnark-crypto/ecc"
 )
@@ -296,56 +291,4 @@ func check(err error) {
 
 func CheckNumberPowerOfTwo(n int) bool {
 	return n&(n-1) == 0
-}
-
-func CalculateMPTKeyWithIndex(index int) *big.Int {
-	var indexBuf []byte
-	keyIndex := rlp.AppendUint64(indexBuf[:0], uint64(index))
-	return new(big.Int).SetBytes(keyIndex)
-}
-
-func GetReceiptTxMPTKeyAndBlockNumber(c *ethclient.Client, tx string) (mptKey *big.Int, blockNumber *big.Int, err error) {
-	txHash := common.HexToHash(tx)
-
-	receipt, err := c.TransactionReceipt(context.Background(), txHash)
-	if err != nil {
-		return nil, nil, fmt.Errorf("cannot get mpt key with wrong tx hash %s: %s", tx, err.Error())
-	}
-	mptKey = CalculateMPTKeyWithIndex(int(receipt.TransactionIndex))
-	blockNumber = receipt.BlockNumber
-	return
-}
-
-func GetBlockBaseFee(c *ethclient.Client, blkNum *big.Int) (baseFee *big.Int, err error) {
-	block, err := c.BlockByNumber(context.Background(), blkNum)
-	if err != nil {
-		return nil, fmt.Errorf("cannot get blk base fee with wrong blkNum %d: %s", blkNum, err.Error())
-	}
-	baseFee = block.BaseFee()
-	return
-}
-
-func CalculateTxLeafHashBlockBaseFeeAndMPTKey(c *ethclient.Client, tx string) (leafHash common.Hash, mptKey *big.Int, baseFee *big.Int, err error) {
-	txHash := common.HexToHash(tx)
-
-	receipt, err := c.TransactionReceipt(context.Background(), txHash)
-	if err != nil {
-		return common.Hash{}, nil, nil, fmt.Errorf("cannot calculate tx leaf hash with wrong tx hash %s: %s", tx, err.Error())
-	}
-	mptKey = CalculateMPTKeyWithIndex(int(receipt.TransactionIndex))
-
-	block, err := c.BlockByNumber(context.Background(), receipt.BlockNumber)
-	if err != nil {
-		return common.Hash{}, nil, nil, fmt.Errorf("cannot calculate tx leaf hash with wrong tx hash %s: %s", tx, err.Error())
-	}
-	baseFee = block.BaseFee()
-
-	proofs, _, _, err := proof.GetTransactionProof(block, int(receipt.TransactionIndex))
-	if err != nil {
-		return common.Hash{}, nil, nil, fmt.Errorf("cannot calculate tx leaf hash with wrong tx hash %s: %s", tx, err.Error())
-	}
-
-	leafHash = common.BytesToHash(crypto.Keccak256(proofs[len(proofs)-1]))
-
-	return
 }
