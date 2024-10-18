@@ -197,7 +197,7 @@ func ReadPkFrom(path string) (plonk.ProvingKey, error) {
 		return nil, err
 	}
 	defer f.Close()
-	pk := plonk.NewProvingKey(ecc.BLS12_377)
+	pk := plonk.NewProvingKey(ecc.BN254)
 	d, err := pk.ReadFrom(f)
 	if err != nil {
 		return nil, err
@@ -212,7 +212,7 @@ func ReadVkFrom(path string) (plonk.VerifyingKey, error) {
 		return nil, err
 	}
 	defer f.Close()
-	vk := plonk.NewVerifyingKey(ecc.BLS12_377)
+	vk := plonk.NewVerifyingKey(ecc.BN254)
 	d, err := vk.ReadFrom(f)
 	if err != nil {
 		return nil, err
@@ -228,7 +228,7 @@ func ReadProofFrom(path string) (plonk.Proof, error) {
 		return nil, err
 	}
 	defer f.Close()
-	proof := plonk.NewProof(ecc.BLS12_377)
+	proof := plonk.NewProof(ecc.BN254)
 	d, err := proof.ReadFrom(f)
 	if err != nil {
 		return nil, err
