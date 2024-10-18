@@ -2,6 +2,8 @@ package sdk
 
 import (
 	"bytes"
+	"context"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"math/big"
@@ -9,6 +11,8 @@ import (
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/math/bits"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/consensys/gnark-crypto/ecc"
 )
@@ -291,4 +295,40 @@ func check(err error) {
 
 func CheckNumberPowerOfTwo(n int) bool {
 	return n&(n-1) == 0
+}
+
+func CalculateMPTKeyWithIndex(index int) string {
+	var indexBuf []byte
+	keyIndex := rlp.AppendUint64(indexBuf[:0], uint64(index))
+	return "0x" + hex.EncodeToString(keyIndex)
+}
+
+func GetReceiptTxMPTKey(rpcUrl, tx string) (string, error) {
+	client, err := ethclient.Dial(rpcUrl)
+	if err != nil {
+		return "", fmt.Errorf("cannot get mpt key with wrong rpc %s: %s", rpcUrl, err.Error())
+	}
+
+	txHash := common.HexToHash(tx)
+
+	receipt, err := client.TransactionReceipt(context.Background(), txHash)
+	if err != nil {
+		return "", fmt.Errorf("cannot get mpt key with wrong tx hash %s: %s", tx, err.Error())
+	}
+
+	return CalculateMPTKeyWithIndex(int(receipt.TransactionIndex)), nil
+}
+
+func GetBlockBaseFee(rpcUrl string, blkNum int) (*big.Int, error) {
+	client, err := ethclient.Dial(rpcUrl)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get blk base fee with wrong rpc %s: %s", rpcUrl, err.Error())
+	}
+
+	block, err := client.BlockByNumber(context.Background(), new(big.Int).SetInt64(int64(blkNum)))
+	if err != nil {
+		return nil, fmt.Errorf("cannot get blk base fee with wrong blkNum %d: %s", blkNum, err.Error())
+	}
+
+	return block.BaseFee(), nil
 }
