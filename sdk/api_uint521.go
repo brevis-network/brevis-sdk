@@ -32,9 +32,13 @@ func (v Uint521) Values() []frontend.Variable {
 }
 
 func (v Uint521) FromValues(vs ...frontend.Variable) CircuitVariable {
+	if len(vs) != int(v.NumVars()) {
+		panic(fmt.Sprintf("Uint521.FromValues takes %d params", v.NumVars()))
+	}
 	n := emulated.ValueOf[Uint521Field](0)
 	n.Limbs = vs
-	return newU521(&n)
+	v = newU521(&n)
+	return v
 }
 
 func (v Uint521) NumVars() uint32 { return 6 }
