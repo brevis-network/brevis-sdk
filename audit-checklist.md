@@ -5,3 +5,4 @@
 3. Fix value assignment for `LogPos` and `MptKeyPath`. Change dummy input commitment for `LogPos` and `MptKeypath`. commit: `7c73fc137908aac63e7c39320dee358c4b8ca9cf`, change files: `sdk/app.go`, `sdk/circuit_input.go` and `common/const.go`
 4. Fix ToUint521 for Uint48. Changed files: `sdk/circuit_api.go`, `sdk/api_uint521_test.go`
 5. Add default commitment. Then all the sdk proof will have a commitment, no matter use assertUniq or not. change files: `sdk/host_circuit.go` [Pull Request Here.](https://github.com/brevis-network/brevis-sdk/pull/16)
+6. Fix reading circuit input after changing curve to BN254. Changed files: `sdk/periphery.go`
