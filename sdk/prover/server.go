@@ -33,12 +33,12 @@ type Service struct {
 // compilation & setup, and serves as a GRPC server that interoperates with
 // brevis sdk in other languages.
 func NewService(app sdk.AppCircuit, config ServiceConfig) (*Service, error) {
-	pk, vk, ccs, err := readOrSetup(app, config.SetupDir, config.GetSrsDir())
+	pk, vk, ccs, vkHash, err := readOrSetup(app, config.SetupDir, config.GetSrsDir())
 	if err != nil {
 		return nil, err
 	}
 	return &Service{
-		svr: newServer(app, pk, vk, ccs),
+		svr: newServer(app, pk, vk, ccs, vkHash),
 	}, nil
 }
 
@@ -113,6 +113,7 @@ func newServer(
 	pk plonk.ProvingKey,
 	vk plonk.VerifyingKey,
 	ccs constraint.ConstraintSystem,
+	vkHash []byte,
 ) *server {
 	var buf bytes.Buffer
 	_, err := vk.WriteRawTo(&buf)
@@ -120,7 +121,6 @@ func newServer(
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	vkHash, err := sdk.ComputeVkHash(vk)
 	if err != nil {
 		fmt.Printf("failed to compute vk hash %s", err.Error())
 		os.Exit(1)
@@ -132,7 +132,7 @@ func newServer(
 		vk:       vk,
 		ccs:      ccs,
 		vkString: hexutil.Encode(buf.Bytes()),
-		vkHash:   vkHash.Hex(),
+		vkHash:   hexutil.Encode(vkHash),
 		proofs:   make(map[string]proofRes),
 	}
 }

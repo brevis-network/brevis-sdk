@@ -83,7 +83,7 @@ func main() {
 	appCircuitAssignment := &AppCircuit{}
 	maxReceipt, maxStorage, _ := appCircuitAssignment.Allocate()
 
-	compiledCircuit, pk, vk, err := sdk.Compile(&AppCircuit{}, outDir, srsDir, maxReceipt, maxStorage, sdk.NumMaxDataPoints)
+	compiledCircuit, pk, vk, vkHash, err := sdk.Compile(&AppCircuit{}, outDir, srsDir, maxReceipt, maxStorage, sdk.NumMaxDataPoints)
 	check(err)
 	circuitInput, err := app.BuildCircuitInput(appCircuitAssignment)
 	check(err)
@@ -103,7 +103,7 @@ func main() {
 	proof.WriteTo(buf)
 	fmt.Println("Proof: ", hexutil.Encode(buf.Bytes()))
 
-	_, _, _, _, err = app.PrepareRequest(vk, witness, 1, 11155111, refundee, appContract, 400000, gwproto.QueryOption_ZK_MODE.Enum(), "", true)
+	_, _, _, _, err = app.PrepareRequest(vk, witness, 1, 11155111, refundee, appContract, 400000, gwproto.QueryOption_ZK_MODE.Enum(), "", true, vkHash)
 	check(err)
 
 	err = app.SubmitProof(proof)

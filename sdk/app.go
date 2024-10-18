@@ -233,6 +233,7 @@ func (q *BrevisApp) PrepareRequest(
 	option *gwproto.QueryOption,
 	apiKey string, // used for brevis partner flow
 	usePlonky2 bool,
+	vkHash []byte,
 ) (calldata []byte, requestId common.Hash, nonce uint64, feeValue *big.Int, err error) {
 	if !q.buildInputCalled {
 		panic("must call BuildCircuitInput before PrepareRequest")
@@ -240,14 +241,14 @@ func (q *BrevisApp) PrepareRequest(
 	if len(apiKey) > 0 {
 		fmt.Println("Use Brevis Partner Flow to PrepareRequest...")
 		return q.prepareQueryForBrevisPartnerFlow(
-			vk, witness, srcChainId, dstChainId, appContract, option, apiKey,
+			vk, witness, srcChainId, dstChainId, appContract, option, apiKey, vkHash,
 		)
 	}
 
 	q.srcChainId = srcChainId
 	q.dstChainId = dstChainId
 
-	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, q.maxReceipts, q.maxStorage, q.maxTxs, vk, witness)
+	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, q.maxReceipts, q.maxStorage, q.maxTxs, vk, witness, vkHash)
 	if err != nil {
 		return
 	}
@@ -427,6 +428,7 @@ func (q *BrevisApp) prepareQueryForBrevisPartnerFlow(
 	appContract common.Address,
 	option *gwproto.QueryOption,
 	apiKey string, // used for brevis partner flow
+	vkHash []byte,
 ) (calldata []byte, requestId common.Hash, nonce uint64, feeValue *big.Int, err error) {
 	if !q.buildInputCalled {
 		panic("must call BuildCircuitInput before PrepareRequest")
@@ -434,15 +436,9 @@ func (q *BrevisApp) prepareQueryForBrevisPartnerFlow(
 	q.srcChainId = srcChainId
 	q.dstChainId = dstChainId
 
-	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, q.maxReceipts, q.maxStorage, q.maxTxs, vk, witness)
+	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, q.maxReceipts, q.maxStorage, q.maxTxs, vk, witness, vkHash)
 	if err != nil {
 		err = fmt.Errorf("failed to build app circuit info: %s", err.Error())
-		return
-	}
-
-	vkHash, err := ComputeVkHash(vk)
-	if err != nil {
-		err = fmt.Errorf("failed to compute vk hash: %s", err.Error())
 		return
 	}
 
@@ -455,7 +451,7 @@ func (q *BrevisApp) prepareQueryForBrevisPartnerFlow(
 				TransactionInfos:  buildTxInfos(q.txs, q.maxTxs),
 				AppCircuitInfo: &commonproto.AppCircuitInfoWithProof{
 					OutputCommitment:     appCircuitInfo.OutputCommitment,
-					VkHash:               vkHash.Hex(),
+					VkHash:               hexutil.Encode(vkHash),
 					InputCommitments:     appCircuitInfo.InputCommitments,
 					Toggles:              appCircuitInfo.Toggles,
 					Output:               appCircuitInfo.Output,
@@ -464,6 +460,7 @@ func (q *BrevisApp) prepareQueryForBrevisPartnerFlow(
 					MaxReceipts:          appCircuitInfo.MaxReceipts,
 					MaxStorage:           appCircuitInfo.MaxStorage,
 					MaxTx:                appCircuitInfo.MaxTx,
+					CircuitDigest:        hexutil.Encode(vkHash),
 				},
 			},
 		},

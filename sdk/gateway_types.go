@@ -13,7 +13,7 @@ import (
 
 func buildAppCircuitInfo(in CircuitInput,
 	maxReceipts, maxStorage, maxTxs int,
-	vk plonk.VerifyingKey, witness witness.Witness) (*commonproto.AppCircuitInfo, error) {
+	vk plonk.VerifyingKey, witness witness.Witness, vkHash []byte) (*commonproto.AppCircuitInfo, error) {
 	inputCommitments := make([]string, len(in.InputCommitments))
 	for i, value := range in.InputCommitments {
 		inputCommitments[i] = fmt.Sprintf("0x%x", value)
@@ -41,6 +41,7 @@ func buildAppCircuitInfo(in CircuitInput,
 		MaxReceipts:          uint32(maxReceipts),
 		MaxStorage:           uint32(maxStorage),
 		MaxTx:                uint32(maxTxs),
+		CircuitDigest:        hexutil.Encode(vkHash),
 	}, nil
 }
 
