@@ -108,7 +108,9 @@ func TestE2E(t *testing.T) {
 	srsDir := "$HOME/kzgsrs"
 	// The compiled circuit, proving key, and verifying key are saved to outDir, and
 	// the downloaded SRS in the process is saved to srsDir
-	compiledCircuit, pk, vk, err := sdk.Compile(appCircuit, outDir, srsDir)
+	maxReceipt, maxStorage, _ := appCircuitAssignment.Allocate()
+
+	compiledCircuit, pk, vk, err := sdk.Compile(&AppCircuit{}, outDir, srsDir, maxReceipt, maxStorage, sdk.NumMaxDataPoints)
 	check(err)
 
 	fmt.Println("compilation/setup complete")

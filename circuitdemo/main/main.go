@@ -81,8 +81,9 @@ func main() {
 	}
 
 	appCircuitAssignment := &AppCircuit{}
+	maxReceipt, maxStorage, _ := appCircuitAssignment.Allocate()
 
-	compiledCircuit, pk, vk, err := sdk.Compile(&AppCircuit{}, outDir, srsDir)
+	compiledCircuit, pk, vk, err := sdk.Compile(&AppCircuit{}, outDir, srsDir, maxReceipt, maxStorage, sdk.NumMaxDataPoints)
 	check(err)
 	circuitInput, err := app.BuildCircuitInput(appCircuitAssignment)
 	check(err)
