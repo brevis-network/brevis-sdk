@@ -87,7 +87,9 @@ func TestE2E(t *testing.T) {
 	// the downloaded SRS in the process is saved to srsDir
 	outDir := "$HOME/circuitOut/storage"
 	srsDir := "$HOME/kzgsrs"
-	compiledCircuit, pk, vk, err := sdk.Compile(appCircuit, outDir, srsDir)
+	maxReceipt, maxStorage, _ := appCircuitAssignment.Allocate()
+	compiledCircuit, pk, vk, err := sdk.Compile(appCircuit, outDir, srsDir, maxReceipt, maxStorage, sdk.NumMaxDataPoints)
+	// compiledCircuit, pk, vk, err := sdk.Compile(appCircuit, outDir, srsDir)
 	check(err)
 
 	///////////////////////////////////////////////////////////////////////////////
