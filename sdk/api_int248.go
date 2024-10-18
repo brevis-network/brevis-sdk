@@ -56,6 +56,7 @@ func (v Int248) FromValues(vs ...frontend.Variable) CircuitVariable {
 		panic("Int248.FromValues only takes 1 param")
 	}
 	v.Val = vs[0]
+	v.signBitSet = false
 	return v
 }
 
@@ -205,6 +206,7 @@ func (api *Int248API) Select(s Uint248, a, b Int248) Int248 {
 	v.Val = api.g.Select(s.Val, a.Val, b.Val)
 	if a.signBitSet && b.signBitSet {
 		v.SignBit = api.g.Select(s.Val, a.SignBit, b.SignBit)
+		v.signBitSet = true
 	}
 	return v
 }
