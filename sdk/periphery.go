@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/brevis-network/brevis-sdk/common/utils"
@@ -22,14 +24,14 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-func Compile(app AppCircuit, compileOutDir, srsDir string) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, error) {
+func Compile(app AppCircuit, compileOutDir, srsDir string, maxReceipt, maxStorage, total int) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, error) {
 	fmt.Println(">> compile")
 	ccs, err := CompileOnly(app)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	fmt.Println(">> setup")
-	pk, vk, err := Setup(ccs, srsDir)
+	pk, vk, err := Setup(ccs, srsDir, maxReceipt, maxStorage, total)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -41,7 +43,8 @@ func Compile(app AppCircuit, compileOutDir, srsDir string) (constraint.Constrain
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	err = WriteTo(vk, filepath.Join(compileOutDir, "vk"))
+	vkFileName := fmt.Sprintf("%d--%d--%d--vk", maxReceipt, maxStorage, total)
+	err = WriteTo(vk, filepath.Join(compileOutDir, vkFileName))
 	fmt.Println("compilation/setup complete")
 	return ccs, pk, vk, err
 }
@@ -75,7 +78,7 @@ func CompileOnly(app AppCircuit) (constraint.ConstraintSystem, error) {
 	return ccs, nil
 }
 
-func Setup(ccs constraint.ConstraintSystem, cacheDir string) (pk plonk.ProvingKey, vk plonk.VerifyingKey, err error) {
+func Setup(ccs constraint.ConstraintSystem, cacheDir string, maxReceipt, maxStorage, total int) (pk plonk.ProvingKey, vk plonk.VerifyingKey, err error) {
 	if len(cacheDir) == 0 {
 		return nil, nil, fmt.Errorf("must provide a directory to save SRS")
 	}
@@ -99,20 +102,30 @@ func Setup(ccs constraint.ConstraintSystem, cacheDir string) (pk plonk.ProvingKe
 	}
 	fmt.Printf("setup done in %s\n", time.Since(before))
 
-	printVkHash(vk)
+	printVkHash(vk, maxReceipt, maxStorage, total)
 
 	return
 }
 
-func printVkHash(vk plonk.VerifyingKey) {
-	vkHash, err := ComputeVkHash(vk)
+func printVkHash(vk plonk.VerifyingKey, maxReceipt, maxStorage, total int) {
+	if maxReceipt%32 != 0 {
+		panic("invalid max receipts")
+	}
+	if maxStorage%32 != 0 {
+		panic("invalid max storage")
+	}
+	if total != NumMaxDataPoints {
+		panic("invalid total data points")
+	}
+
+	vkHash, err := CalBrevisCircuitDigest(maxReceipt, maxStorage, total-maxReceipt-maxStorage, vk)
 	if err != nil {
 		fmt.Printf("error computing vk hash: %s", err.Error())
 		return
 	}
 	fmt.Println()
 	fmt.Println("///////////////////////////////////////////////////////////////////////////////")
-	fmt.Printf("// vk hash: %s\n", vkHash)
+	fmt.Printf("// vk hash: 0x%x\n", vkHash.Bytes())
 	fmt.Println("///////////////////////////////////////////////////////////////////////////////")
 	fmt.Println()
 }
@@ -218,7 +231,13 @@ func ReadVkFrom(path string) (plonk.VerifyingKey, error) {
 		return nil, err
 	}
 	fmt.Printf("Verifying key: %d bytes read from %s\n", d, path)
-	printVkHash(vk)
+
+	values := strings.Split(path, "--")
+	maxReceipt, err := strconv.Atoi(values[0])
+	maxStorage, err := strconv.Atoi(values[1])
+	total, err := strconv.Atoi(values[2])
+
+	printVkHash(vk, maxReceipt, maxStorage, total)
 	return vk, err
 }
 
