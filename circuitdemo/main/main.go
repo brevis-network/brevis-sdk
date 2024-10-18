@@ -35,7 +35,7 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 func main() {
 	outDir := "$HOME/circuitOut/myBrevisApp"
 	srsDir := "$HOME/kzgsrs"
-	app, err := sdk.NewBrevisApp(1, "52.13.236.124:11080")
+	app, err := sdk.NewBrevisApp(1, "localhost:11080")
 	check(err)
 	logFieldData := sdk.LogFieldData{
 		Contract:   utils.Hex2Addr("0x4446e0f8417C1db113899929A8F3cEe8e0DcBCDb"),
