@@ -28,8 +28,7 @@ type Uint521 struct {
 var _ CircuitVariable = Uint521{}
 
 func (v Uint521) Values() []frontend.Variable {
-	u521Field.Reduce(v.Element)
-	return v.Limbs
+	return u521Field.Reduce(v.Element).Limbs
 }
 
 func (v Uint521) FromValues(vs ...frontend.Variable) CircuitVariable {
