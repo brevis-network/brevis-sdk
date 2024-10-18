@@ -6,6 +6,9 @@ import (
 	"github.com/brevis-network/brevis-sdk/common/utils"
 	zkhashutils "github.com/brevis-network/zk-hash/utils"
 	"github.com/celer-network/goutils/log"
+	"github.com/consensys/gnark/backend/plonk"
+	"github.com/consensys/gnark/std/algebra/emulated/sw_bn254"
+	replonk "github.com/consensys/gnark/std/recursion/plonk"
 	"math/big"
 )
 
@@ -20,20 +23,12 @@ var (
 	MiddleNodeVkHashHex  = "0x15dc69eafcfd4546b82fecf468fd5878e2f7cb2270abee4e15abb638c77bbe52"
 	AggAllVkHash         = "0x078ab850e8148fc412016972abf837fddbc8c7f87d049e337fcdfdc1a47caca2"
 
-	/*
-			transaction digest:HashOut { elements: [3e045bd5b958487d, 1898c2527e9ca838, 96250810feb894f8, ae2df1791b6ad80e] }
-		transaction digest:HashOut { elements: [3e045bd5b958487d, 1898c2527e9ca838, 96250810feb894f8, ae2df1791b6ad80e] }
-		storage circuit digest: HashOut { elements: [749c1650b30e4a4a, 1b3a47e338187529, cf03c95b04b6ba8, 20459c8ad534cc23] }
-		combine circuit_digest:HashOut { elements: [576404420c526b32, 6405f9181582f26e, d45ca4c50d829d1, d650db0c7f95fed0] }, is leaf: true, node id: 2
-		combine circuit_digest:HashOut { elements: [576404420c526b32, 6405f9181582f26e, d45ca4c50d829d1, d650db0c7f95fed0] }, is leaf: true, node id: 1
-		combine circuit_digest:HashOut { elements: [ca146d354f3d327e, a82508e07cb926a3, 1ec453d75b4abb3f, a2a8b4c15024a096] }, is leaf: false, node id: 0
-	*/
 	ReceiptCircuitDigestHash              = &pgoldilocks.HashOut256{18342954016779928005, 1999111386698916995, 9821024959441469133, 15458253518461692125}
 	StorageCircuitDigestHash              = &pgoldilocks.HashOut256{8402615540623755850, 1961959628897547561, 932311736471219112, 2325436902703156259}
 	TxCircuitDigestHash                   = &pgoldilocks.HashOut256{4468797703754107005, 1772380112937592888, 10819062548913493240, 12550953239004764174}
 	P2AggRecursionLeafCircuitDigestHash   = &pgoldilocks.HashOut256{6297162860691876658, 7207440660511781486, 956392925008767441, 15443083968980057808}
 	P2AggRecursionNoLeafCircuitDigestHash = &pgoldilocks.HashOut256{14561383570925761150, 12116100132768392867, 2216989100987824959, 11720816772597981334}
-	P2Bn128WrapCircuitDigestHash          = utils.Hex2BigInt("0x2484541239ec3173c86783b3f4ebaf41647a64f17a00571d9213cc34563b03de")
+	P2Bn128WrapCircuitDigestHash          = utils.Hex2BigInt("0x08e1f454d096c46ebf2e1f40ff4858ce8188f86cc9623242ea605b774aee12aa")
 
 	ReceiptVkHash     = utils.Hex2BigInt(ReceiptVkHashHex)
 	StorageVkHash     = utils.Hex2BigInt(StorageVkHashHex)
@@ -70,6 +65,42 @@ var (
 		IsLeafNode:       true,
 	}
 )
+
+func CalBrevisCircuitDigest(receiptCount, storageCount, transactionCount int, appVk plonk.VerifyingKey) (*big.Int, error) {
+	reVk, err := replonk.ValueOfVerifyingKey[sw_bn254.ScalarField, sw_bn254.G1Affine, sw_bn254.G2Affine](appVk)
+	if err != nil {
+		return nil, err
+	}
+
+	appVkHashBytes := utils.CalculateAppVkHashForBn254(reVk)
+	appVkHashBigInt := new(big.Int).SetBytes(appVkHashBytes)
+	log.Infof("app vk hashL %s", appVkHashBigInt)
+
+	hash2HashDigest, err := GetHash2HashCircuitDigest(receiptCount, storageCount, transactionCount)
+	if err != nil {
+		return nil, err
+	}
+
+	plonky2RootFromBn128Digest, err := GetPlonky2CircuitDigestFromWrapBn128(receiptCount, storageCount, transactionCount)
+	if err != nil {
+		return nil, err
+	}
+
+	hasher := zkhashutils.NewPoseidonBn254()
+	hasher.Write(new(big.Int).SetUint64(plonky2RootFromBn128Digest[0]))
+	hasher.Write(new(big.Int).SetUint64(plonky2RootFromBn128Digest[1]))
+	hasher.Write(new(big.Int).SetUint64(plonky2RootFromBn128Digest[2]))
+	hasher.Write(new(big.Int).SetUint64(plonky2RootFromBn128Digest[3]))
+
+	hasher.Write(P2Bn128WrapCircuitDigestHash)
+
+	hasher.Write(hash2HashDigest)
+	hasher.Write(utils.Hex2BigInt(MiddleNodeVkHashHex))
+
+	hasher.Write(appVkHashBigInt)
+
+	return hasher.Sum()
+}
 
 type Hash2HashDigestNode struct {
 	CircuitDigest *big.Int
@@ -142,6 +173,9 @@ func GetPlonky2CircuitDigestFromWrapBn128(receiptCount, storageCount, transactio
 	var data []uint64
 	data = append(data, plonky2RootNode.PubCircuitDigest[:]...)
 	data = append(data, plonky2RootNode.CurCircuitDigest[:]...)
+
+	log.Infof("data: %v", data)
+
 	return pgoldilocks.HashNoPadU64Array(data[:])
 }
 
