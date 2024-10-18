@@ -105,7 +105,9 @@ func Setup(ccs constraint.ConstraintSystem, cacheDir string) (pk plonk.ProvingKe
 }
 
 func printVkHash(vk plonk.VerifyingKey) {
-	vkHash, err := ComputeVkHash(vk)
+	var maxReceipt, maxStorage, total int
+	// is circuit digest
+	vkHash, err := CalBrevisCircuitDigest(maxReceipt, maxStorage, total-maxReceipt-maxStorage, vk)
 	if err != nil {
 		fmt.Printf("error computing vk hash: %s", err.Error())
 		return
