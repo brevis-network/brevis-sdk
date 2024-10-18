@@ -184,6 +184,8 @@ var _ CircuitVariable = Receipt{}
 func (r Receipt) Values() []frontend.Variable {
 	var ret []frontend.Variable
 	ret = append(ret, r.BlockNum.Values()...)
+	ret = append(ret, r.BlockBaseFee.Values()...)
+	ret = append(ret, r.MptKeyPath.Values()...)
 	for _, field := range r.Fields {
 		ret = append(ret, field.Values()...)
 	}
@@ -198,6 +200,9 @@ func (r Receipt) FromValues(vs ...frontend.Variable) CircuitVariable {
 
 	start, end = end, end+r.BlockBaseFee.NumVars()
 	nr.BlockBaseFee = r.BlockBaseFee.FromValues(vs[start:end]...).(Uint248)
+
+	start, end = end, end+r.MptKeyPath.NumVars()
+	nr.MptKeyPath = r.MptKeyPath.FromValues(vs[start:end]...).(Uint32)
 
 	for i, f := range r.Fields {
 		start, end = end, end+f.NumVars()
