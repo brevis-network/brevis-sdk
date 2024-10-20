@@ -16,6 +16,8 @@ type Int248 struct {
 	signBitSet bool `gnark:"-"`
 }
 
+// newI248 constructs a new Int248 instance.
+// It is important that the input value `v` is at most 248 bits wide.
 func newI248(v ...frontend.Variable) Int248 {
 	ret := Int248{Val: v[0]}
 	if len(v) > 1 {

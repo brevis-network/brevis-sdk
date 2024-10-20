@@ -13,6 +13,8 @@ type Uint248 struct {
 
 var _ CircuitVariable = Uint248{}
 
+// newU248 constructs a new Uint248 instance.
+// It is important that the input value `v` is at most 248 bits wide.
 func newU248(v frontend.Variable) Uint248 {
 	return Uint248{Val: v}
 }
