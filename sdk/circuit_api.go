@@ -213,9 +213,7 @@ func (api *CircuitAPI) ToBytes32(i interface{}) Bytes32 {
 	case Uint521:
 		api.Uint521.AssertIsLessOrEqual(v, MaxBytes32)
 		bits := api.Uint521.ToBinary(v, 32*8)
-		lo := api.Uint248.FromBinary(bits[:numBitsPerVar]...)
-		hi := api.Uint248.FromBinary(bits[numBitsPerVar:256]...)
-		return Bytes32{Val: [2]variable{lo.Val, hi.Val}}
+		return api.Bytes32.FromBinary(bits...)
 	case Uint248:
 		return Bytes32{Val: [2]variable{v.Val, 0}}
 	}
@@ -237,11 +235,23 @@ func (api *CircuitAPI) ToUint521(i interface{}) Uint521 {
 		limbs[0] = api.g.FromBinary(bits[:b]...)
 		limbs[1] = api.g.FromBinary(bits[b : 2*b]...)
 		limbs[2] = api.g.FromBinary(bits[2*b:]...)
-		limbs[3], limbs[4], limbs[5] = 0, 0, 0
+		for i := 3; i < int(f.NbLimbs()); i++ {
+			limbs[i] = 0
+		}
 		el := api.Uint521.f.NewElement(limbs)
 		return newU521(el)
 	case Uint248:
-		el := api.Uint521.f.NewElement([]variable{v.Val, 0, 0, 0, 0, 0})
+		bits := v.Values()
+		f := Uint521Field{}
+		if len(bits) > int(f.BitsPerLimb()) {
+			panic("the value could not be hold in first limb")
+		}
+		limbs := make([]variable, f.NbLimbs())
+		limbs[0] = v.Val
+		for i := 1; i < int(f.NbLimbs()); i++ {
+			limbs[i] = 0
+		}
+		el := api.Uint521.f.NewElement(limbs)
 		return newU521(el)
 	}
 	panic(fmt.Errorf("unsupported casting from %T to Uint521", i))
