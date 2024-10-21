@@ -117,12 +117,14 @@ func TestE2E(t *testing.T) {
 	// the downloaded SRS in the process is saved to srsDir
 	outDir := "$HOME/circuitOut/tradingvolume"
 	srsDir := "$HOME/kzgsrs"
-	compiledCircuit, pk, vk, err := sdk.Compile(appCircuit, outDir, srsDir)
+
+	maxReceipt, maxStorage, _ := appCircuit.Allocate()
+	compiledCircuit, pk, vk, _, err := sdk.Compile(appCircuit, outDir, srsDir, maxReceipt, maxStorage, sdk.NumMaxDataPoints)
 	check(err)
 
 	// Once you saved your ccs, pk, and vk files, you can read them back into memory
 	// for use with the provided utils
-	compiledCircuit, pk, vk, err = sdk.ReadSetupFrom(outDir)
+	compiledCircuit, pk, vk, _, err = sdk.ReadSetupFrom(outDir)
 	check(err)
 
 	///////////////////////////////////////////////////////////////////////////////
