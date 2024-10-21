@@ -287,7 +287,7 @@ func (f LogField) FromValues(vs ...frontend.Variable) CircuitVariable {
 	return nf
 }
 
-func (f LogField) String() string { return "" }
+func (f LogField) String() string { return "LogField" }
 
 func (f LogField) NumVars() uint32 {
 	return f.Contract.NumVars() +

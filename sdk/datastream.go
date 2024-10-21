@@ -169,7 +169,9 @@ func ZipMap2[T0, T1, R CircuitVariable](
 		va, vb := a.underlying[i], b[i]
 		res[i] = zipFunc(va, vb)
 	}
-	return newDataStream(a.api, res, a.toggles)
+	toggles := make([]frontend.Variable, len(a.toggles))
+	copy(toggles, a.toggles)
+	return newDataStream(a.api, res, toggles)
 }
 
 type ZipMap3Func[T0, T1, T2, R CircuitVariable] func(a T0, b T1, c T2) R
@@ -190,7 +192,9 @@ func ZipMap3[T0, T1, T2, R CircuitVariable](
 		va, vb, vc := a.underlying[i], b[i], c[i]
 		res[i] = zipFunc(va, vb, vc)
 	}
-	return newDataStream(a.api, res, a.toggles)
+	toggles := make([]frontend.Variable, len(a.toggles))
+	copy(toggles, a.toggles)
+	return newDataStream(a.api, res, toggles)
 }
 
 type GetValueFunc[T any] func(current T) Uint248
