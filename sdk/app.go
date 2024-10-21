@@ -232,7 +232,6 @@ func (q *BrevisApp) PrepareRequest(
 	callbackGasLimit uint64,
 	option *gwproto.QueryOption,
 	apiKey string, // used for brevis partner flow
-	usePlonky2 bool,
 	vkHash []byte,
 ) (calldata []byte, requestId common.Hash, nonce uint64, feeValue *big.Int, err error) {
 	if !q.buildInputCalled {
