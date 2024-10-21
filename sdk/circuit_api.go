@@ -22,9 +22,8 @@ type CircuitAPI struct {
 	Uint32  *Uint32API
 	Uint64  *Uint64API
 
-	g                    frontend.API
-	output               []variable `gnark:"-"`
-	checkInputUniqueness int
+	g      frontend.API
+	output []variable `gnark:"-"`
 }
 
 func NewCircuitAPI(gapi frontend.API) *CircuitAPI {
@@ -119,12 +118,6 @@ func (api *CircuitAPI) addOutput(bits []variable) {
 	if len(b) > 0 && !frontend.IsCanonical(b[0]) /*only set dryRunOutput when dryRun*/ {
 		dryRunOutput = append(dryRunOutput, bits2Bytes(b)...)
 	}
-}
-
-// AssertInputsAreUnique Asserts that all input data (Transaction, Receipt,
-// StorageSlot) are different from each other
-func (api *CircuitAPI) AssertInputsAreUnique() {
-	api.checkInputUniqueness = 1
 }
 
 // SlotOfArrayElement computes the storage slot for an element in a solidity
