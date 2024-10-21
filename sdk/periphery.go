@@ -124,6 +124,8 @@ func printVkHash(vk plonk.VerifyingKey, maxReceipt, maxStorage, numMaxDataPoints
 	fmt.Println("///////////////////////////////////////////////////////////////////////////////")
 	fmt.Printf("// max receipts: %d, max storage: %d, numMaxDataPoints: %d\n", maxReceipt, maxStorage, numMaxDataPoints)
 	fmt.Println("///////////////////////////////////////////////////////////////////////////////")
+	fmt.Printf("// max receipts: %d, max storage: %d, numMaxDataPoints: %d\n", maxReceipt, maxStorage, total)
+	fmt.Println("///////////////////////////////////////////////////////////////////////////////")
 	fmt.Println()
 	return vkHash, nil
 }
