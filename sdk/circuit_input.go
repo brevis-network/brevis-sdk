@@ -18,9 +18,10 @@ type DataInput struct {
 
 func defaultDataInput(maxReceipts, maxStorage, maxTxs, numMaxDataPoints int) DataInput {
 	return DataInput{
-		Receipts:     NewDataPoints(maxReceipts, defaultReceipt),
-		StorageSlots: NewDataPoints(maxStorage, defaultStorageSlot),
-		Transactions: NewDataPoints(maxTxs, defaultTransaction),
+		Receipts:         NewDataPoints(maxReceipts, defaultReceipt),
+		StorageSlots:     NewDataPoints(maxStorage, defaultStorageSlot),
+		Transactions:     NewDataPoints(maxTxs, defaultTransaction),
+		NumMaxDataPoints: numMaxDataPoints,
 	}
 }
 

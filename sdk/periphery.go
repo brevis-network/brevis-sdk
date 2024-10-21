@@ -5,8 +5,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/brevis-network/brevis-sdk/common/utils"
@@ -43,8 +41,7 @@ func Compile(app AppCircuit, compileOutDir, srsDir string, maxReceipt, maxStorag
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	vkFileName := fmt.Sprintf("%d--%d--%d--vk", maxReceipt, maxStorage, numMaxDataPoints)
-	err = WriteTo(vk, filepath.Join(compileOutDir, vkFileName))
+	err = WriteTo(vk, filepath.Join(compileOutDir, "vk"))
 	fmt.Println("compilation/setup complete")
 	return ccs, pk, vk, vkHash, err
 }
@@ -67,7 +64,6 @@ func NewFullWitness(assign AppCircuit, in CircuitInput) (w, wpub witness.Witness
 // CompileOnly is like Compile, but it does not automatically save the compilation output
 func CompileOnly(app AppCircuit, numMaxDataPoints int) (constraint.ConstraintSystem, error) {
 	host := DefaultHostCircuit(app, numMaxDataPoints)
-
 	before := time.Now()
 	ccs, err := frontend.Compile(ecc.BN254.ScalarField(), scs.NewBuilder, host)
 	if err != nil {
@@ -115,17 +111,21 @@ func printVkHash(vk plonk.VerifyingKey, maxReceipt, maxStorage, numMaxDataPoints
 		panic("invalid max storage")
 	}
 
-	vkHash, err := CalBrevisCircuitDigest(maxReceipt, maxStorage, numMaxDataPoints-maxReceipt-maxStorage, vk)
+	vkHashInBigInt, err := CalBrevisCircuitDigest(maxReceipt, maxStorage, numMaxDataPoints-maxReceipt-maxStorage, vk)
 	if err != nil {
 		fmt.Printf("error computing vk hash: %s", err.Error())
 		return nil, err
 	}
-	fmt.Println()
+
+	// Make sure vk hash is 32-bytes
+	vkHash := common.BytesToHash(vkHashInBigInt.Bytes()).Bytes()
 	fmt.Println("///////////////////////////////////////////////////////////////////////////////")
-	fmt.Printf("// vk hash: 0x%x\n", vkHash.Bytes())
+	fmt.Printf("// vk hash: 0x%x\n", vkHash)
+	fmt.Println("///////////////////////////////////////////////////////////////////////////////")
+	fmt.Printf("// max receipts: %d, max storage: %d, numMaxDataPoints: %d\n", maxReceipt, maxStorage, numMaxDataPoints)
 	fmt.Println("///////////////////////////////////////////////////////////////////////////////")
 	fmt.Println()
-	return vkHash.Bytes(), nil
+	return vkHash, nil
 }
 
 func ComputeVkHash(vk plonk.VerifyingKey) (common.Hash, error) {
@@ -174,7 +174,7 @@ func WriteTo(w io.WriterTo, path string) error {
 	return nil
 }
 
-func ReadSetupFrom(compileOutDir string) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, []byte, error) {
+func ReadSetupFrom(compileOutDir string, maxReceipt, maxStorage, numMaxDataPoints int) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, []byte, error) {
 	ccs, err := ReadCircuitFrom(filepath.Join(compileOutDir, "compiledCircuit"))
 	if err != nil {
 		return nil, nil, nil, nil, err
@@ -183,7 +183,7 @@ func ReadSetupFrom(compileOutDir string) (constraint.ConstraintSystem, plonk.Pro
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	vk, vkHash, err := ReadVkFrom(filepath.Join(compileOutDir, "vk"))
+	vk, vkHash, err := ReadVkFrom(filepath.Join(compileOutDir, "vk"), maxReceipt, maxStorage, numMaxDataPoints)
 	return ccs, pk, vk, vkHash, err
 }
 
@@ -217,7 +217,7 @@ func ReadPkFrom(path string) (plonk.ProvingKey, error) {
 	return pk, err
 }
 
-func ReadVkFrom(path string) (plonk.VerifyingKey, []byte, error) {
+func ReadVkFrom(path string, maxReceipt, maxStorage, numMaxDataPoints int) (plonk.VerifyingKey, []byte, error) {
 	f, err := os.Open(os.ExpandEnv(path))
 	if err != nil {
 		return nil, nil, err
@@ -230,21 +230,7 @@ func ReadVkFrom(path string) (plonk.VerifyingKey, []byte, error) {
 	}
 	fmt.Printf("Verifying key: %d bytes read from %s\n", d, path)
 
-	values := strings.Split(path, "--")
-	maxReceipt, err := strconv.Atoi(values[0])
-	if err != nil {
-		return nil, nil, err
-	}
-	maxStorage, err := strconv.Atoi(values[1])
-	if err != nil {
-		return nil, nil, err
-	}
-	total, err := strconv.Atoi(values[2])
-	if err != nil {
-		return nil, nil, err
-	}
-
-	vkHash, err := printVkHash(vk, maxReceipt, maxStorage, total)
+	vkHash, err := printVkHash(vk, maxReceipt, maxStorage, numMaxDataPoints)
 	return vk, vkHash, err
 }
 

@@ -3,7 +3,6 @@ module github.com/brevis-network/brevis-sdk
 go 1.21.5
 
 require (
-	github.com/brevis-network/zk-utils v0.0.0-20240916014259-e0a7a7e4fcda
 	github.com/cbergoon/merkletree v0.2.0
 	github.com/celer-network/goutils v0.2.0
 	github.com/consensys/gnark v0.10.0
@@ -73,9 +72,7 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/holiman/uint256 v1.3.1 // indirect
-	github.com/huin/goupnp v1.3.0 // indirect
 	github.com/iden3/go-iden3-crypto v0.0.15 // indirect
-	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.15 // indirect

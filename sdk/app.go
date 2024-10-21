@@ -15,9 +15,8 @@ import (
 	"github.com/brevis-network/brevis-sdk/sdk/proto/commonproto"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
 
+	"github.com/brevis-network/brevis-sdk/sdk/eth"
 	"github.com/brevis-network/zk-hash/utils"
-	"github.com/brevis-network/zk-utils/common/eth"
-	"github.com/brevis-network/zk-utils/common/proof"
 	bn254_fr "github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/consensys/gnark/backend/plonk"
 	"github.com/consensys/gnark/backend/witness"
@@ -31,57 +30,30 @@ import (
 )
 
 type ReceiptData struct {
-	// BlockNum     *big.Int                      `json:"block_num,omitempty"`
-	// BlockBaseFee *big.Int                      `json:"block_base_fee,omitempty"`
-	TxHash common.Hash `json:"tx_hash,omitempty"`
-	// MptKeyPath   *big.Int                      `json:"mpt_key_path,omitempty"`
+	TxHash common.Hash                   `json:"tx_hash,omitempty"`
 	Fields [NumMaxLogFields]LogFieldData `json:"fields,omitempty"`
 }
 
 // LogFieldData represents a single field of an event.
 type LogFieldData struct {
-	// // The contract from which the event is emitted
-	// Contract common.Address `json:"contract,omitempty"`
 	// the log's position in the receipt
 	LogPos uint `json:"log_index,omitempty"`
-	// // The event ID of the event to which the field belong (aka topics[0])
-	// EventID common.Hash `json:"event_id,omitempty"`
 	// Whether the field is a topic (aka "indexed" as in solidity events)
 	IsTopic bool `json:"is_topic,omitempty"`
 	// The index of the field in either a log's topics or data. For example, if a
 	// field is the second topic of a log, then FieldIndex is 1; if a field is the
 	// third field in the RLP decoded data, then FieldIndex is 2.
 	FieldIndex uint `json:"field_index,omitempty"`
-	// // The value of the field in event, aka the actual thing we care about, only
-	// // 32-byte fixed length values are supported.
-	// Value common.Hash `json:"value,omitempty"`
 }
 
 type StorageData struct {
-	BlockNum *big.Int `json:"block_num,omitempty"`
-	// BlockBaseFee *big.Int       `json:"block_base_fee,omitempty"`
-	Address common.Address `json:"address,omitempty"`
-	Slot    common.Hash    `json:"slot,omitempty"`
-	// Value        common.Hash    `json:"value,omitempty"`
+	BlockNum *big.Int       `json:"block_num,omitempty"`
+	Address  common.Address `json:"address,omitempty"`
+	Slot     common.Hash    `json:"slot,omitempty"`
 }
 
 type TransactionData struct {
 	Hash common.Hash `json:"hash,omitempty"`
-	// ChainId      *big.Int    `json:"chain_id,omitempty"`
-	// BlockNum     *big.Int    `json:"block_num,omitempty"`
-	// BlockBaseFee *big.Int    `json:"block_base_fee,omitempty"`
-	// Nonce        uint64      `json:"nonce,omitempty"`
-	// // GasTipCapOrGasPrice is GasPrice for legacy tx (type 0) and GasTipCapOap for
-	// // dynamic-fee tx (type 2)
-	// GasTipCapOrGasPrice *big.Int `json:"max_priority_fee_per_gas,omitempty"`
-	// // GasFeeCap is always 0 for legacy tx
-	// GasFeeCap  *big.Int       `json:"gas_price_or_fee_cap,omitempty"`
-	// GasLimit   uint64         `json:"gas_limit,omitempty"`
-	// From       common.Address `json:"from,omitempty"`
-	// To         common.Address `json:"to,omitempty"`
-	// Value      *big.Int       `json:"value,omitempty"`
-	// MptKeyPath *big.Int       `json:"mpt_key_path,omitempty"`
-	// LeafHash   common.Hash    `json:"leaf_hash,omitempty"`
 }
 
 type rawData[T ReceiptData | StorageData | TransactionData] struct {
@@ -138,12 +110,13 @@ type BrevisApp struct {
 
 func NewBrevisApp(
 	srcChainId uint64,
-	rpcUrl string,
 	numMaxDataPoints int,
+	rpcUrl string,
 	gatewayUrlOverride ...string,
 ) (*BrevisApp, error) {
 	ec, err := ethclient.Dial(rpcUrl)
 	if err != nil {
+		fmt.Printf("dialing invalid rpc url %s: %s\n", rpcUrl, err.Error())
 		return nil, err
 	}
 
@@ -178,6 +151,7 @@ func NewBrevisApp(
 	}
 	return &BrevisApp{
 		gc:               gc,
+		ec:               ec,
 		brevisRequest:    br,
 		srcChainId:       srcChainId,
 		receipts:         rawData[ReceiptData]{},
@@ -269,7 +243,6 @@ func (q *BrevisApp) PrepareRequest(
 	callbackGasLimit uint64,
 	option *gwproto.QueryOption,
 	apiKey string, // used for brevis partner flow
-	usePlonky2 bool,
 	vkHash []byte,
 ) (calldata []byte, requestId common.Hash, nonce uint64, feeValue *big.Int, err error) {
 	if !q.buildInputCalled {
@@ -298,7 +271,7 @@ func (q *BrevisApp) PrepareRequest(
 		TransactionInfos:  buildTxInfos(q.txs, q.maxTxs),
 		AppCircuitInfo:    appCircuitInfo,
 		Option:            *option,
-		UsePlonky2:        usePlonky2,
+		UsePlonky2:        true,
 	}
 
 	fmt.Println("Calling Brevis gateway PrepareRequest...")
@@ -499,6 +472,7 @@ func (q *BrevisApp) prepareQueryForBrevisPartnerFlow(
 					MaxTx:                appCircuitInfo.MaxTx,
 					CircuitDigest:        hexutil.Encode(vkHash),
 				},
+				UsePlonky2: true,
 			},
 		},
 		TargetChainId: dstChainId,
@@ -762,11 +736,15 @@ func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
 		if err != nil {
 			return err
 		}
+		fields, err := buildLogFields(receipt.Fields, receiptInfo)
+		if err != nil {
+			return err
+		}
 		in.Receipts.Raw[i] = Receipt{
 			BlockNum:     newU32(blockNum),
 			BlockBaseFee: newU248(blockBaseFee),
 			MptKeyPath:   newU32(mptKey),
-			Fields:       buildLogFields(receipt.Fields),
+			Fields:       fields,
 		}
 		in.Receipts.Toggles[i] = 1
 	}
@@ -781,11 +759,15 @@ func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
 		for in.Receipts.Toggles[j] == 1 {
 			j++
 		}
+		fields, err := buildLogFields(receipt.Fields, receiptInfo)
+		if err != nil {
+			return err
+		}
 		in.Receipts.Raw[j] = Receipt{
 			BlockNum:     newU32(blockNum),
 			BlockBaseFee: newU248(blockBaseFee),
 			MptKeyPath:   newU32(mptKey),
-			Fields:       buildLogFields(receipt.Fields),
+			Fields:       fields,
 		}
 		in.Receipts.Toggles[j] = 1
 		j++
@@ -794,11 +776,11 @@ func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
 	return nil
 }
 
-func BuildLogFields(fs [NumMaxLogFields]LogFieldData) (fields [NumMaxLogFields]LogField) {
-	return buildLogFields(fs)
+func BuildLogFields(fs [NumMaxLogFields]LogFieldData, receipt *types.Receipt) (fields [NumMaxLogFields]LogField, err error) {
+	return buildLogFields(fs, receipt)
 }
 
-func buildLogFields(fs [NumMaxLogFields]LogFieldData) (fields [NumMaxLogFields]LogField) {
+func buildLogFields(fs [NumMaxLogFields]LogFieldData, receipt *types.Receipt) (fields [NumMaxLogFields]LogField, err error) {
 	empty := LogFieldData{}
 
 	lastNonEmpty := fs[0]
@@ -813,15 +795,36 @@ func buildLogFields(fs [NumMaxLogFields]LogFieldData) (fields [NumMaxLogFields]L
 		} else {
 			lastNonEmpty = f
 		}
+
+		if len(receipt.Logs) <= int(f.LogPos) {
+			return [NumMaxLogFields]LogField{}, fmt.Errorf("invalid log pos %d for receipt %s", f.LogPos, receipt.TxHash.Hex())
+		}
+
+		log := receipt.Logs[f.LogPos]
+
+		value := common.Hash{}
+
+		if f.IsTopic {
+			if int(f.FieldIndex) >= len(log.Topics) {
+				return [NumMaxLogFields]LogField{}, fmt.Errorf("invalid field index %d for receipt %s log %d, which topics length is %d", f.FieldIndex, receipt.TxHash.Hex(), f.LogPos, len(log.Topics))
+			}
+			value = log.Topics[f.FieldIndex]
+		} else {
+			if int(f.FieldIndex)*32+32 > len(log.Data) {
+				return [NumMaxLogFields]LogField{}, fmt.Errorf("invalid field index %d (try to find data range from %d to %d) for receipt %s log %d, which data length is %d", f.FieldIndex, f.FieldIndex*32, f.FieldIndex*32+32, receipt.TxHash.Hex(), f.LogPos, len(log.Data))
+			}
+			value = common.BytesToHash(log.Data[f.FieldIndex*32 : f.FieldIndex*32+32])
+		}
+
 		fields[i] = LogField{
-			Contract: ConstUint248(f.Contract),
+			Contract: ConstUint248(log.Address),
 			LogPos:   ConstUint32(f.LogPos),
 			// we only constrain the first 6 bytes of EventID in circuit for performance reasons
 			// 6 bytes give us 1/2^48 chance of two logs of different IDs clashing per contract.
-			EventID: ConstUint248(f.EventID[:6]),
+			EventID: ConstUint248(log.Topics[0].Bytes()[0:6]),
 			IsTopic: ConstUint248(f.IsTopic),
 			Index:   ConstUint248(f.FieldIndex),
-			Value:   ConstBytes32(f.Value[:]),
+			Value:   ConstBytes32(value[:]),
 		}
 	}
 	return
@@ -1001,7 +1004,7 @@ func (q *BrevisApp) calculateTxLeafHashBlockBaseFeeAndMPTKey(txHash common.Hash)
 	}
 	baseFee = block.BaseFee()
 
-	proofs, _, _, err := proof.GetTransactionProof(block, int(receipt.TransactionIndex))
+	proofs, _, _, err := getTransactionProof(block, int(receipt.TransactionIndex))
 	if err != nil {
 		return common.Hash{}, nil, nil, nil, fmt.Errorf("cannot calculate tx leaf hash with wrong tx hash %s: %s", txHash.Hex(), err.Error())
 	}

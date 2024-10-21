@@ -11,7 +11,8 @@ import (
 )
 
 func TestCircuit(t *testing.T) {
-	app, err := sdk.NewBrevisApp(1)
+	numMaxDataPoints := 128
+	app, err := sdk.NewBrevisApp(1, numMaxDataPoints, "RPC_URL")
 	check(err)
 
 	account := common.HexToAddress("0x5427FEFA711Eff984124bFBB1AB6fbf5E3DA1820")
@@ -22,7 +23,6 @@ func TestCircuit(t *testing.T) {
 		BlockNum: big.NewInt(18233760),
 		Address:  account,
 		Slot:     common.BytesToHash(slot),
-		Value:    common.HexToHash("0xf380166f8490f24af32bf47d1aa217fba62b6575"),
 	}, 1)
 	// More slots can be added to be batch proven, but in this example we use only
 	// one to keep it simple
@@ -46,7 +46,8 @@ func TestCircuit(t *testing.T) {
 }
 
 func TestE2E(t *testing.T) {
-	app, err := sdk.NewBrevisApp(1)
+	numMaxDataPoints := 128
+	app, err := sdk.NewBrevisApp(1, numMaxDataPoints, "RPC_URL")
 	check(err)
 
 	account := common.HexToAddress("0x5427FEFA711Eff984124bFBB1AB6fbf5E3DA1820")
@@ -57,7 +58,6 @@ func TestE2E(t *testing.T) {
 		BlockNum: big.NewInt(18233760),
 		Address:  account,
 		Slot:     common.BytesToHash(slot),
-		Value:    common.HexToHash("0xf380166f8490f24af32bf47d1aa217fba62b6575"),
 	}, 1)
 	// More slots can be added to be batch proven, but in this example we use only
 	// one to keep it simple
@@ -88,7 +88,7 @@ func TestE2E(t *testing.T) {
 	outDir := "$HOME/circuitOut/storage"
 	srsDir := "$HOME/kzgsrs"
 	maxReceipt, maxStorage, _ := appCircuitAssignment.Allocate()
-	compiledCircuit, pk, vk, _, err := sdk.Compile(appCircuit, outDir, srsDir, maxReceipt, maxStorage, sdk.NumMaxDataPoints)
+	compiledCircuit, pk, vk, _, err := sdk.Compile(appCircuit, outDir, srsDir, maxReceipt, maxStorage, numMaxDataPoints)
 	check(err)
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -97,7 +97,7 @@ func TestE2E(t *testing.T) {
 
 	// Once you saved your ccs, pk, and vk files, you can read them back into memory
 	// for use with the provided utils
-	compiledCircuit, pk, vk, _, err = sdk.ReadSetupFrom(outDir)
+	compiledCircuit, pk, vk, _, err = sdk.ReadSetupFrom(outDir, maxReceipt, maxStorage, numMaxDataPoints)
 	check(err)
 
 	fmt.Println(">> prove")

@@ -32,13 +32,17 @@ type Service struct {
 // NewService creates a new prover server instance that automatically manages
 // compilation & setup, and serves as a GRPC server that interoperates with
 // brevis sdk in other languages.
-func NewService(app sdk.AppCircuit, config ServiceConfig) (*Service, error) {
-	pk, vk, ccs, vkHash, err := readOrSetup(app, config.SetupDir, config.GetSrsDir())
+func NewService(
+	rpcUrl string,
+	srcChainId int,
+	numMaxDataPoints int,
+	app sdk.AppCircuit, config ServiceConfig) (*Service, error) {
+	pk, vk, ccs, vkHash, err := readOrSetup(app, numMaxDataPoints, config.SetupDir, config.GetSrsDir())
 	if err != nil {
 		return nil, err
 	}
 	return &Service{
-		svr: newServer(app, pk, vk, ccs, vkHash),
+		svr: newServer(rpcUrl, srcChainId, app, numMaxDataPoints, pk, vk, ccs, vkHash),
 	}, nil
 }
 
@@ -95,7 +99,8 @@ type proofRes struct {
 type server struct {
 	sdkproto.UnimplementedProverServer
 
-	app sdk.AppCircuit
+	appCircuit sdk.AppCircuit
+	brevisApp  *sdk.BrevisApp
 
 	pk  plonk.ProvingKey
 	vk  plonk.VerifyingKey
@@ -109,7 +114,10 @@ type server struct {
 }
 
 func newServer(
-	app sdk.AppCircuit,
+	rpcUrl string,
+	srcChainId int,
+	appCircuit sdk.AppCircuit,
+	numMaxDataPoints int,
 	pk plonk.ProvingKey,
 	vk plonk.VerifyingKey,
 	ccs constraint.ConstraintSystem,
@@ -126,14 +134,20 @@ func newServer(
 		os.Exit(1)
 	}
 
+	brevisApp, err := sdk.NewBrevisApp(uint64(srcChainId), numMaxDataPoints, rpcUrl)
+	if err != nil {
+		fmt.Printf("failed to initiate brevis app %s", err.Error())
+		os.Exit(1)
+	}
 	return &server{
-		app:      app,
-		pk:       pk,
-		vk:       vk,
-		ccs:      ccs,
-		vkString: hexutil.Encode(buf.Bytes()),
-		vkHash:   hexutil.Encode(vkHash),
-		proofs:   make(map[string]proofRes),
+		appCircuit: appCircuit,
+		brevisApp:  brevisApp,
+		pk:         pk,
+		vk:         vk,
+		ccs:        ccs,
+		vkString:   hexutil.Encode(buf.Bytes()),
+		vkHash:     hexutil.Encode(vkHash),
+		proofs:     make(map[string]proofRes),
 	}
 }
 
@@ -220,17 +234,12 @@ func (s *server) buildInput(req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.
 		return nil, nil, "", newErr(code, format, args...)
 	}
 
-	brevisApp, err := sdk.NewBrevisApp(req.SrcChainId)
-	if err != nil {
-		return makeErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to new brevis app: %s", err.Error())
-	}
-
 	for _, receipt := range req.Receipts {
 		sdkReceipt, err := convertProtoReceiptToSdkReceipt(receipt.Data)
 		if err != nil {
 			return makeErr(sdkproto.ErrCode_ERROR_INVALID_INPUT, "invalid sdk receipt: %+v, %s", receipt.Data, err.Error())
 		}
-		brevisApp.AddReceipt(sdkReceipt, int(receipt.Index))
+		s.brevisApp.AddReceipt(sdkReceipt, int(receipt.Index))
 	}
 
 	for _, storage := range req.Storages {
@@ -238,7 +247,7 @@ func (s *server) buildInput(req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.
 		if err != nil {
 			return makeErr(sdkproto.ErrCode_ERROR_INVALID_INPUT, "invalid sdk storage: %+v, %s", storage.Data, err.Error())
 		}
-		brevisApp.AddStorage(sdkStorage, int(storage.Index))
+		s.brevisApp.AddStorage(sdkStorage, int(storage.Index))
 	}
 
 	for _, transaction := range req.Transactions {
@@ -247,15 +256,15 @@ func (s *server) buildInput(req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.
 			return makeErr(sdkproto.ErrCode_ERROR_INVALID_INPUT, "invalid sdk transaction: %+v, %s", transaction.Data, err.Error())
 		}
 
-		brevisApp.AddTransaction(sdkTx, int(transaction.Index))
+		s.brevisApp.AddTransaction(sdkTx, int(transaction.Index))
 	}
 
-	guest, err := assignCustomInput(s.app, req.CustomInput)
+	guest, err := assignCustomInput(s.appCircuit, req.CustomInput)
 	if err != nil {
 		return makeErr(sdkproto.ErrCode_ERROR_INVALID_CUSTOM_INPUT, "invalid custom input %s\n", err.Error())
 	}
 
-	input, err := brevisApp.BuildCircuitInput(guest)
+	input, err := s.brevisApp.BuildCircuitInput(guest)
 	if err != nil {
 		return makeErr(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, "failed to build circuit input: %+v, %s", req, err.Error())
 	}

@@ -23,8 +23,6 @@ github.com/brevis-network/poseidon-goldilocks-go v0.0.0-20240826082508-8017eb90f
 github.com/brevis-network/poseidon-goldilocks-go v0.0.0-20240826082508-8017eb90f413/go.mod h1:sGddb8GeVcQErqlTrfUIP/2SmIzpG7DmPsFy3tBY9KQ=
 github.com/brevis-network/zk-hash v0.0.0-20240903111749-fedffbe8a45c h1:+tXzO1P9S0FT4uQ7kw3xSe0BpxnOH+VazNxQstX0qXI=
 github.com/brevis-network/zk-hash v0.0.0-20240903111749-fedffbe8a45c/go.mod h1:fMfTUW6bGRcOk8Vm0c82Ob8uEWysWsev9d4mn609skg=
-github.com/brevis-network/zk-utils v0.0.0-20240916014259-e0a7a7e4fcda h1:+IpTDojk3mCE811iIC4v/ecyIYfbG8X1sltgTDrXY3o=
-github.com/brevis-network/zk-utils v0.0.0-20240916014259-e0a7a7e4fcda/go.mod h1:fM3IbT4v7yhawJDzndYQYLKuqar9phaCBlJ0Ftyk6Ss=
 github.com/btcsuite/btcd/btcec/v2 v2.3.4 h1:3EJjcN70HCu/mwqlUsGK8GcNVyLVxFDlWurTXGPFfiQ=
 github.com/btcsuite/btcd/btcec/v2 v2.3.4/go.mod h1:zYzJ8etWJQIv1Ogk7OzpWjowwOdXY1W/17j2MW85J04=
 github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1 h1:q0rUy8C/TYNBQS1+CGKw68tLOFYSNEs0TFnxxnS9+4U=
@@ -300,7 +298,6 @@ golang.org/x/sync v0.0.0-20181221193216-37e7f081c4d4/go.mod h1:RxMgew5VJxzue5/jJ
 golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
-golang.org/x/sync v0.0.0-20210220032951-036812b2e83c/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sync v0.8.0 h1:3NFvSEYkUoMifnESzZl15y791HH1qU2xm6eCJU5ZPXQ=
 golang.org/x/sync v0.8.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
 golang.org/x/sys v0.0.0-20180830151530-49385e6e1522/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
