@@ -5,8 +5,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/brevis-network/brevis-sdk/common/utils"
@@ -43,8 +41,7 @@ func Compile(app AppCircuit, compileOutDir, srsDir string, maxReceipt, maxStorag
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	vkFileName := fmt.Sprintf("%d--%d--%d--vk", maxReceipt, maxStorage, total)
-	err = WriteTo(vk, filepath.Join(compileOutDir, vkFileName))
+	err = WriteTo(vk, filepath.Join(compileOutDir, "vk"))
 	fmt.Println("compilation/setup complete")
 	return ccs, pk, vk, vkHash, err
 }
@@ -127,6 +124,8 @@ func printVkHash(vk plonk.VerifyingKey, maxReceipt, maxStorage, total int) ([]by
 	fmt.Println("///////////////////////////////////////////////////////////////////////////////")
 	fmt.Printf("// vk hash: 0x%x\n", vkHash.Bytes())
 	fmt.Println("///////////////////////////////////////////////////////////////////////////////")
+	fmt.Printf("// max receipts: %d, max storage: %d, numMaxDataPoints: %d\n", maxReceipt, maxStorage, total)
+	fmt.Println("///////////////////////////////////////////////////////////////////////////////")
 	fmt.Println()
 	return vkHash.Bytes(), nil
 }
@@ -177,7 +176,7 @@ func WriteTo(w io.WriterTo, path string) error {
 	return nil
 }
 
-func ReadSetupFrom(compileOutDir string) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, []byte, error) {
+func ReadSetupFrom(compileOutDir string, maxReceipt, maxStorage, numMaxDataPoints int) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, []byte, error) {
 	ccs, err := ReadCircuitFrom(filepath.Join(compileOutDir, "compiledCircuit"))
 	if err != nil {
 		return nil, nil, nil, nil, err
@@ -186,7 +185,7 @@ func ReadSetupFrom(compileOutDir string) (constraint.ConstraintSystem, plonk.Pro
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	vk, vkHash, err := ReadVkFrom(filepath.Join(compileOutDir, "vk"))
+	vk, vkHash, err := ReadVkFrom(filepath.Join(compileOutDir, "vk"), maxReceipt, maxStorage, numMaxDataPoints)
 	return ccs, pk, vk, vkHash, err
 }
 
@@ -220,7 +219,7 @@ func ReadPkFrom(path string) (plonk.ProvingKey, error) {
 	return pk, err
 }
 
-func ReadVkFrom(path string) (plonk.VerifyingKey, []byte, error) {
+func ReadVkFrom(path string, maxReceipt, maxStorage, numMaxDataPoints int) (plonk.VerifyingKey, []byte, error) {
 	f, err := os.Open(os.ExpandEnv(path))
 	if err != nil {
 		return nil, nil, err
@@ -233,21 +232,7 @@ func ReadVkFrom(path string) (plonk.VerifyingKey, []byte, error) {
 	}
 	fmt.Printf("Verifying key: %d bytes read from %s\n", d, path)
 
-	values := strings.Split(path, "--")
-	maxReceipt, err := strconv.Atoi(values[0])
-	if err != nil {
-		return nil, nil, err
-	}
-	maxStorage, err := strconv.Atoi(values[1])
-	if err != nil {
-		return nil, nil, err
-	}
-	total, err := strconv.Atoi(values[2])
-	if err != nil {
-		return nil, nil, err
-	}
-
-	vkHash, err := printVkHash(vk, maxReceipt, maxStorage, total)
+	vkHash, err := printVkHash(vk, maxReceipt, maxStorage, numMaxDataPoints)
 	return vk, vkHash, err
 }
 
