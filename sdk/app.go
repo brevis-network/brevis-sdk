@@ -258,7 +258,7 @@ func (q *BrevisApp) PrepareRequest(
 	q.srcChainId = srcChainId
 	q.dstChainId = dstChainId
 
-	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, q.maxReceipts, q.maxStorage, q.maxTxs, vk, witness, vkHash)
+	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, q.maxReceipts, q.maxStorage, q.maxTxs, q.numMaxDataPoints, vk, witness)
 	if err != nil {
 		return
 	}
@@ -271,7 +271,6 @@ func (q *BrevisApp) PrepareRequest(
 		TransactionInfos:  buildTxInfos(q.txs, q.maxTxs),
 		AppCircuitInfo:    appCircuitInfo,
 		Option:            *option,
-		UsePlonky2:        true,
 	}
 
 	fmt.Println("Calling Brevis gateway PrepareRequest...")
@@ -446,7 +445,7 @@ func (q *BrevisApp) prepareQueryForBrevisPartnerFlow(
 	q.srcChainId = srcChainId
 	q.dstChainId = dstChainId
 
-	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, q.maxReceipts, q.maxStorage, q.maxTxs, vk, witness, vkHash)
+	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, q.maxReceipts, q.maxStorage, q.maxTxs, q.numMaxDataPoints, vk, witness)
 	if err != nil {
 		err = fmt.Errorf("failed to build app circuit info: %s", err.Error())
 		return
@@ -470,9 +469,7 @@ func (q *BrevisApp) prepareQueryForBrevisPartnerFlow(
 					MaxReceipts:          appCircuitInfo.MaxReceipts,
 					MaxStorage:           appCircuitInfo.MaxStorage,
 					MaxTx:                appCircuitInfo.MaxTx,
-					CircuitDigest:        hexutil.Encode(vkHash),
 				},
-				UsePlonky2: true,
 			},
 		},
 		TargetChainId: dstChainId,
@@ -922,18 +919,10 @@ func (q *BrevisApp) buildTx(t TransactionData) (Transaction, error) {
 	}
 
 	return Transaction{
-		// ChainId:             ConstUint248(t.ChainId),
 		BlockNum:     ConstUint32(blockNumber),
 		BlockBaseFee: newU248(baseFee),
 		MptKeyPath:   newU32(mptKey),
-		// Nonce:               ConstUint248(t.Nonce),
-		// GasTipCapOrGasPrice: ConstUint248(t.GasTipCapOrGasPrice),
-		// GasFeeCap:           ConstUint248(t.GasFeeCap),
-		// GasLimit:            ConstUint248(t.GasLimit),
-		// From:                ConstUint248(t.From),
-		// To:                  ConstUint248(t.To),
-		// Value:               ConstBytes32(t.Value.Bytes()),
-		LeafHash: ConstBytes32(leafHash.Bytes()),
+		LeafHash:     ConstBytes32(leafHash.Bytes()),
 	}, nil
 }
 
