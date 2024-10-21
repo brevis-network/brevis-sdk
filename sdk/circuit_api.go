@@ -109,6 +109,9 @@ func (api *CircuitAPI) OutputAddress(v Uint248) {
 }
 
 func (api *CircuitAPI) addOutput(bits []variable) {
+	if len(bits)%8 != 0 {
+		panic("bits size must be multiple of 8")
+	}
 	// the decomposed v bits are little-endian bits. The way evm uses Keccak expects
 	// the input to be big-endian bytes, but the bits in each byte are little endian
 	b := flipByGroups(bits, 8)

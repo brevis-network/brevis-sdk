@@ -253,6 +253,10 @@ func (c *HostCircuit) commitOutput(bits []frontend.Variable) OutputCommitment {
 }
 
 func bits2Bytes(data []frontend.Variable) []byte {
+	if len(data)%8 != 0 {
+		panic("data size must be multiple of 8")
+	}
+
 	var bits []uint
 	for _, b := range data {
 		bits = append(bits, uint(fromInterface(b).Int64()))
