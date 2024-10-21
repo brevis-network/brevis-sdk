@@ -273,6 +273,9 @@ func flipBits(bits []uint) []uint {
 }
 
 func padBitsRight(bits []uint, n int, with uint) []uint {
+	if len(bits) > n {
+		panic(fmt.Errorf("invalid input: length of bits %d exceeds padding length %d", len(bits), n))
+	}
 	ret := make([]uint, n)
 	for i := 0; i < len(bits); i++ {
 		ret[i] = bits[i]
