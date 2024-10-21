@@ -31,7 +31,7 @@ func newI248(v ...frontend.Variable) Int248 {
 // circuit wires and should only be used outside of circuit. The input big int
 // can be negative
 func ConstInt248(v *big.Int) Int248 {
-	if v.BitLen() > 248 {
+	if v.BitLen() >= 248 {
 		panic("cannot initialize Int248 with bit length > 248")
 	}
 
