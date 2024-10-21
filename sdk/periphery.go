@@ -24,14 +24,14 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-func Compile(app AppCircuit, compileOutDir, srsDir string, maxReceipt, maxStorage, total int) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, []byte, error) {
+func Compile(app AppCircuit, compileOutDir, srsDir string, maxReceipt, maxStorage, numMaxDataPoints int) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, []byte, error) {
 	fmt.Println(">> compile")
-	ccs, err := CompileOnly(app)
+	ccs, err := CompileOnly(app, numMaxDataPoints)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
 	fmt.Println(">> setup")
-	pk, vk, vkHash, err := Setup(ccs, srsDir, maxReceipt, maxStorage, total)
+	pk, vk, vkHash, err := Setup(ccs, srsDir, maxReceipt, maxStorage, numMaxDataPoints)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -43,7 +43,7 @@ func Compile(app AppCircuit, compileOutDir, srsDir string, maxReceipt, maxStorag
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	vkFileName := fmt.Sprintf("%d--%d--%d--vk", maxReceipt, maxStorage, total)
+	vkFileName := fmt.Sprintf("%d--%d--%d--vk", maxReceipt, maxStorage, numMaxDataPoints)
 	err = WriteTo(vk, filepath.Join(compileOutDir, vkFileName))
 	fmt.Println("compilation/setup complete")
 	return ccs, pk, vk, vkHash, err
@@ -65,8 +65,8 @@ func NewFullWitness(assign AppCircuit, in CircuitInput) (w, wpub witness.Witness
 }
 
 // CompileOnly is like Compile, but it does not automatically save the compilation output
-func CompileOnly(app AppCircuit) (constraint.ConstraintSystem, error) {
-	host := DefaultHostCircuit(app)
+func CompileOnly(app AppCircuit, numMaxDataPoints int) (constraint.ConstraintSystem, error) {
+	host := DefaultHostCircuit(app, numMaxDataPoints)
 
 	before := time.Now()
 	ccs, err := frontend.Compile(ecc.BN254.ScalarField(), scs.NewBuilder, host)
@@ -78,7 +78,7 @@ func CompileOnly(app AppCircuit) (constraint.ConstraintSystem, error) {
 	return ccs, nil
 }
 
-func Setup(ccs constraint.ConstraintSystem, cacheDir string, maxReceipt, maxStorage, total int) (pk plonk.ProvingKey, vk plonk.VerifyingKey, vkHash []byte, err error) {
+func Setup(ccs constraint.ConstraintSystem, cacheDir string, maxReceipt, maxStorage, numMaxDataPoints int) (pk plonk.ProvingKey, vk plonk.VerifyingKey, vkHash []byte, err error) {
 	if len(cacheDir) == 0 {
 		return nil, nil, nil, fmt.Errorf("must provide a directory to save SRS")
 	}
@@ -102,23 +102,20 @@ func Setup(ccs constraint.ConstraintSystem, cacheDir string, maxReceipt, maxStor
 	}
 	fmt.Printf("setup done in %s\n", time.Since(before))
 
-	vkHash, err = printVkHash(vk, maxReceipt, maxStorage, total)
+	vkHash, err = printVkHash(vk, maxReceipt, maxStorage, numMaxDataPoints)
 
 	return
 }
 
-func printVkHash(vk plonk.VerifyingKey, maxReceipt, maxStorage, total int) ([]byte, error) {
+func printVkHash(vk plonk.VerifyingKey, maxReceipt, maxStorage, numMaxDataPoints int) ([]byte, error) {
 	if maxReceipt%32 != 0 {
 		panic("invalid max receipts")
 	}
 	if maxStorage%32 != 0 {
 		panic("invalid max storage")
 	}
-	if total != NumMaxDataPoints {
-		panic("invalid total data points")
-	}
 
-	vkHash, err := CalBrevisCircuitDigest(maxReceipt, maxStorage, total-maxReceipt-maxStorage, vk)
+	vkHash, err := CalBrevisCircuitDigest(maxReceipt, maxStorage, numMaxDataPoints-maxReceipt-maxStorage, vk)
 	if err != nil {
 		fmt.Printf("error computing vk hash: %s", err.Error())
 		return nil, err

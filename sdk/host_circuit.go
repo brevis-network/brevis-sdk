@@ -25,14 +25,14 @@ type HostCircuit struct {
 	Guest AppCircuit
 }
 
-func DefaultHostCircuit(app AppCircuit) *HostCircuit {
+func DefaultHostCircuit(app AppCircuit, numMaxDataPoints int) *HostCircuit {
 	maxReceipts, maxStorage, maxTxs := app.Allocate()
-	var inputCommits = make([]frontend.Variable, NumMaxDataPoints)
-	for i := 0; i < NumMaxDataPoints; i++ {
+	var inputCommits = make([]frontend.Variable, numMaxDataPoints)
+	for i := 0; i < numMaxDataPoints; i++ {
 		inputCommits[i] = 0
 	}
 	h := &HostCircuit{
-		Input: defaultCircuitInput(maxReceipts, maxStorage, maxTxs),
+		Input: defaultCircuitInput(maxReceipts, maxStorage, maxTxs, numMaxDataPoints),
 		Guest: app,
 	}
 	return h
@@ -86,7 +86,7 @@ func (c *HostCircuit) commitInput() error {
 		return fmt.Errorf("error creating poseidon hasher instance: %s", err.Error())
 	}
 
-	var inputCommits [NumMaxDataPoints]frontend.Variable
+	inputCommits := make([]frontend.Variable, c.Input.DataInput.NumMaxDataPoints)
 	receipts := c.Input.Receipts
 	j := 0
 	for i, receipt := range receipts.Raw {
@@ -142,8 +142,8 @@ func (c *HostCircuit) commitInput() error {
 	toggles := c.Input.Toggles()
 
 	// sanity check, this shouldn't happen
-	if len(toggles) != NumMaxDataPoints {
-		panic(fmt.Errorf("toggles len %d != NumMaxDataPoints %d", len(toggles), NumMaxDataPoints))
+	if len(toggles) != c.Input.DataInput.NumMaxDataPoints {
+		panic(fmt.Errorf("toggles len %d != NumMaxDataPoints %d", len(toggles), c.Input.DataInput.NumMaxDataPoints))
 	}
 
 	if len(toggles)%32 != 0 {
@@ -205,8 +205,8 @@ func (c *HostCircuit) dataLen() int {
 func (c *HostCircuit) validateInput() error {
 	d := c.Input
 	inputLen := len(d.Receipts.Raw) + len(d.StorageSlots.Raw) + len(d.Transactions.Raw)
-	if inputLen > NumMaxDataPoints {
-		return fmt.Errorf("input len must be less than %d", NumMaxDataPoints)
+	if inputLen > c.Input.DataInput.NumMaxDataPoints {
+		return fmt.Errorf("input len must be less than %d", c.Input.DataInput.NumMaxDataPoints)
 	}
 	maxReceipts, maxSlots, maxTransactions := c.Guest.Allocate()
 	if len(d.Receipts.Raw) != len(d.Receipts.Toggles) || len(d.Receipts.Raw) != maxReceipts {

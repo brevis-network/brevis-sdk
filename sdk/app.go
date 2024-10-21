@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -127,15 +128,20 @@ type BrevisApp struct {
 	txs         rawData[TransactionData]
 
 	// cache fields
-	circuitInput                    CircuitInput
-	buildInputCalled                bool
-	queryId                         []byte
-	nonce                           uint64
-	srcChainId, dstChainId          uint64
-	maxReceipts, maxStorage, maxTxs int
+	circuitInput                                      CircuitInput
+	buildInputCalled                                  bool
+	queryId                                           []byte
+	nonce                                             uint64
+	srcChainId, dstChainId                            uint64
+	maxReceipts, maxStorage, maxTxs, numMaxDataPoints int
 }
 
-func NewBrevisApp(srcChainId uint64, rpcUrl string, gatewayUrlOverride ...string) (*BrevisApp, error) {
+func NewBrevisApp(
+	srcChainId uint64,
+	rpcUrl string,
+	numMaxDataPoints int,
+	gatewayUrlOverride ...string,
+) (*BrevisApp, error) {
 	ec, err := ethclient.Dial(rpcUrl)
 	if err != nil {
 		return nil, err
@@ -158,13 +164,26 @@ func NewBrevisApp(srcChainId uint64, rpcUrl string, gatewayUrlOverride ...string
 	if err != nil {
 		return nil, err
 	}
+
+	if numMaxDataPoints < 64 {
+		return nil, fmt.Errorf("the minimum numMaxDataPoints is 64")
+	}
+
+	if numMaxDataPoints%64 != 0 {
+		return nil, fmt.Errorf("numMaxDataPoints %d should be integral multiple of 64", numMaxDataPoints)
+	}
+
+	if !CheckNumberPowerOfTwo(numMaxDataPoints / 64) {
+		return nil, fmt.Errorf("numMaxDataPoints / 32 %d should be a power of 2", numMaxDataPoints)
+	}
 	return &BrevisApp{
-		gc:            gc,
-		brevisRequest: br,
-		srcChainId:    srcChainId,
-		receipts:      rawData[ReceiptData]{},
-		storageVals:   rawData[StorageData]{},
-		txs:           rawData[TransactionData]{},
+		gc:               gc,
+		brevisRequest:    br,
+		srcChainId:       srcChainId,
+		receipts:         rawData[ReceiptData]{},
+		storageVals:      rawData[StorageData]{},
+		txs:              rawData[TransactionData]{},
+		numMaxDataPoints: numMaxDataPoints,
 	}, nil
 }
 
@@ -202,7 +221,7 @@ func (q *BrevisApp) BuildCircuitInput(app AppCircuit) (CircuitInput, error) {
 		return CircuitInput{}, err
 	}
 
-	in := defaultCircuitInput(q.maxReceipts, q.maxStorage, q.maxTxs)
+	in := defaultCircuitInput(q.maxReceipts, q.maxStorage, q.maxTxs, q.numMaxDataPoints)
 
 	// receipt
 	err = q.assignReceipts(&in)
@@ -541,14 +560,14 @@ func (q *BrevisApp) checkAllocations(cb AppCircuit) error {
 		return allocationLenErr("transaction", numTxs, maxTxs)
 	}
 	total := maxReceipts + maxSlots + maxTxs
-	if total > NumMaxDataPoints {
-		return allocationLenErr("total", total, NumMaxDataPoints)
+	if total > q.numMaxDataPoints {
+		return allocationLenErr("total", total, q.numMaxDataPoints)
 	}
 	return nil
 }
 
 func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
-	leafs := make([]*big.Int, NumMaxDataPoints)
+	leafs := make([]*big.Int, q.numMaxDataPoints)
 	hasher := utils.NewPoseidonBn254()
 	// assign 0 to input commit for dummy and actual data hash for non-dummies
 	j := 0
@@ -638,7 +657,7 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 		j++
 	}
 
-	for i := j; i < NumMaxDataPoints; i++ {
+	for i := j; i < q.numMaxDataPoints; i++ {
 		w.InputCommitments[i] = ticData
 		leafs[i] = new(big.Int).SetBytes(ticData)
 	}
@@ -674,14 +693,14 @@ func doHash(hasher *utils.PoseidonBn254Hasher, packed []*big.Int) (*big.Int, err
 // hash 32 toggles into one value which is used as merkle tree leaf.
 func (q *BrevisApp) assignToggleCommitment(in *CircuitInput) {
 	var err error
-	in.TogglesCommitment, err = CalTogglesHashRoot(in.Toggles())
+	in.TogglesCommitment, err = q.calTogglesHashRoot(in.Toggles())
 	if err != nil {
 		log.Panicf("fail to CalTogglesHashRoot, err: %v", err)
 	}
 }
 
-func CalTogglesHashRoot(toggles []frontend.Variable) (*big.Int, error) {
-	leafs := make([]*big.Int, NumMaxDataPoints/32)
+func (q *BrevisApp) calTogglesHashRoot(toggles []frontend.Variable) (*big.Int, error) {
+	leafs := make([]*big.Int, q.numMaxDataPoints/32)
 	if len(toggles)%32 != 0 {
 		return nil, fmt.Errorf("invalid toggles length %d", len(toggles))
 	}
@@ -739,10 +758,14 @@ func CalPoseidonBn254MerkleTree(leafs []*big.Int) (*big.Int, error) {
 func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
 	// assigning user appointed receipts at specific indices
 	for i, receipt := range q.receipts.special {
+		receiptInfo, mptKey, blockNum, blockBaseFee, err := q.getReceiptInfos(receipt.TxHash)
+		if err != nil {
+			return err
+		}
 		in.Receipts.Raw[i] = Receipt{
-			BlockNum:     newU32(receipt.BlockNum),
-			BlockBaseFee: newU248(receipt.BlockBaseFee),
-			MptKeyPath:   newU32(receipt.MptKeyPath),
+			BlockNum:     newU32(blockNum),
+			BlockBaseFee: newU248(blockBaseFee),
+			MptKeyPath:   newU32(mptKey),
 			Fields:       buildLogFields(receipt.Fields),
 		}
 		in.Receipts.Toggles[i] = 1
@@ -751,13 +774,17 @@ func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
 	// distribute other receipts in order to the rest of the unassigned spaces
 	j := 0
 	for _, receipt := range q.receipts.ordered {
+		receiptInfo, mptKey, blockNum, blockBaseFee, err := q.getReceiptInfos(receipt.TxHash)
+		if err != nil {
+			return err
+		}
 		for in.Receipts.Toggles[j] == 1 {
 			j++
 		}
 		in.Receipts.Raw[j] = Receipt{
-			BlockNum:     newU32(receipt.BlockNum),
-			BlockBaseFee: newU248(receipt.BlockBaseFee),
-			MptKeyPath:   newU32(receipt.MptKeyPath),
+			BlockNum:     newU32(blockNum),
+			BlockBaseFee: newU248(blockBaseFee),
+			MptKeyPath:   newU32(mptKey),
 			Fields:       buildLogFields(receipt.Fields),
 		}
 		in.Receipts.Toggles[j] = 1
@@ -803,7 +830,11 @@ func buildLogFields(fs [NumMaxLogFields]LogFieldData) (fields [NumMaxLogFields]L
 func (q *BrevisApp) assignStorageSlots(in *CircuitInput) (err error) {
 	// assigning user appointed data at specific indices
 	for i, val := range q.storageVals.special {
-		in.StorageSlots.Raw[i] = buildStorageSlot(val)
+		s, err := q.buildStorageSlot(val)
+		if err != nil {
+			return err
+		}
+		in.StorageSlots.Raw[i] = s
 		in.StorageSlots.Toggles[i] = 1
 	}
 
@@ -813,7 +844,11 @@ func (q *BrevisApp) assignStorageSlots(in *CircuitInput) (err error) {
 		for in.StorageSlots.Toggles[j] == 1 {
 			j++
 		}
-		in.StorageSlots.Raw[j] = buildStorageSlot(val)
+		s, err := q.buildStorageSlot(val)
+		if err != nil {
+			return err
+		}
+		in.StorageSlots.Raw[j] = s
 		in.StorageSlots.Toggles[j] = 1
 		j++
 	}
@@ -821,18 +856,28 @@ func (q *BrevisApp) assignStorageSlots(in *CircuitInput) (err error) {
 	return nil
 }
 
-func (q *BrevisApp) BuildStorageSlot(s StorageData) StorageSlot {
+func (q *BrevisApp) BuildStorageSlot(s StorageData) (StorageSlot, error) {
 	return q.buildStorageSlot(s)
 }
 
-func (q *BrevisApp) buildStorageSlot(s StorageData) StorageSlot {
+func (q *BrevisApp) buildStorageSlot(s StorageData) (StorageSlot, error) {
+	blockBaseFee, err := q.getBlockBaseFee(s.BlockNum)
+	if err != nil {
+		return StorageSlot{}, nil
+	}
+
+	value, err := q.getStorageValue(s.BlockNum, s.Address, s.Slot)
+	if err != nil {
+		return StorageSlot{}, nil
+	}
+
 	return StorageSlot{
 		BlockNum:     newU32(s.BlockNum),
-		BlockBaseFee: newU248(s.BlockBaseFee),
+		BlockBaseFee: newU248(blockBaseFee),
 		Contract:     ConstUint248(s.Address),
 		Slot:         ConstBytes32(s.Slot[:]),
-		Value:        ConstBytes32(s.Value[:]),
-	}
+		Value:        ConstBytes32(value[:]),
+	}, nil
 }
 
 func (q *BrevisApp) assignTransactions(in *CircuitInput) (err error) {
@@ -863,14 +908,14 @@ func (q *BrevisApp) assignTransactions(in *CircuitInput) (err error) {
 	return nil
 }
 
-func (q *BrevisApp) BuildTx(t TransactionData) (TransactionData, Transaction, error) {
+func (q *BrevisApp) BuildTx(t TransactionData) (Transaction, error) {
 	return q.buildTx(t)
 }
 
-func (q *BrevisApp) buildTx(t TransactionData) (TransactionData, Transaction, error) {
+func (q *BrevisApp) buildTx(t TransactionData) (Transaction, error) {
 	leafHash, mptKey, blockNumber, baseFee, err := q.calculateTxLeafHashBlockBaseFeeAndMPTKey(t.Hash)
 	if err != nil {
-		return TransactionData{}, Transaction{}, err
+		return Transaction{}, err
 	}
 
 	return Transaction{
@@ -909,13 +954,19 @@ func (q *BrevisApp) calculateMPTKeyWithIndex(index int) *big.Int {
 	return new(big.Int).SetBytes(keyIndex)
 }
 
-func (q *BrevisApp) getReceiptTxMPTKeyAndBlockNumber(txHash common.Hash) (mptKey *big.Int, blockNumber *big.Int, err error) {
-	receipt, err := q.ec.TransactionReceipt(context.Background(), txHash)
+func (q *BrevisApp) getReceiptInfos(txHash common.Hash) (receipt *types.Receipt, mptKey *big.Int, blockNumber *big.Int, baseFee *big.Int, err error) {
+	receipt, err = q.ec.TransactionReceipt(context.Background(), txHash)
 	if err != nil {
-		return nil, nil, fmt.Errorf("cannot get mpt key with wrong tx hash %s: %s", txHash.Hex(), err.Error())
+		return nil, nil, nil, nil, fmt.Errorf("cannot get mpt key with wrong tx hash %s: %s", txHash.Hex(), err.Error())
 	}
 	mptKey = q.calculateMPTKeyWithIndex(int(receipt.TransactionIndex))
 	blockNumber = receipt.BlockNumber
+
+	block, err := q.ec.BlockByNumber(context.Background(), receipt.BlockNumber)
+	if err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("cannot calculate tx leaf hash with wrong tx hash %s: %s", txHash.Hex(), err.Error())
+	}
+	baseFee = block.BaseFee()
 	return
 }
 
@@ -926,6 +977,14 @@ func (q *BrevisApp) getBlockBaseFee(blkNum *big.Int) (baseFee *big.Int, err erro
 	}
 	baseFee = block.BaseFee()
 	return
+}
+
+func (q *BrevisApp) getStorageValue(blkNum *big.Int, account common.Address, slot common.Hash) (result common.Hash, err error) {
+	value, err := q.ec.StorageAt(context.Background(), account, slot, blkNum)
+	if err != nil {
+		return common.Hash{}, fmt.Errorf("cannot get storage value for account 0x%x with slot 0x%x blkNum %d: %s", account.Bytes(), slot, blkNum, err.Error())
+	}
+	return common.BytesToHash(value), nil
 }
 
 func (q *BrevisApp) calculateTxLeafHashBlockBaseFeeAndMPTKey(txHash common.Hash) (leafHash common.Hash, mptKey *big.Int, blockNumber *big.Int, baseFee *big.Int, err error) {
