@@ -92,6 +92,9 @@ func newUint521API(api frontend.API) *Uint521API {
 // FromBinary interprets the input vs as a list of little-endian binary digits
 // and recomposes it to a Uint521
 func (api *Uint521API) FromBinary(vs ...Uint248) Uint521 {
+	if len(vs) > 521 {
+		panic(fmt.Sprintf("cannot construct Uint521 from binary of size %d bits", len(vs)))
+	}
 	vars := make([]frontend.Variable, len(vs))
 	for i, v := range vs {
 		vars[i] = v

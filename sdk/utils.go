@@ -13,7 +13,9 @@ import (
 	"github.com/consensys/gnark-crypto/ecc"
 )
 
-// returns little endian bits of data
+// returns little endian bits of data.
+// negative value are not accepted.
+// if data is negative value the circuit's behavior may not match the expected outcome.
 func decomposeBits(data *big.Int, length uint) []uint {
 	return decompose[uint](data, 1, length)
 }

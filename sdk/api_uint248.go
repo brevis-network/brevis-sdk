@@ -78,6 +78,9 @@ func newUint248API(api frontend.API) *Uint248API {
 // FromBinary interprets the input vs as a list of little-endian binary digits
 // and recomposes it to a Uint248
 func (api *Uint248API) FromBinary(vs ...Uint248) Uint248 {
+	if len(vs) > 248 {
+		panic(fmt.Sprintf("cannot construct Uint248 from binary of size %d bits", len(vs)))
+	}
 	vars := make([]frontend.Variable, len(vs))
 	for i, v := range vs {
 		vars[i] = v.Val

@@ -89,6 +89,10 @@ func (api *Bytes32API) ToBinary(v Bytes32) List[Uint248] {
 // and recomposes it to a Bytes32. Input size can be less than 256 bits, the
 // input is padded on the MSB end with 0s.
 func (api *Bytes32API) FromBinary(vs ...Uint248) Bytes32 {
+	if len(vs) > 256 {
+		panic(fmt.Sprintf("cannot construct Bytes32 from binary of size %d bits", len(vs)))
+	}
+
 	var list List[Uint248] = vs
 	values := list.Values()
 	for i := len(vs); i < 256; i++ {
