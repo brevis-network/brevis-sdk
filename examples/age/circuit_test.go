@@ -121,7 +121,7 @@ func TestE2E(t *testing.T) {
 
 	// Once you saved your ccs, pk, and vk files, you can read them back into memory
 	// for use with the provided utils
-	compiledCircuit, pk, vk, vkHash, err = sdk.ReadSetupFrom(outDir)
+	compiledCircuit, pk, vk, vkHash, err = sdk.ReadSetupFrom(outDir, maxReceipt, maxStorage, sdk.NumMaxDataPoints)
 	check(err)
 
 	witness, publicWitness, err := sdk.NewFullWitness(appCircuitAssignment, circuitInput)
