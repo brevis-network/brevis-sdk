@@ -146,21 +146,7 @@ func (api *Int248API) IsLessThan(a, b Int248) Uint248 {
 
 // IsGreaterThan returns 1 if a > b, and 0 otherwise
 func (api *Int248API) IsGreaterThan(a, b Int248) Uint248 {
-	a = api.ensureSignBit(a)
-	b = api.ensureSignBit(b)
-
-	cmp := api.g.Cmp(a.Val, b.Val)
-	isGtAsUint := api.g.IsZero(api.g.Sub(cmp, 1))
-
-	isLt := api.g.Lookup2(
-		a.SignBit, b.SignBit,
-		isGtAsUint, // a, b both pos
-		0,          // a neg, b pos
-		1,          // a pos, b neg
-		isGtAsUint, // a, b both neg
-	)
-
-	return newU248(isLt)
+	return api.IsLessThan(b, a)
 }
 
 // IsZero returns 1 if a == 0, and 0 otherwise

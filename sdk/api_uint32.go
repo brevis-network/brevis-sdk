@@ -154,7 +154,7 @@ func (api *Uint32API) IsLessThan(a, b Uint32) Uint32 {
 
 // IsGreaterThan returns 1 if a > b, and 0 otherwise
 func (api *Uint32API) IsGreaterThan(a, b Uint32) Uint32 {
-	return api.IsZero(api.Sub(api.cmp(a, b), newU32(1)))
+	return api.IsLessThan(b, a)
 }
 
 // And returns 1 if a && b [&& other[0] [&& other[1]...]] is true, and 0 otherwise

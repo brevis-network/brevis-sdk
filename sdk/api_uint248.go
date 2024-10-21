@@ -164,7 +164,7 @@ func (api *Uint248API) IsLessThan(a, b Uint248) Uint248 {
 
 // IsGreaterThan returns 1 if a > b, and 0 otherwise
 func (api *Uint248API) IsGreaterThan(a, b Uint248) Uint248 {
-	return api.IsZero(api.Sub(api.cmp(a, b), newU248(1)))
+	return api.IsLessThan(b, a)
 }
 
 // And returns 1 if a && b [&& other[0] [&& other[1]...]] is true, and 0 otherwise

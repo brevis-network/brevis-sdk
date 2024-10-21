@@ -154,7 +154,7 @@ func (api *Uint64API) IsLessThan(a, b Uint64) Uint64 {
 
 // IsGreaterThan returns 1 if a > b, and 0 otherwise
 func (api *Uint64API) IsGreaterThan(a, b Uint64) Uint64 {
-	return api.IsZero(api.Sub(api.cmp(a, b), newU64(1)))
+	return api.IsLessThan(b, a)
 }
 
 // And returns 1 if a && b [&& other[0] [&& other[1]...]] is true, and 0 otherwise
