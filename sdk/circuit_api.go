@@ -64,8 +64,8 @@ func (api *CircuitAPI) OutputBool(v Uint248) {
 // Panics if a bitSize of non-multiple of 8 is used.
 // Panics if the bitSize exceeds 248. For outputting uint256, use OutputBytes32 instead
 func (api *CircuitAPI) OutputUint(bitSize int, v Uint248) {
-	if bitSize%8 != 0 {
-		panic("bitSize must be multiple of 8")
+	if bitSize%8 != 0 || bitSize > 248 {
+		panic("bitSize must be multiple of 8 and should not exceed 248")
 	}
 	b := api.g.ToBinary(v.Val, bitSize)
 	api.addOutput(b)
@@ -73,13 +73,13 @@ func (api *CircuitAPI) OutputUint(bitSize int, v Uint248) {
 	dbgPrint(ok, "added uint%d output: %d\n", bitSize, v.Val)
 }
 
-// OutputUint adds an output of solidity uint_bitSize type where N is in range [8, 248]
-// with a step size 8. e.g. uint8, uint16, ..., uint248.
+// OutputUint32 adds an output of solidity uint_bitSize type where N is in range [8, 32]
+// with a step size 8. e.g. uint8, uint16, ..., uint32.
 // Panics if a bitSize of non-multiple of 8 is used.
-// Panics if the bitSize exceeds 248. For outputting uint256, use OutputBytes32 instead
+// Panics if the bitSize exceeds 32.
 func (api *CircuitAPI) OutputUint32(bitSize int, v Uint32) {
 	if bitSize%8 != 0 || bitSize > 32 {
-		panic("bitSize must be multiple of 8")
+		panic("bitSize must be multiple of 8 and should not exceed 32")
 	}
 	b := api.g.ToBinary(v.Val, bitSize)
 	api.addOutput(b)
@@ -87,13 +87,13 @@ func (api *CircuitAPI) OutputUint32(bitSize int, v Uint32) {
 	dbgPrint(ok, "added uint%d output: %d\n", bitSize, v.Val)
 }
 
-// OutputUint adds an output of solidity uint_bitSize type where N is in range [8, 248]
-// with a step size 8. e.g. uint8, uint16, ..., uint248.
+// OutputUint adds an output of solidity uint_bitSize type where N is in range [8, 64]
+// with a step size 8. e.g. uint8, uint16, ..., uint64.
 // Panics if a bitSize of non-multiple of 8 is used.
-// Panics if the bitSize exceeds 248. For outputting uint256, use OutputBytes32 instead
+// Panics if the bitSize exceeds 64.
 func (api *CircuitAPI) OutputUint64(bitSize int, v Uint64) {
 	if bitSize%8 != 0 || bitSize > 64 {
-		panic("bitSize must be multiple of 8")
+		panic("bitSize must be multiple of 8  and should not exceed 64")
 	}
 	b := api.g.ToBinary(v.Val, bitSize)
 	api.addOutput(b)
