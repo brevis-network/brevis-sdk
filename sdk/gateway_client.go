@@ -20,7 +20,7 @@ func NewGatewayClient(url ...string) (*GatewayClient, error) {
 		panic("must supply at most one url")
 	}
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{}))}
-	gatewayUrl := "appsdkv2.brevis.network:9094"
+	gatewayUrl := "appsdkv3.brevis.network:443"
 	if len(url) > 0 {
 		gatewayUrl = url[0]
 		// if ovveride, if rpc use http, not https, use WithInsecure
