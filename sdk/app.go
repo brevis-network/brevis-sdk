@@ -552,9 +552,8 @@ func (q *BrevisApp) checkAllocations(cb AppCircuit) error {
 func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 	leafs := make([]*big.Int, NumMaxDataPoints)
 	hasher := utils.NewPoseidonBn254()
-	// assign 0 to input commit for dummy and actual data hash for non-dummies
-	j := 0
 
+	j := 0
 	ric := brevisCommon.DummyReceiptInputCommitment[q.srcChainId]
 	if len(ric) == 0 {
 		panic(fmt.Sprintf("cannot find dummy receipt info for chain %d", q.srcChainId))
@@ -702,7 +701,7 @@ func CalTogglesHashRoot(toggles []frontend.Variable) (*big.Int, error) {
 		}
 		result, err := hasher.Sum()
 		if err != nil {
-			return nil, fmt.Errorf("invalid toggles length %d", len(toggles))
+			return nil, err
 		}
 		leafs[i] = result
 	}
