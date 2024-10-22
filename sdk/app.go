@@ -776,6 +776,10 @@ func BuildLogFields(fs [NumMaxLogFields]LogFieldData) (fields [NumMaxLogFields]L
 func buildLogFields(fs [NumMaxLogFields]LogFieldData) (fields [NumMaxLogFields]LogField) {
 	empty := LogFieldData{}
 
+	if fs[0] == empty {
+		panic("not allowed to add receipts starting with an empty log field")
+	}
+
 	lastNonEmpty := fs[0]
 	for i := 0; i < NumMaxLogFields; i++ {
 		// Due to backend circuit's limitations, we must fill []LogField with valid data
