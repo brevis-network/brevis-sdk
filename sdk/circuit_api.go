@@ -2,6 +2,7 @@ package sdk
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/brevis-network/zk-hash/keccak"
@@ -162,6 +163,32 @@ func (api *CircuitAPI) SlotOfStructFieldInMapping(
 	}
 
 	res := api.offsetSlot(valueSlotBits, offset)
+	hashByteWiseLE := newU248s(flipByGroups(res[:], 8)...)
+	return api.Bytes32.FromBinary(hashByteWiseLE...)
+}
+
+func (api *CircuitAPI) Keccak256(inputs []Bytes32, inputBitSize []int32) Bytes32 {
+	if len(inputs) != len(inputBitSize) {
+		panic(fmt.Errorf("you must specific the bit size for each input"))
+	}
+	var preimage []frontend.Variable
+	for idx, in := range inputs {
+		preimageByte32Bits := api.Bytes32.ToBinary(in).Values()
+		bitSize := inputBitSize[idx]
+		preimageBits := preimageByte32Bits[0:bitSize]
+		preimage = append(preimage, flipByGroups(preimageBits, 8)...)
+	}
+	maxRoundIndex := int(math.Ceil(float64(256 * len(inputs) / 1088)))
+	preimagePadded := keccak.PadBits101(api.g, preimage, maxRoundIndex)
+
+	roundIndex := 0
+	preimageBitSize := len(preimage)
+	if preimageBitSize%1088 == 0 {
+		roundIndex = preimageBitSize/1088 - 1
+	} else {
+		roundIndex = preimageBitSize / 1088
+	}
+	res := keccak.Keccak256Bits(api.g, maxRoundIndex, roundIndex, preimagePadded)
 	hashByteWiseLE := newU248s(flipByGroups(res[:], 8)...)
 	return api.Bytes32.FromBinary(hashByteWiseLE...)
 }
