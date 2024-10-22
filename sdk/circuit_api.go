@@ -121,9 +121,11 @@ func (api *CircuitAPI) addOutput(bits []variable) {
 }
 
 // SlotOfArrayElement computes the storage slot for an element in a solidity
-// array state variable. arrSlot is the plain slot of the array variable.
-// index determines the array index. offset determines the
-// offset (in terms of bytes32) within each array element.
+// array state variable.
+// `arrSlot` is the plain slot of the array variable, it is the slot where the first element of the array starts,
+// so that for dynamic arrays, taking the keccak hash of the slot address at which the array itself is located should be handled.
+// `elementSize` is the number of storage slots each element uses, it is not size in bytes.
+// `index` determines the array index. `offset` determines the offset (in terms of bytes32) within each array element.
 func (api *CircuitAPI) SlotOfArrayElement(arrSlot Bytes32, elementSize int, index, offset Uint248) Bytes32 {
 	//api.Uint248.AssertIsLessOrEqual(offset, ConstUint248(elementSize))
 	o := api.g.Mul(index.Val, elementSize)
@@ -135,10 +137,10 @@ func (api *CircuitAPI) SlotOfArrayElement(arrSlot Bytes32, elementSize int, inde
 
 // SlotOfStructFieldInMapping computes the slot for a struct field
 // stored in a solidity mapping. Implements keccak256(h(k) | p) for computing
-// mapping or nested mapping's slot where the value is a struct The
+// mapping or nested mapping's slot where the value is a struct. The
 // mapping slots are of the order which you would access the solidity mapping. For
 // example, to access nested mapping at slot 1 value with m[a][b] and
-// subsequently the 4th index of the struct value, use
+// subsequently the 4th index of the struct value counted in slots, use
 // SlotOfStructFieldInMapping(1, 4, a, b). If your a and b are not of
 // Bytes32 type, cast them to Bytes32 first using api.ToBytes32.
 //
@@ -165,7 +167,10 @@ func (api *CircuitAPI) SlotOfStructFieldInMapping(
 }
 
 func (api *CircuitAPI) offsetSlot(slotBits [256]variable, offset int) [256]variable {
-	if offset <= 0 {
+	if offset < 0 {
+		panic("offset should not be negative")
+	}
+	if offset == 0 {
 		return slotBits
 	}
 	// Hack: directly doing integer arithmetic on the low limb of the bytes32 because
@@ -259,6 +264,7 @@ func (api *CircuitAPI) ToUint521(i interface{}) Uint521 {
 
 // ToUint248 casts the input to a Uint248 type. Supports Uint32, Uint64, Uint248, Int248,
 // Bytes32, and Uint521
+// Note that using ToUint248 with negative Int248 results in a wraparound modulo 2^248
 func (api *CircuitAPI) ToUint248(i interface{}) Uint248 {
 	switch v := i.(type) {
 	case Uint248:
@@ -283,6 +289,7 @@ func (api *CircuitAPI) ToUint248(i interface{}) Uint248 {
 
 // ToInt248 casts the input to a Int248 type. Supports Int248, Uint248,
 // and Bytes32
+// Note that Uint248 values with the top bit set will be interpreted as negative values
 func (api *CircuitAPI) ToInt248(i interface{}) Int248 {
 	switch v := i.(type) {
 	case Int248:
