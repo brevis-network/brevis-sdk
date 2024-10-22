@@ -106,6 +106,9 @@ func (api *Uint521API) FromBinary(vs ...Uint248) Uint521 {
 func (api *Uint521API) ToBinary(v Uint521, n int) List[Uint248] {
 	reduced := api.f.Reduce(v.Element)
 	bits := api.f.ToBits(reduced)
+	if len(bits) < n {
+		panic(fmt.Sprintf("v has bits size %d less than %d", len(bits), n))
+	}
 	ret := make([]Uint248, n)
 	for i := 0; i < n; i++ {
 		ret[i] = newU248(bits[i])
