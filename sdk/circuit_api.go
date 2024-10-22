@@ -169,8 +169,9 @@ func (api *CircuitAPI) SlotOfStructFieldInMapping(
 
 func (api *CircuitAPI) Keccak256(inputs []Bytes32, inputBitSize []int32) Bytes32 {
 	if len(inputs) != len(inputBitSize) {
-		panic(fmt.Errorf("you must specific the bit size for each input"))
+		panic("you must specify the bit size for each input.")
 	}
+
 	var preimage []frontend.Variable
 	for idx, in := range inputs {
 		preimageByte32Bits := api.Bytes32.ToBinary(in).Values()
@@ -188,6 +189,7 @@ func (api *CircuitAPI) Keccak256(inputs []Bytes32, inputBitSize []int32) Bytes32
 	} else {
 		roundIndex = preimageBitSize / 1088
 	}
+
 	res := keccak.Keccak256Bits(api.g, maxRoundIndex, roundIndex, preimagePadded)
 	hashByteWiseLE := newU248s(flipByGroups(res[:], 8)...)
 	return api.Bytes32.FromBinary(hashByteWiseLE...)
