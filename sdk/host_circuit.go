@@ -27,10 +27,6 @@ type HostCircuit struct {
 
 func DefaultHostCircuit(app AppCircuit) *HostCircuit {
 	maxReceipts, maxStorage, maxTxs := app.Allocate()
-	var inputCommits = make([]frontend.Variable, NumMaxDataPoints)
-	for i := 0; i < NumMaxDataPoints; i++ {
-		inputCommits[i] = 0
-	}
 	h := &HostCircuit{
 		Input: defaultCircuitInput(maxReceipts, maxStorage, maxTxs),
 		Guest: app,
@@ -199,20 +195,20 @@ func (c *HostCircuit) validateInput() error {
 	d := c.Input
 	inputLen := len(d.Receipts.Raw) + len(d.StorageSlots.Raw) + len(d.Transactions.Raw)
 	if inputLen > NumMaxDataPoints {
-		return fmt.Errorf("input len must be less than %d", NumMaxDataPoints)
+		return fmt.Errorf("input len must be less than or equal to %d", NumMaxDataPoints)
 	}
 	maxReceipts, maxSlots, maxTransactions := c.Guest.Allocate()
 	if len(d.Receipts.Raw) != len(d.Receipts.Toggles) || len(d.Receipts.Raw) != maxReceipts {
-		return fmt.Errorf("receipt input/toggle len mismatch: %d vs %d",
-			len(d.Receipts.Raw), len(d.Receipts.Toggles))
+		return fmt.Errorf("receipt input/toggle len mismatch: len(d.Receipts.Raw) %d vs len(d.Receipts.Toggles) %d vs maxReceipts %d",
+			len(d.Receipts.Raw), len(d.Receipts.Toggles), maxReceipts)
 	}
 	if len(d.StorageSlots.Raw) != len(d.StorageSlots.Toggles) || len(d.StorageSlots.Raw) != maxSlots {
-		return fmt.Errorf("storageSlots input/toggle len mismatch: %d vs %d",
-			len(d.StorageSlots.Raw), len(d.StorageSlots.Toggles))
+		return fmt.Errorf("storageSlots input/toggle len mismatch: len(d.StorageSlots.Raw) %d vs len(d.StorageSlots.Toggles) %d vs maxSlots %d",
+			len(d.StorageSlots.Raw), len(d.StorageSlots.Toggles), maxSlots)
 	}
 	if len(d.Transactions.Raw) != len(d.Transactions.Toggles) || len(d.Transactions.Raw) != maxTransactions {
-		return fmt.Errorf("transaction input/toggle len mismatch: %d vs %d",
-			len(d.Transactions.Raw), len(d.Transactions.Toggles))
+		return fmt.Errorf("transaction input/toggle len mismatch: len(d.Transactions.Raw) %d vs len(d.Transactions.Toggles) %d vs maxTransactions %d",
+			len(d.Transactions.Raw), len(d.Transactions.Toggles), maxTransactions)
 	}
 	return nil
 }
