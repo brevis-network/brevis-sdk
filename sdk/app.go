@@ -232,7 +232,6 @@ func (q *BrevisApp) PrepareRequest(
 	callbackGasLimit uint64,
 	option *gwproto.QueryOption,
 	apiKey string, // used for brevis partner flow
-	usePlonky2 bool,
 	vkHash []byte,
 ) (calldata []byte, requestId common.Hash, nonce uint64, feeValue *big.Int, err error) {
 	if !q.buildInputCalled {
@@ -248,7 +247,7 @@ func (q *BrevisApp) PrepareRequest(
 	q.srcChainId = srcChainId
 	q.dstChainId = dstChainId
 
-	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, q.maxReceipts, q.maxStorage, q.maxTxs, vk, witness, vkHash)
+	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, q.maxReceipts, q.maxStorage, q.maxTxs, NumMaxDataPoints, vk, witness)
 	if err != nil {
 		return
 	}
@@ -261,7 +260,6 @@ func (q *BrevisApp) PrepareRequest(
 		TransactionInfos:  buildTxInfos(q.txs, q.maxTxs),
 		AppCircuitInfo:    appCircuitInfo,
 		Option:            *option,
-		UsePlonky2:        usePlonky2,
 	}
 
 	fmt.Println("Calling Brevis gateway PrepareRequest...")
@@ -436,7 +434,7 @@ func (q *BrevisApp) prepareQueryForBrevisPartnerFlow(
 	q.srcChainId = srcChainId
 	q.dstChainId = dstChainId
 
-	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, q.maxReceipts, q.maxStorage, q.maxTxs, vk, witness, vkHash)
+	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, q.maxReceipts, q.maxStorage, q.maxTxs, NumMaxDataPoints, vk, witness)
 	if err != nil {
 		err = fmt.Errorf("failed to build app circuit info: %s", err.Error())
 		return
@@ -460,7 +458,6 @@ func (q *BrevisApp) prepareQueryForBrevisPartnerFlow(
 					MaxReceipts:          appCircuitInfo.MaxReceipts,
 					MaxStorage:           appCircuitInfo.MaxStorage,
 					MaxTx:                appCircuitInfo.MaxTx,
-					CircuitDigest:        hexutil.Encode(vkHash),
 				},
 			},
 		},
