@@ -103,7 +103,7 @@ func main() {
 	proof.WriteTo(buf)
 	fmt.Println("Proof: ", hexutil.Encode(buf.Bytes()))
 
-	_, _, _, _, err = app.PrepareRequest(vk, witness, 1, 11155111, refundee, appContract, 400000, gwproto.QueryOption_ZK_MODE.Enum(), "", true, vkHash)
+	_, _, _, _, err = app.PrepareRequest(vk, witness, 1, 11155111, refundee, appContract, 400000, gwproto.QueryOption_ZK_MODE.Enum(), "", vkHash)
 	check(err)
 
 	err = app.SubmitProof(proof)

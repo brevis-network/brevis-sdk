@@ -139,7 +139,7 @@ func TestE2E(t *testing.T) {
 	appContract := common.HexToAddress("0x73090023b8D731c4e87B3Ce9Ac4A9F4837b4C1bd")
 	refundee := common.HexToAddress("0x164Ef8f77e1C88Fb2C724D3755488bE4a3ba4342")
 
-	calldata, _, _, feeValue, err := app.PrepareRequest(vk, publicWitness, 1, 11155111, refundee, appContract, 400000, gwproto.QueryOption_ZK_MODE.Enum(), "", false, vkHash)
+	calldata, _, _, feeValue, err := app.PrepareRequest(vk, publicWitness, 1, 11155111, refundee, appContract, 400000, gwproto.QueryOption_ZK_MODE.Enum(), "", vkHash)
 	check(err)
 	fmt.Printf("calldata 0x%x\nfeeValue %d Wei\n", calldata, feeValue)
 
