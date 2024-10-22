@@ -7,7 +7,7 @@ import (
 	"math/big"
 
 	"github.com/consensys/gnark/frontend"
-	"github.com/consensys/gnark/std/math/bits"
+	"github.com/consensys/gnark/std/rangecheck"
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/consensys/gnark-crypto/ecc"
@@ -190,26 +190,74 @@ func fromInterface(input interface{}) *big.Int {
 
 // Inspired by https://github.com/Consensys/gnark/blob/429616e33c97ed21113dd87787c043e8fb43720c/frontend/cs/scs/api.go#L523
 // To reduce constraints comsumption, use predefined number of variable's bits.
+// func Cmp(api frontend.API, i1, i2 frontend.Variable, nbBits int) frontend.Variable {
+// 	bi1 := bits.ToBinary(api, i1, bits.WithNbDigits(nbBits))
+// 	bi2 := bits.ToBinary(api, i2, bits.WithNbDigits(nbBits))
+
+// 	var res frontend.Variable
+// 	res = 0
+
+// 	for i := nbBits - 1; i >= 0; i-- {
+// 		iszeroi1 := api.IsZero(bi1[i])
+// 		iszeroi2 := api.IsZero(bi2[i])
+
+// 		i1i2 := api.And(bi1[i], iszeroi2)
+// 		i2i1 := api.And(bi2[i], iszeroi1)
+
+// 		n := api.Select(i2i1, -1, 0)
+// 		m := api.Select(i1i2, 1, n)
+
+// 		res = api.Select(api.IsZero(res), m, res)
+// 	}
+// 	return res
+// }
+
+// Cmp compares i1 and i2 based on a specified number of bits (nbBits).
+// Returns -1 if i1 < i2, 0 if i1 == i2, and 1 if i1 > i2.
+// This version is optimized to avoid full bit decomposition and only uses range checking and hinting.
 func Cmp(api frontend.API, i1, i2 frontend.Variable, nbBits int) frontend.Variable {
-	bi1 := bits.ToBinary(api, i1, bits.WithNbDigits(nbBits))
-	bi2 := bits.ToBinary(api, i2, bits.WithNbDigits(nbBits))
-
-	var res frontend.Variable
-	res = 0
-
-	for i := nbBits - 1; i >= 0; i-- {
-		iszeroi1 := api.IsZero(bi1[i])
-		iszeroi2 := api.IsZero(bi2[i])
-
-		i1i2 := api.And(bi1[i], iszeroi2)
-		i2i1 := api.And(bi2[i], iszeroi1)
-
-		n := api.Select(i2i1, -1, 0)
-		m := api.Select(i1i2, 1, n)
-
-		res = api.Select(api.IsZero(res), m, res)
+	if nbBits > api.Compiler().Field().BitLen()-2 {
+		panic("Cmp called with nbBits too large.")
 	}
-	return res
+
+	rangeChecker := rangecheck.New(api)
+	rangeChecker.Check(i1, nbBits)
+	rangeChecker.Check(i2, nbBits)
+
+	results, err := api.Compiler().NewHint(CmpHint, 1, i1, i2)
+	if err != nil {
+		panic(err)
+	}
+	result := results[0]
+
+	// Ensure the result is -1, 0, or 1
+	resultSquared := api.Mul(result, result)
+	api.AssertIsBoolean(resultSquared)
+
+	// Compute if i1 < i2 based on the hint (result == -1)
+	first_smaller := api.IsZero(api.Add(result, 1))
+
+	// Select the bigger and smaller of i1 and i2
+	bigger := api.Select(first_smaller, i2, i1)
+	smaller := api.Select(first_smaller, i1, i2)
+
+	// Check the difference to ensure the hint was correct
+	diff := api.Sub(bigger, smaller)
+	rangeChecker.Check(diff, nbBits)
+
+	// Handle the equality case: i1 == i2
+	equal := api.IsZero(diff)
+	result_zero := api.IsZero(result)
+	api.AssertIsEqual(api.Xor(equal, result_zero), 0)
+
+	return result
+}
+
+// CmpHint is a hint function that compares two values and returns -1, 0, or 1
+func CmpHint(_ *big.Int, inputs []*big.Int, results []*big.Int) error {
+	// Set result based on comparison: -1 if inputs[0] < inputs[1], 0 if equal, 1 if greater
+	results[0].SetInt64(int64(inputs[0].Cmp(inputs[1])))
+	return nil
 }
 
 func mustWriteToBytes(w io.WriterTo) []byte {
