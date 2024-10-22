@@ -34,6 +34,7 @@ type Service struct {
 // brevis sdk in other languages.
 func NewService(
 	rpcUrl string,
+	localStoragePath string,
 	srcChainId int,
 	numMaxDataPoints int,
 	app sdk.AppCircuit, config ServiceConfig) (*Service, error) {
@@ -42,7 +43,7 @@ func NewService(
 		return nil, err
 	}
 	return &Service{
-		svr: newServer(rpcUrl, srcChainId, app, numMaxDataPoints, pk, vk, ccs, vkHash),
+		svr: newServer(rpcUrl, localStoragePath, srcChainId, app, numMaxDataPoints, pk, vk, ccs, vkHash),
 	}, nil
 }
 
@@ -115,6 +116,7 @@ type server struct {
 
 func newServer(
 	rpcUrl string,
+	localStoragePath string,
 	srcChainId int,
 	appCircuit sdk.AppCircuit,
 	numMaxDataPoints int,
@@ -134,7 +136,7 @@ func newServer(
 		os.Exit(1)
 	}
 
-	brevisApp, err := sdk.NewBrevisApp(uint64(srcChainId), numMaxDataPoints, rpcUrl)
+	brevisApp, err := sdk.NewBrevisApp(uint64(srcChainId), numMaxDataPoints, rpcUrl, localStoragePath)
 	if err != nil {
 		fmt.Printf("failed to initiate brevis app %s", err.Error())
 		os.Exit(1)

@@ -11,8 +11,9 @@ import (
 )
 
 func TestCircuit(t *testing.T) {
+	localDir := "$HOME/circuitOut/myBrevisApp/input"
 	numMaxDataPoints := 128
-	app, err := sdk.NewBrevisApp(1, numMaxDataPoints, "RPC_URL")
+	app, err := sdk.NewBrevisApp(1, numMaxDataPoints, "RPC_URL", localDir)
 	check(err)
 
 	account := common.HexToAddress("0x5427FEFA711Eff984124bFBB1AB6fbf5E3DA1820")
@@ -46,8 +47,9 @@ func TestCircuit(t *testing.T) {
 }
 
 func TestE2E(t *testing.T) {
+	localDir := "$HOME/circuitOut/myBrevisApp/input"
 	numMaxDataPoints := 128
-	app, err := sdk.NewBrevisApp(1, numMaxDataPoints, "RPC_URL")
+	app, err := sdk.NewBrevisApp(1, numMaxDataPoints, "RPC_URL", localDir)
 	check(err)
 
 	account := common.HexToAddress("0x5427FEFA711Eff984124bFBB1AB6fbf5E3DA1820")

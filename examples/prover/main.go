@@ -11,6 +11,7 @@ import (
 func main() {
 	proverService, err := prover.NewService(
 		"RPC_URL",
+		"$HOME/circuitInput",
 		1,
 		128,
 		dummy.DefaultAppCircuit(),

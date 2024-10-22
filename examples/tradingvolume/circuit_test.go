@@ -13,8 +13,9 @@ import (
 // UniversalRouter contract. Let's declare the fields we want to use:
 
 func TestCircuit(t *testing.T) {
+	localDir := "$HOME/circuitOut/myBrevisApp/input"
 	numMaxDataPoints := 128
-	app, err := sdk.NewBrevisApp(1, numMaxDataPoints, "RPC_URL")
+	app, err := sdk.NewBrevisApp(1, numMaxDataPoints, "RPC_URL", localDir)
 	check(err)
 
 	// Adding a receipt query into the querier
@@ -53,8 +54,9 @@ func TestCircuit(t *testing.T) {
 }
 
 func TestE2E(t *testing.T) {
+	localDir := "$HOME/circuitOut/myBrevisApp/input"
 	numMaxDataPoints := 128
-	app, err := sdk.NewBrevisApp(1, numMaxDataPoints, "RPC_URL")
+	app, err := sdk.NewBrevisApp(1, numMaxDataPoints, "RPC_URL", localDir)
 	check(err)
 
 	// Adding a receipt query into the querier

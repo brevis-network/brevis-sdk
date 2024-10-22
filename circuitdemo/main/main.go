@@ -34,8 +34,9 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 
 func main() {
 	outDir := "$HOME/circuitOut/myBrevisApp"
+	localDir := "$HOME/circuitOut/myBrevisApp/input"
 	srsDir := "$HOME/kzgsrs"
-	app, err := sdk.NewBrevisApp(1, 128, "", "")
+	app, err := sdk.NewBrevisApp(1, 128, "", localDir)
 	check(err)
 	logFieldData := sdk.LogFieldData{
 		LogPos:     0,
