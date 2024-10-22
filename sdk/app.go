@@ -510,6 +510,11 @@ func (q *BrevisApp) checkAllocations(cb AppCircuit) error {
 	if maxReceipts%32 != 0 {
 		return allocationMultipleErr("receipt", maxReceipts)
 	}
+	for index := range q.receipts.special {
+		if index >= maxReceipts {
+			return allocationIndexErr("receipt", index, maxReceipts)
+		}
+	}
 	if numReceipts > maxReceipts {
 		return allocationLenErr("receipt", numReceipts, maxReceipts)
 	}
@@ -517,12 +522,22 @@ func (q *BrevisApp) checkAllocations(cb AppCircuit) error {
 	if maxSlots%32 != 0 {
 		return allocationMultipleErr("storage", maxSlots)
 	}
+	for index := range q.storageVals.special {
+		if index >= maxSlots {
+			return allocationIndexErr("storage", index, maxSlots)
+		}
+	}
 	if numStorages > maxSlots {
 		return allocationLenErr("storage", numStorages, maxSlots)
 	}
 	numTxs := len(q.txs.special) + len(q.txs.ordered)
 	if maxTxs%32 != 0 {
 		return allocationMultipleErr("transaction", maxTxs)
+	}
+	for index := range q.txs.special {
+		if index >= maxTxs {
+			return allocationIndexErr("transaction", index, maxTxs)
+		}
 	}
 	if numTxs > maxTxs {
 		return allocationLenErr("transaction", numTxs, maxTxs)
@@ -875,4 +890,9 @@ func allocationMultipleErr(name string, queryCount int) error {
 func allocationLenErr(name string, queryCount, maxCount int) error {
 	return fmt.Errorf("# of %s queries (%d) must not exceed the allocated max %s (%d), check your AppCircuit.Allocate() method",
 		name, queryCount, name, maxCount)
+}
+
+func allocationIndexErr(name string, pinnedIndex, maxCount int) error {
+	return fmt.Errorf("# of pinned entry index (%d) must not exceed the allocated max %s (%d), check your AppCircuit.Allocate() method",
+		pinnedIndex, name, maxCount)
 }
