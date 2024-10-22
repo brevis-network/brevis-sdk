@@ -258,7 +258,7 @@ func (q *BrevisApp) PrepareRequest(
 	q.srcChainId = srcChainId
 	q.dstChainId = dstChainId
 
-	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, q.maxReceipts, q.maxStorage, q.maxTxs, q.numMaxDataPoints, vk, witness)
+	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, q.maxReceipts, q.maxStorage, q.maxTxs, NumMaxDataPoints, vk, witness)
 	if err != nil {
 		return
 	}
@@ -445,7 +445,7 @@ func (q *BrevisApp) prepareQueryForBrevisPartnerFlow(
 	q.srcChainId = srcChainId
 	q.dstChainId = dstChainId
 
-	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, q.maxReceipts, q.maxStorage, q.maxTxs, q.numMaxDataPoints, vk, witness)
+	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, q.maxReceipts, q.maxStorage, q.maxTxs, NumMaxDataPoints, vk, witness)
 	if err != nil {
 		err = fmt.Errorf("failed to build app circuit info: %s", err.Error())
 		return
