@@ -184,6 +184,10 @@ func (api *CircuitAPI) offsetSlot(slotBits [256]variable, offset int) [256]varia
 	return ret
 }
 
+// Keccak256 computes keccak256(concatenated inputs) where each element of `inputs“ can have a length up to
+// 32 bytes (256 bits). The actual size of each element needs to be specified in `inputBitSize`.
+// Eg. To compute the keccak256 hash of the concatenation of two 20 byte (160 bit) addresses, use
+// Keccak256([]Bytes32{api.ToBytes32(address0), api.ToBytes32(address1)}, []int32{160, 160}).
 func (api *CircuitAPI) Keccak256(inputs []Bytes32, inputBitSize []int32) Bytes32 {
 	if len(inputs) != len(inputBitSize) {
 		panic("you must specify the bit size for each input.")
