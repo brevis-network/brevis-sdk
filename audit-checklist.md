@@ -7,3 +7,4 @@
 5. Add default commitment. Then all the sdk proof will have a commitment, no matter use assertUniq or not. change files: `sdk/host_circuit.go` [PR 16](https://github.com/brevis-network/brevis-sdk/pull/16)
 6. Fix reading circuit input after changing curve to BN254. Changed files: `sdk/periphery.go`
 7. Add digest tool to calculate application vk hash for developer. change file: `sdk/circuit_digest_tool,go` [PR-17](https://github.com/brevis-network/brevis-sdk/pull/17)
+8. Add Keccak256 API. [PR-24](https://github.com/brevis-network/brevis-sdk/pull/24), change files: `sdk/circuit_api.go`.

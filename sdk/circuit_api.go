@@ -2,6 +2,7 @@ package sdk
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/brevis-network/zk-hash/keccak"
@@ -181,6 +182,36 @@ func (api *CircuitAPI) offsetSlot(slotBits [256]variable, offset int) [256]varia
 	var ret [256]variable
 	copy(ret[:], flipByGroups(api.Bytes32.ToBinary(slot).Values(), 8))
 	return ret
+}
+
+// Keccak256 computes keccak256(concatenated inputs) where each element of `inputs“ can have a length up to
+// 32 bytes (256 bits). The actual size of each element needs to be specified in `inputBitSize`.
+// Eg. To compute the keccak256 hash of the concatenation of two 20 byte (160 bit) addresses, use
+// Keccak256([]Bytes32{api.ToBytes32(address0), api.ToBytes32(address1)}, []int32{160, 160}).
+func (api *CircuitAPI) Keccak256(inputs []Bytes32, inputBitSize []int32) Bytes32 {
+	if len(inputs) != len(inputBitSize) {
+		panic("you must specify the bit size for each input.")
+	}
+	var preimage []frontend.Variable
+	for idx, in := range inputs {
+		preimageByte32Bits := api.Bytes32.ToBinary(in).Values()
+		bitSize := inputBitSize[idx]
+		preimageBits := preimageByte32Bits[0:bitSize]
+		preimage = append(preimage, flipByGroups(preimageBits, 8)...)
+	}
+	maxRoundIndex := int(math.Ceil(float64(256*len(inputs)) / 1088))
+	preimagePadded := keccak.PadBits101(api.g, preimage, maxRoundIndex)
+
+	roundIndex := 0
+	preimageBitSize := len(preimage)
+	if preimageBitSize%1088 == 0 {
+		roundIndex = preimageBitSize/1088 - 1
+	} else {
+		roundIndex = preimageBitSize / 1088
+	}
+	res := keccak.Keccak256Bits(api.g, maxRoundIndex, roundIndex, preimagePadded)
+	hashByteWiseLE := newU248s(flipByGroups(res[:], 8)...)
+	return api.Bytes32.FromBinary(hashByteWiseLE...)
 }
 
 func Select[T CircuitVariable](api *CircuitAPI, s Uint248, a, b T) T {
