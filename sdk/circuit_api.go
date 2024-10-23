@@ -179,7 +179,7 @@ func (api *CircuitAPI) Keccak256(inputs []Bytes32, inputBitSize []int32) Bytes32
 		preimageBits := preimageByte32Bits[0:bitSize]
 		preimage = append(preimage, flipByGroups(preimageBits, 8)...)
 	}
-	maxRoundIndex := int(math.Ceil(float64(256 * len(inputs) / 1088)))
+	maxRoundIndex := int(math.Ceil(float64(256*len(inputs)) / 1088))
 	preimagePadded := keccak.PadBits101(api.g, preimage, maxRoundIndex)
 
 	roundIndex := 0
