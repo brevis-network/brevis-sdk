@@ -8,4 +8,4 @@
 6. Fix reading circuit input after changing curve to BN254. Changed files: `sdk/periphery.go`
 7. Add digest tool to calculate application vk hash for developer. change file: `sdk/circuit_digest_tool,go` [PR-17](https://github.com/brevis-network/brevis-sdk/pull/17)
 8. Add Keccak256 API. [PR-24](https://github.com/brevis-network/brevis-sdk/pull/24), change files: `sdk/circuit_api.go`.
-9. Fix plonk bn254 vk hash, change files: `common/utils/plonk_util.go`.
+9. Fix plonk bn254 vk hash. [PR-25](https://github.com/brevis-network/brevis-sdk/pull/25), change files: `common/utils/plonk_util.go`.
