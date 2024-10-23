@@ -44,8 +44,6 @@ func decompose[T uint | byte](data *big.Int, bitSize uint, length uint) []T {
 		maxBitSize = 64
 	case byte:
 		maxBitSize = 8
-	default:
-		panic("unsupported type for decomposition")
 	}
 	if bitSize > maxBitSize {
 		panic(fmt.Errorf("bitSize %d exceeds the bit capacity of type %T", bitSize, *new(T)))
