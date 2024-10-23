@@ -47,6 +47,15 @@ func CalculateAppVkHashForBn254(vk replonk.VerifyingKey[sw_bn254.ScalarField, sw
 		}
 	}
 
+	// CircuitVerifyingKey
+	hashData = append(hashData, new(big.Int).SetUint64(vk.CircuitVerifyingKey.Size.(uint64)).FillBytes(data[:])...)
+	for _, limb := range vk.SizeInv.Limbs {
+		hashData = append(hashData, limb.(*big.Int).FillBytes(data[:])...)
+	}
+	for _, limb := range vk.Generator.Limbs {
+		hashData = append(hashData, limb.(*big.Int).FillBytes(data[:])...)
+	}
+
 	for _, se := range vk.S {
 		for _, limb := range se.G1El.X.Limbs {
 			hashData = append(hashData, limb.(*big.Int).FillBytes(data[:])...)
@@ -95,6 +104,28 @@ func CalculateAppVkHashForBn254(vk replonk.VerifyingKey[sw_bn254.ScalarField, sw
 
 	for _, limb := range vk.Qk.G1El.Y.Limbs {
 		hashData = append(hashData, limb.(*big.Int).FillBytes(data[:])...)
+	}
+
+	for _, qcp := range vk.Qcp {
+		for _, limb := range qcp.G1El.X.Limbs {
+			hashData = append(hashData, limb.(*big.Int).FillBytes(data[:])...)
+		}
+
+		for _, limb := range qcp.G1El.Y.Limbs {
+			hashData = append(hashData, limb.(*big.Int).FillBytes(data[:])...)
+		}
+
+		for _, limb := range qcp.G1El.X.Limbs {
+			hashData = append(hashData, limb.(*big.Int).FillBytes(data[:])...)
+		}
+
+		for _, limb := range qcp.G1El.Y.Limbs {
+			hashData = append(hashData, limb.(*big.Int).FillBytes(data[:])...)
+		}
+	}
+
+	for _, cci := range vk.CommitmentConstraintIndexes {
+		hashData = append(hashData, new(big.Int).SetUint64(cci.(uint64)).FillBytes(data[:])...)
 	}
 
 	hasher.Write(hashData[:])
@@ -140,6 +171,15 @@ func CalculateAppVkHashForBn254InCircuit(api frontend.API, vk replonk.VerifyingK
 		}
 	}
 
+	// CircuitVerifyingKey
+	hasher.Write(vk.CircuitVerifyingKey.Size)
+	for _, limb := range vk.SizeInv.Limbs {
+		hasher.Write(limb)
+	}
+	for _, limb := range vk.Generator.Limbs {
+		hasher.Write(limb)
+	}
+
 	for _, se := range vk.S {
 		for _, limb := range se.G1El.X.Limbs {
 			hasher.Write(limb)
@@ -188,6 +228,28 @@ func CalculateAppVkHashForBn254InCircuit(api frontend.API, vk replonk.VerifyingK
 
 	for _, limb := range vk.Qk.G1El.Y.Limbs {
 		hasher.Write(limb)
+	}
+
+	for _, qcp := range vk.Qcp {
+		for _, limb := range qcp.G1El.X.Limbs {
+			hasher.Write(limb)
+		}
+
+		for _, limb := range qcp.G1El.Y.Limbs {
+			hasher.Write(limb)
+		}
+
+		for _, limb := range qcp.G1El.X.Limbs {
+			hasher.Write(limb)
+		}
+
+		for _, limb := range qcp.G1El.Y.Limbs {
+			hasher.Write(limb)
+		}
+	}
+
+	for _, cci := range vk.CommitmentConstraintIndexes {
+		hasher.Write(cci)
 	}
 
 	return hasher.Sum(), nil
