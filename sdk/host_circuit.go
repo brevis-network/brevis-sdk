@@ -164,8 +164,11 @@ func assertInputUniqueness(api frontend.API, in []frontend.Variable, shouldCheck
 		if err != nil {
 			panic(err)
 		}
+		for i := 0; i < len(sorted)-1; i++ {
+			api.AssertIsLessOrEqual(sorted[i+1], sorted[i])
+		}
 		// Grand product check. Asserts the following equation holds:
-		// Σ_{a \in in} a+ɣ = Σ_{b \in sorted} b+ɣ
+		// Π_{a \in in} a+ɣ = Σ_{b \in sorted} b+ɣ
 		var lhs, rhs frontend.Variable = 0, 0
 		for i := 0; i < len(sorted); i++ {
 			lhs = api.Mul(lhs, api.Add(in[i], gamma))
@@ -220,7 +223,7 @@ func (c *HostCircuit) commitOutput(bits []frontend.Variable) OutputCommitment {
 		panic(fmt.Errorf("len bits (%d) must be multiple of 8", len(bits)))
 	}
 
-	rounds := len(bits)/1088 + 1
+	rounds := (len(bits)+1)/1088 + 1
 	paddedLen := rounds * 1088
 	padded := make([]frontend.Variable, paddedLen)
 	copy(padded, bits)
