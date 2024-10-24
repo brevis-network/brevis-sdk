@@ -46,7 +46,7 @@ func main() {
 
 	receipt := sdk.ReceiptData{
 		TxHash: utils.Hex2Hash("0x3b762c2829801787b44ea8afba9510241014faa7dd86dbf03d729846aa346894"),
-		Fields: [sdk.NumMaxLogFields]sdk.LogFieldData{
+		Fields: []sdk.LogFieldData{
 			logFieldData,
 		},
 	}

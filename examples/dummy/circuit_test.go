@@ -17,7 +17,7 @@ func TestCircuit(t *testing.T) {
 
 	app.AddReceipt(sdk.ReceiptData{
 		TxHash: common.HexToHash("53b37ec7975d217295f4bdadf8043b261fc49dccc16da9b9fc8b9530845a5794"),
-		Fields: [sdk.NumMaxLogFields]sdk.LogFieldData{
+		Fields: []sdk.LogFieldData{
 			{LogPos: 3, IsTopic: false, FieldIndex: 0},
 			{LogPos: 3, IsTopic: true, FieldIndex: 2},
 			{LogPos: 2, IsTopic: true, FieldIndex: 1},

@@ -152,7 +152,7 @@ func buildLogFieldsPersistence(fs []LogFieldData, receipt *types.Receipt) (field
 		return nil, fmt.Errorf("each receipt can use up to 4 fields")
 	}
 
-	for i, f := range fs {
+	for _, f := range fs {
 		if len(receipt.Logs) <= int(f.LogPos) {
 			return nil, fmt.Errorf("invalid log pos %d for receipt %s", f.LogPos, receipt.TxHash.Hex())
 		}
@@ -175,14 +175,14 @@ func buildLogFieldsPersistence(fs []LogFieldData, receipt *types.Receipt) (field
 			logValue = common.BytesToHash(log.Data[f.FieldIndex*32 : f.FieldIndex*32+32])
 		}
 
-		fields[i] = &LogFieldPersistence{
+		fields = append(fields, &LogFieldPersistence{
 			Contract:   log.Address,
 			LogPos:     f.LogPos,
 			EventID:    log.Topics[0],
 			IsTopic:    f.IsTopic,
 			FieldIndex: f.FieldIndex,
 			Value:      logValue,
-		}
+		})
 	}
 	return
 }

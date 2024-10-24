@@ -25,20 +25,14 @@ func TestDemo(t *testing.T) {
 
 	receipt := sdk.ReceiptData{
 		TxHash: utils.Hex2Hash("0xbef5e22dec94fd5ed9630f3cee52d7d914ad796f5a31048086f8a956892db05e"),
-		Fields: [sdk.NumMaxLogFields]sdk.LogFieldData{
-			logFieldData,
-			logFieldData,
-			logFieldData,
+		Fields: []sdk.LogFieldData{
 			logFieldData,
 		},
 	}
 
 	receipt1 := sdk.ReceiptData{
 		TxHash: utils.Hex2Hash("0xbef5e22dec94fd5ed9630f3cee52d7d914ad796f5a31048086f8a956892db05e"),
-		Fields: [sdk.NumMaxLogFields]sdk.LogFieldData{
-			logFieldData,
-			logFieldData,
-			logFieldData,
+		Fields: []sdk.LogFieldData{
 			logFieldData,
 		},
 	}

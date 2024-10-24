@@ -83,21 +83,17 @@ func parseBig(encoded string) (*big.Int, error) {
 }
 
 func convertProtoReceiptToSdkReceipt(in *sdkproto.ReceiptData) (sdk.ReceiptData, error) {
-	var fields [sdk.NumMaxLogFields]sdk.LogFieldData
+	fields := make([]sdk.LogFieldData, len(in.Fields))
 	if len(in.Fields) == 0 {
 		return sdk.ReceiptData{}, fmt.Errorf("invalid log field")
 	}
 
 	for i := range fields {
-		if i < len(in.Fields) {
-			field, err := convertProtoFieldToSdkLogField(in.Fields[i])
-			if err != nil {
-				return sdk.ReceiptData{}, err
-			}
-			fields[i] = field
-		} else {
-			fields[i] = fields[len(in.Fields)-1]
+		field, err := convertProtoFieldToSdkLogField(in.Fields[i])
+		if err != nil {
+			return sdk.ReceiptData{}, err
 		}
+		fields[i] = field
 	}
 
 	return sdk.ReceiptData{
