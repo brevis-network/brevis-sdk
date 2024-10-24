@@ -75,12 +75,11 @@ func (q *rawData[T]) add(data T, index ...int) {
 }
 
 func (q *rawData[T]) list(max int) []T {
-	var empty T
 	var l []T
 	ordered := q.ordered
 	for i := 0; i < max; i++ {
-		if q.special[i] != empty {
-			l = append(l, q.special[i])
+		if e, ok := q.special[i]; ok {
+			l = append(l, e)
 		} else if len(ordered) > 0 {
 			l = append(l, ordered[0])
 			ordered = ordered[1:]
