@@ -29,8 +29,8 @@ import (
 )
 
 type ReceiptData struct {
-	TxHash common.Hash                   `json:"tx_hash,omitempty"`
-	Fields [NumMaxLogFields]LogFieldData `json:"fields,omitempty"`
+	TxHash common.Hash    `json:"tx_hash,omitempty"`
+	Fields []LogFieldData `json:"fields,omitempty"`
 }
 
 // LogFieldData represents a single field of an event.

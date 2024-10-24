@@ -102,7 +102,7 @@ func convertProtoReceiptToSdkReceipt(in *sdkproto.ReceiptData) (sdk.ReceiptData,
 
 	return sdk.ReceiptData{
 		TxHash: hex2Hash(in.TxHash),
-		Fields: fields,
+		Fields: fields[:],
 	}, nil
 }
 

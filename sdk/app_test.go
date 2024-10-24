@@ -22,7 +22,7 @@ func TestDataMarshalUnmarshal(t *testing.T) {
 
 	receipt := ReceiptData{
 		TxHash: tx.Hash,
-		Fields: [NumMaxLogFields]LogFieldData{
+		Fields: []LogFieldData{
 			{
 				LogPos:     2,
 				IsTopic:    false,

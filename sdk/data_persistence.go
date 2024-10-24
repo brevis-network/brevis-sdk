@@ -23,11 +23,11 @@ type DataPersistence struct {
 
 // Used for data persistence only
 type ReceiptPersistence struct {
-	TxHash       common.Hash                           `json:"tx_hash,omitempty"`
-	BlockNum     *big.Int                              `json:"block_num,omitempty"`
-	BlockBaseFee *big.Int                              `json:"block_base_fee,omitempty"`
-	MptKeyPath   *big.Int                              `json:"mpt_key_path,omitempty"`
-	Fields       [NumMaxLogFields]*LogFieldPersistence `json:"fields,omitempty"`
+	TxHash       common.Hash            `json:"tx_hash,omitempty"`
+	BlockNum     *big.Int               `json:"block_num,omitempty"`
+	BlockBaseFee *big.Int               `json:"block_base_fee,omitempty"`
+	MptKeyPath   *big.Int               `json:"mpt_key_path,omitempty"`
+	Fields       []*LogFieldPersistence `json:"fields,omitempty"`
 }
 
 // Used for data persistence only
@@ -147,24 +147,14 @@ func (q *BrevisApp) writeDataIntoLocalStorage() {
 	fmt.Printf(">>finish write\n")
 }
 
-func buildLogFieldsPersistence(fs [NumMaxLogFields]LogFieldData, receipt *types.Receipt) (fields [NumMaxLogFields]*LogFieldPersistence, err error) {
-	empty := LogFieldData{}
+func buildLogFieldsPersistence(fs []LogFieldData, receipt *types.Receipt) (fields []*LogFieldPersistence, err error) {
+	if len(fs) > 4 {
+		return nil, fmt.Errorf("each receipt can use up to 4 fields")
+	}
 
-	lastNonEmpty := fs[0]
-	for i := 0; i < NumMaxLogFields; i++ {
-		// Due to backend circuit's limitations, we must fill []LogField with valid data
-		// up to NumMaxLogFields. If the user actually only wants less NumMaxLogFields
-		// log fields, then we simply copy the previous log field in the list to fill the
-		// empty spots.
-		f := fs[i]
-		if i > 0 && f == empty {
-			f = lastNonEmpty
-		} else {
-			lastNonEmpty = f
-		}
-
+	for i, f := range fs {
 		if len(receipt.Logs) <= int(f.LogPos) {
-			return [NumMaxLogFields]*LogFieldPersistence{}, fmt.Errorf("invalid log pos %d for receipt %s", f.LogPos, receipt.TxHash.Hex())
+			return nil, fmt.Errorf("invalid log pos %d for receipt %s", f.LogPos, receipt.TxHash.Hex())
 		}
 
 		log := receipt.Logs[f.LogPos]
@@ -218,6 +208,9 @@ func convertReceiptPersistenceToReceipt(r *ReceiptPersistence) Receipt {
 	var fields [NumMaxLogFields]LogField
 	for i, log := range r.Fields {
 		fields[i] = convertFieldPersistenceToField(log)
+	}
+	for i := len(r.Fields); i < NumMaxLogFields; i++ {
+		fields[i] = fields[len(r.Fields)-1]
 	}
 	return Receipt{
 		BlockNum:     newU32(r.BlockNum),
