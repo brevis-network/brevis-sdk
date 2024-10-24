@@ -234,6 +234,8 @@ func (q *BrevisApp) BuildCircuitInput(app AppCircuit) (CircuitInput, error) {
 		return buildCircuitInputErr("failed to assign in from transaction queries", err)
 	}
 
+	q.writeDataIntoLocalStorage()
+
 	// commitment
 	q.assignInputCommitment(&in)
 	q.assignToggleCommitment(&in)
@@ -250,8 +252,6 @@ func (q *BrevisApp) BuildCircuitInput(app AppCircuit) (CircuitInput, error) {
 	q.circuitInput = in // cache the generated circuit input for later use in building gateway request
 	q.buildInputCalled = true
 	fmt.Printf("output %x\n", output)
-
-	q.writeDataIntoLocalStorage()
 
 	return in, nil
 }
