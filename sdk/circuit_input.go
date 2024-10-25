@@ -30,8 +30,9 @@ func (d DataInput) Toggles() []frontend.Variable {
 	toggles = append(toggles, d.Receipts.Toggles...)
 	toggles = append(toggles, d.StorageSlots.Toggles...)
 	toggles = append(toggles, d.Transactions.Toggles...)
+	dataPoints := DataPointsNextPowerOf2(len(d.Receipts.Toggles) + len(d.StorageSlots.Toggles) + len(d.Transactions.Toggles))
 	// pad the reset (the dummy part) with off toggles
-	for i := len(toggles); i < d.NumMaxDataPoints; i++ {
+	for i := len(toggles); i < dataPoints; i++ {
 		toggles = append(toggles, 0)
 	}
 	return toggles
@@ -57,9 +58,10 @@ type CircuitInput struct {
 	dryRunOutput []byte `gnark:"-"`
 }
 
-func defaultCircuitInput(maxReceipts, maxStorage, maxTxs, numMaxDataPoints int) CircuitInput {
-	var inputCommits = make([]frontend.Variable, numMaxDataPoints)
-	for i := 0; i < numMaxDataPoints; i++ {
+func defaultCircuitInput(maxReceipts, maxStorage, maxTxs, dataPoints int) CircuitInput {
+	// dataPoints := nextPowerOf2(maxReceipts + maxStorage + maxTxs)
+	var inputCommits = make([]frontend.Variable, dataPoints)
+	for i := 0; i < dataPoints; i++ {
 		inputCommits[i] = 0
 	}
 	return CircuitInput{

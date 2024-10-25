@@ -101,12 +101,13 @@ type BrevisApp struct {
 	localInputData     *DataPersistence
 
 	// cache fields
-	circuitInput                                      CircuitInput
-	buildInputCalled                                  bool
-	queryId                                           []byte
-	nonce                                             uint64
-	srcChainId, dstChainId                            uint64
-	maxReceipts, maxStorage, maxTxs, numMaxDataPoints int
+	circuitInput                    CircuitInput
+	buildInputCalled                bool
+	queryId                         []byte
+	nonce                           uint64
+	srcChainId, dstChainId          uint64
+	maxReceipts, maxStorage, maxTxs int
+	dataPoints                      int
 }
 
 func NewBrevisApp(
@@ -213,7 +214,8 @@ func (q *BrevisApp) BuildCircuitInput(app AppCircuit) (CircuitInput, error) {
 		return CircuitInput{}, err
 	}
 
-	in := defaultCircuitInput(q.maxReceipts, q.maxStorage, q.maxTxs, q.numMaxDataPoints)
+	q.dataPoints = DataPointsNextPowerOf2(q.maxReceipts + q.maxStorage + q.maxTxs)
+	in := defaultCircuitInput(q.maxReceipts, q.maxStorage, q.maxTxs, q.dataPoints)
 
 	// receipt
 	err = q.assignReceipts(&in)
@@ -278,7 +280,7 @@ func (q *BrevisApp) PrepareRequest(
 	q.srcChainId = srcChainId
 	q.dstChainId = dstChainId
 
-	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, q.maxReceipts, q.maxStorage, q.maxTxs, q.numMaxDataPoints, vk, witness)
+	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, q.maxReceipts, q.maxStorage, q.maxTxs, vk, witness)
 	if err != nil {
 		return
 	}
@@ -465,7 +467,7 @@ func (q *BrevisApp) prepareQueryForBrevisPartnerFlow(
 	q.srcChainId = srcChainId
 	q.dstChainId = dstChainId
 
-	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, q.maxReceipts, q.maxStorage, q.maxTxs, q.numMaxDataPoints, vk, witness)
+	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, q.maxReceipts, q.maxStorage, q.maxTxs, vk, witness)
 	if err != nil {
 		err = fmt.Errorf("failed to build app circuit info: %s", err.Error())
 		return
@@ -550,15 +552,15 @@ func (q *BrevisApp) checkAllocations(cb AppCircuit) error {
 	if numTxs > maxTxs {
 		return allocationLenErr("transaction", numTxs, maxTxs)
 	}
-	total := maxReceipts + maxSlots + maxTxs
-	if total > q.numMaxDataPoints {
-		return allocationLenErr("total", total, q.numMaxDataPoints)
+
+	if maxReceipts == 0 && maxSlots == 0 && maxTxs == 0 {
+		return fmt.Errorf("no receipts, slots and txs used in circuit")
 	}
 	return nil
 }
 
 func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
-	leafs := make([]*big.Int, q.numMaxDataPoints)
+	leafs := make([]*big.Int, q.dataPoints)
 	hasher := utils.NewPoseidonBn254()
 	// assign 0 to input commit for dummy and actual data hash for non-dummies
 	j := 0
@@ -648,7 +650,7 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 		j++
 	}
 
-	for i := j; i < q.numMaxDataPoints; i++ {
+	for i := j; i < q.dataPoints; i++ {
 		w.InputCommitments[i] = ticData
 		leafs[i] = new(big.Int).SetBytes(ticData)
 	}
@@ -684,14 +686,14 @@ func doHash(hasher *utils.PoseidonBn254Hasher, packed []*big.Int) (*big.Int, err
 // hash 32 toggles into one value which is used as merkle tree leaf.
 func (q *BrevisApp) assignToggleCommitment(in *CircuitInput) {
 	var err error
-	in.TogglesCommitment, err = q.calTogglesHashRoot(in.Toggles())
+	in.TogglesCommitment, err = CalTogglesHashRoot(in.Toggles(), q.dataPoints)
 	if err != nil {
 		log.Panicf("fail to CalTogglesHashRoot, err: %v", err)
 	}
 }
 
 func (q *BrevisApp) calTogglesHashRoot(toggles []frontend.Variable) (*big.Int, error) {
-	leafs := make([]*big.Int, q.numMaxDataPoints/32)
+	leafs := make([]*big.Int, dataPoints/32)
 	if len(toggles)%32 != 0 {
 		return nil, fmt.Errorf("invalid toggles length %d", len(toggles))
 	}

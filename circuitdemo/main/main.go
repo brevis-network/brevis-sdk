@@ -19,7 +19,7 @@ func (c *AppCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions int) {
 	// Our app is only ever going to use one storage data at a time so
 	// we can simply limit the max number of data for storage to 1 and
 	// 0 for all others
-	return 32, 32, 64
+	return 128, 128, 128
 }
 
 func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
@@ -29,6 +29,8 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 	receipt := sdk.GetUnderlying(receipts, 0)
 	api.OutputUint32(32, receipt.BlockNum)
 	api.OutputAddress(receipt.Fields[0].Contract)
+
+	api.AssertInputsAreUnique()
 	return nil
 }
 
@@ -51,9 +53,7 @@ func main() {
 		},
 	}
 
-	for i := 0; i < 2; i++ {
-		app.AddReceipt(receipt, i)
-	}
+	app.AddReceipt(receipt)
 
 	for i := 0; i < 1; i++ {
 		app.AddStorage(sdk.StorageData{

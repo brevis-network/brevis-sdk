@@ -28,14 +28,15 @@ func readOrSetup(circuit sdk.AppCircuit, numMaxDataPoints int, setupDir, srsDir 
 	ccsDigest := crypto.Keccak256(ccsBytes.Bytes())
 	fmt.Printf("circuit digest 0x%x\n", ccsDigest)
 
-	maxReceipt, maxStorage, _ := circuit.Allocate()
+	maxReceipts, maxStorage, maxTxs := circuit.Allocate()
+	dataPoints := sdk.DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
 
 	pkFilepath := filepath.Join(setupDir, fmt.Sprintf("0x%x", ccsDigest), "pk")
 	vkFilepath := filepath.Join(setupDir, fmt.Sprintf("0x%x", ccsDigest), "vk")
 
 	fmt.Println("trying to read setup from cache...")
 	var found bool
-	pk, vk, vkHash, found = readSetup(pkFilepath, vkFilepath, maxReceipt, maxStorage, numMaxDataPoints)
+	pk, vk, vkHash, found = readSetup(pkFilepath, vkFilepath, maxReceipts, maxStorage, dataPoints)
 	if found {
 		return
 	}
@@ -43,7 +44,7 @@ func readOrSetup(circuit sdk.AppCircuit, numMaxDataPoints int, setupDir, srsDir 
 	fmt.Printf("no setup matching circuit digest 0x%x is found in %s\n", ccsDigest, setupDir)
 	fmt.Println(">> setup")
 
-	pk, vk, vkHash, err = sdk.Setup(ccs, srsDir, maxReceipt, maxStorage, numMaxDataPoints)
+	pk, vk, vkHash, err = sdk.Setup(ccs, srsDir, maxReceipts, maxStorage, dataPoints)
 	if err != nil {
 		return
 	}
