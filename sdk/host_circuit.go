@@ -27,12 +27,9 @@ type HostCircuit struct {
 
 func DefaultHostCircuit(app AppCircuit) *HostCircuit {
 	maxReceipts, maxStorage, maxTxs := app.Allocate()
-	var inputCommits = make([]frontend.Variable, NumMaxDataPoints)
-	for i := 0; i < NumMaxDataPoints; i++ {
-		inputCommits[i] = 0
-	}
+	dataPoints := DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
 	h := &HostCircuit{
-		Input: defaultCircuitInput(maxReceipts, maxStorage, maxTxs),
+		Input: defaultCircuitInput(maxReceipts, maxStorage, maxTxs, dataPoints),
 		Guest: app,
 	}
 	return h
@@ -86,7 +83,10 @@ func (c *HostCircuit) commitInput() error {
 		return fmt.Errorf("error creating poseidon hasher instance: %s", err.Error())
 	}
 
-	var inputCommits [NumMaxDataPoints]frontend.Variable
+	maxReceipts, maxStorage, maxTxs := c.Guest.Allocate()
+	dataPoints := DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
+
+	inputCommits := make([]frontend.Variable, dataPoints)
 	receipts := c.Input.Receipts
 	j := 0
 	for i, receipt := range receipts.Raw {
@@ -142,8 +142,8 @@ func (c *HostCircuit) commitInput() error {
 	toggles := c.Input.Toggles()
 
 	// sanity check, this shouldn't happen
-	if len(toggles) != NumMaxDataPoints {
-		panic(fmt.Errorf("toggles len %d != NumMaxDataPoints %d", len(toggles), NumMaxDataPoints))
+	if len(toggles) != dataPoints {
+		panic(fmt.Errorf("toggles len %d != DataPoints %d", len(toggles), dataPoints))
 	}
 
 	if len(toggles)%32 != 0 {
@@ -203,10 +203,12 @@ func (c *HostCircuit) dataLen() int {
 }
 
 func (c *HostCircuit) validateInput() error {
+	maxReceipts, maxStorage, maxTxs := c.Guest.Allocate()
+	dataPoints := DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
 	d := c.Input
 	inputLen := len(d.Receipts.Raw) + len(d.StorageSlots.Raw) + len(d.Transactions.Raw)
-	if inputLen > NumMaxDataPoints {
-		return fmt.Errorf("input len must be less than %d", NumMaxDataPoints)
+	if inputLen > dataPoints {
+		return fmt.Errorf("input len must be less than %d", dataPoints)
 	}
 	maxReceipts, maxSlots, maxTransactions := c.Guest.Allocate()
 	if len(d.Receipts.Raw) != len(d.Receipts.Toggles) || len(d.Receipts.Raw) != maxReceipts {

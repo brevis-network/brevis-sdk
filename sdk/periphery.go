@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/brevis-network/brevis-sdk/common/utils"
@@ -28,9 +29,12 @@ func Compile(app AppCircuit, compileOutDir, srsDir string) (constraint.Constrain
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	maxReceipt, maxStorage, _ := app.Allocate()
+
+	maxReceipts, maxStorage, maxTxs := app.Allocate()
+	dataPoints := DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
+
 	fmt.Println(">> setup")
-	pk, vk, vkHash, err := Setup(ccs, srsDir, maxReceipt, maxStorage, NumMaxDataPoints)
+	pk, vk, vkHash, err := Setup(ccs, srsDir, maxReceipts, maxStorage, dataPoints)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -105,18 +109,15 @@ func Setup(ccs constraint.ConstraintSystem, cacheDir string, maxReceipt, maxStor
 	return
 }
 
-func printVkHash(vk plonk.VerifyingKey, maxReceipt, maxStorage, total int) ([]byte, error) {
+func printVkHash(vk plonk.VerifyingKey, maxReceipt, maxStorage, dataPoints int) ([]byte, error) {
 	if maxReceipt%32 != 0 {
 		panic("invalid max receipts")
 	}
 	if maxStorage%32 != 0 {
 		panic("invalid max storage")
 	}
-	if total != NumMaxDataPoints {
-		panic("invalid total data points")
-	}
 
-	vkHash, err := CalBrevisCircuitDigest(maxReceipt, maxStorage, total-maxReceipt-maxStorage, vk)
+	vkHash, err := CalBrevisCircuitDigest(maxReceipt, maxStorage, dataPoints-maxReceipt-maxStorage, vk)
 	if err != nil {
 		fmt.Printf("error computing vk hash: %s", err.Error())
 		return nil, err
@@ -124,8 +125,6 @@ func printVkHash(vk plonk.VerifyingKey, maxReceipt, maxStorage, total int) ([]by
 	fmt.Println()
 	fmt.Println("///////////////////////////////////////////////////////////////////////////////")
 	fmt.Printf("// vk hash: 0x%x\n", vkHash.Bytes())
-	fmt.Println("///////////////////////////////////////////////////////////////////////////////")
-	fmt.Printf("// max receipts: %d, max storage: %d, numMaxDataPoints: %d\n", maxReceipt, maxStorage, total)
 	fmt.Println("///////////////////////////////////////////////////////////////////////////////")
 	fmt.Println()
 	return vkHash.Bytes(), nil
@@ -177,7 +176,7 @@ func WriteTo(w io.WriterTo, path string) error {
 	return nil
 }
 
-func ReadSetupFrom(appCircuit AppCircuit, compileOutDir string) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, []byte, error) {
+func ReadSetupFrom(app AppCircuit, compileOutDir string) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, []byte, error) {
 	ccs, err := ReadCircuitFrom(filepath.Join(compileOutDir, "compiledCircuit"))
 	if err != nil {
 		return nil, nil, nil, nil, err
@@ -187,9 +186,10 @@ func ReadSetupFrom(appCircuit AppCircuit, compileOutDir string) (constraint.Cons
 		return nil, nil, nil, nil, err
 	}
 
-	maxReceipt, maxStorage, _ := appCircuit.Allocate()
+	maxReceipts, maxStorage, maxTxs := app.Allocate()
+	dataPoints := DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
 
-	vk, vkHash, err := ReadVkFrom(filepath.Join(compileOutDir, "vk"), maxReceipt, maxStorage, NumMaxDataPoints)
+	vk, vkHash, err := ReadVkFrom(filepath.Join(compileOutDir, "vk"), maxReceipts, maxStorage, dataPoints)
 	return ccs, pk, vk, vkHash, err
 }
 
@@ -253,4 +253,17 @@ func ReadProofFrom(path string) (plonk.Proof, error) {
 	}
 	fmt.Printf("Proof: %d bytes read from %s\n", d, path)
 	return proof, err
+}
+
+// The minimum dataPoints should be 64
+func DataPointsNextPowerOf2(value int) int {
+	if CheckNumberPowerOfTwo(value) {
+		if value >= 64 {
+			return value
+		} else {
+			return 64
+		}
+	}
+
+	return 1 << len(strconv.FormatInt(int64(value), 2))
 }

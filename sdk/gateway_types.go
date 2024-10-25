@@ -12,7 +12,7 @@ import (
 )
 
 func buildAppCircuitInfo(in CircuitInput,
-	maxReceipts, maxStorage, maxTxs, maxNumDataPoints int,
+	maxReceipts, maxStorage, maxTxs int,
 	vk plonk.VerifyingKey, witness witness.Witness) (*commonproto.AppCircuitInfo, error) {
 	inputCommitments := make([]string, len(in.InputCommitments))
 	for i, value := range in.InputCommitments {
@@ -29,6 +29,8 @@ func buildAppCircuitInfo(in CircuitInput,
 		return nil, err
 	}
 
+	dataPoints := DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
+
 	return &commonproto.AppCircuitInfo{
 		OutputCommitment:     hexutil.Encode(in.OutputCommitment.Hash().Bytes()),
 		Vk:                   hexutil.Encode(mustWriteToBytes(vk)),
@@ -41,7 +43,7 @@ func buildAppCircuitInfo(in CircuitInput,
 		MaxReceipts:          uint32(maxReceipts),
 		MaxStorage:           uint32(maxStorage),
 		MaxTx:                uint32(maxTxs),
-		MaxNumDataPoints:     uint32(maxNumDataPoints),
+		MaxNumDataPoints:     uint32(dataPoints),
 	}, nil
 }
 
