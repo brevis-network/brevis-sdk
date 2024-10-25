@@ -2,7 +2,6 @@ package sdk
 
 import (
 	"fmt"
-	"github.com/celer-network/goutils/log"
 	"math/big"
 
 	pgoldilocks "github.com/OpenAssetStandards/poseidon-goldilocks-go"
@@ -78,21 +77,21 @@ func CalBrevisCircuitDigest(receiptCount, storageCount, transactionCount int, ap
 	appVkHashBytes := utils.CalculateAppVkHashForBn254(reVk)
 	appVkHashBigInt := new(big.Int).SetBytes(appVkHashBytes)
 
-	log.Infof("appVkHashBigInt: %x", appVkHashBigInt)
+	fmt.Printf("appVkHashBigInt: %x \n", appVkHashBigInt)
 
 	hash2HashDigest, err := GetHash2HashCircuitDigest(receiptCount, storageCount, transactionCount)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Infof("hash2HashDigest: %x", hash2HashDigest)
+	fmt.Printf("hash2HashDigest: %x \n", hash2HashDigest)
 
 	plonky2RootFromBn128Digest, isRecursionRecursionOfLeaf, err := GetPlonky2CircuitDigestFromWrapBn128(receiptCount, storageCount, transactionCount)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Infof("plonky2RootFromBn128Digest: %v %v %v %v", plonky2RootFromBn128Digest[0], plonky2RootFromBn128Digest[1], plonky2RootFromBn128Digest[2], plonky2RootFromBn128Digest[3])
+	fmt.Printf("plonky2RootFromBn128Digest: %v %v %v %v \n", plonky2RootFromBn128Digest[0], plonky2RootFromBn128Digest[1], plonky2RootFromBn128Digest[2], plonky2RootFromBn128Digest[3])
 
 	hasher := zkhashutils.NewPoseidonBn254()
 	hasher.Write(new(big.Int).SetUint64(plonky2RootFromBn128Digest[0]))
@@ -101,11 +100,11 @@ func CalBrevisCircuitDigest(receiptCount, storageCount, transactionCount int, ap
 	hasher.Write(new(big.Int).SetUint64(plonky2RootFromBn128Digest[3]))
 
 	if isRecursionRecursionOfLeaf {
-		log.Infof("use P2Bn128WrapCircuitDigestHashForOnlyFromLeafRecursion")
+		fmt.Println("use P2Bn128WrapCircuitDigestHashForOnlyFromLeafRecursion")
 		hasher.Write(P2Bn128WrapCircuitDigestHashForOnlyFromLeafRecursion)
 	} else {
 		hasher.Write(P2Bn128WrapCircuitDigestHash)
-		log.Infof("use P2Bn128WrapCircuitDigestHash")
+		fmt.Println("use P2Bn128WrapCircuitDigestHash")
 	}
 
 	hasher.Write(hash2HashDigest)
@@ -183,8 +182,8 @@ func GetPlonky2CircuitDigestFromWrapBn128(receiptCount, storageCount, transactio
 		return nil, false, err
 	}
 
-	log.Infof("plonky2RootNode hash: %v %v %v %v", plonky2RootNode.PubCircuitDigest[0], plonky2RootNode.PubCircuitDigest[1], plonky2RootNode.PubCircuitDigest[2], plonky2RootNode.PubCircuitDigest[3])
-	log.Infof("plonky2RootNode circuit digest in json hash: %v %v %v %v", plonky2RootNode.CurCircuitDigest[0], plonky2RootNode.CurCircuitDigest[1], plonky2RootNode.CurCircuitDigest[2], plonky2RootNode.CurCircuitDigest[3])
+	fmt.Printf("plonky2RootNode hash: %v %v %v %v \n", plonky2RootNode.PubCircuitDigest[0], plonky2RootNode.PubCircuitDigest[1], plonky2RootNode.PubCircuitDigest[2], plonky2RootNode.PubCircuitDigest[3])
+	fmt.Printf("plonky2RootNode circuit digest in json hash: %v %v %v %v \n", plonky2RootNode.CurCircuitDigest[0], plonky2RootNode.CurCircuitDigest[1], plonky2RootNode.CurCircuitDigest[2], plonky2RootNode.CurCircuitDigest[3])
 
 	var data []uint64
 	data = append(data, plonky2RootNode.PubCircuitDigest[:]...)
