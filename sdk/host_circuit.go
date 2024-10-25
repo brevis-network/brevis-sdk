@@ -54,7 +54,7 @@ func (c *HostCircuit) Define(gapi frontend.API) error {
 		return fmt.Errorf("error building user-defined circuit %s", err.Error())
 	}
 
-	//assertInputUniqueness(gapi, c.Input.InputCommitments, api.checkInputUniqueness)
+	assertInputUniqueness(gapi, c.Input.InputCommitments, api.checkInputUniqueness)
 	inputCommitmentRoot, err := CalMerkleRoot(gapi, c.Input.InputCommitments)
 	if err != nil {
 		return fmt.Errorf("error building user-defined circuit calMerkleRoot fail, %s", err.Error())
