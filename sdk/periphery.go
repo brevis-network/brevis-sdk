@@ -22,14 +22,15 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-func Compile(app AppCircuit, compileOutDir, srsDir string, maxReceipt, maxStorage, total int) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, []byte, error) {
+func Compile(app AppCircuit, compileOutDir, srsDir string) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, []byte, error) {
 	fmt.Println(">> compile")
 	ccs, err := CompileOnly(app)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
+	maxReceipt, maxStorage, _ := app.Allocate()
 	fmt.Println(">> setup")
-	pk, vk, vkHash, err := Setup(ccs, srsDir, maxReceipt, maxStorage, total)
+	pk, vk, vkHash, err := Setup(ccs, srsDir, maxReceipt, maxStorage, NumMaxDataPoints)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -75,7 +76,7 @@ func CompileOnly(app AppCircuit) (constraint.ConstraintSystem, error) {
 	return ccs, nil
 }
 
-func Setup(ccs constraint.ConstraintSystem, cacheDir string, maxReceipt, maxStorage, total int) (pk plonk.ProvingKey, vk plonk.VerifyingKey, vkHash []byte, err error) {
+func Setup(ccs constraint.ConstraintSystem, cacheDir string, maxReceipt, maxStorage, numMaxDataPoints int) (pk plonk.ProvingKey, vk plonk.VerifyingKey, vkHash []byte, err error) {
 	if len(cacheDir) == 0 {
 		return nil, nil, nil, fmt.Errorf("must provide a directory to save SRS")
 	}
@@ -99,7 +100,7 @@ func Setup(ccs constraint.ConstraintSystem, cacheDir string, maxReceipt, maxStor
 	}
 	fmt.Printf("setup done in %s\n", time.Since(before))
 
-	vkHash, err = printVkHash(vk, maxReceipt, maxStorage, total)
+	vkHash, err = printVkHash(vk, maxReceipt, maxStorage, numMaxDataPoints)
 
 	return
 }
@@ -176,7 +177,7 @@ func WriteTo(w io.WriterTo, path string) error {
 	return nil
 }
 
-func ReadSetupFrom(compileOutDir string, maxReceipt, maxStorage, numMaxDataPoints int) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, []byte, error) {
+func ReadSetupFrom(appCircuit AppCircuit, compileOutDir string) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, []byte, error) {
 	ccs, err := ReadCircuitFrom(filepath.Join(compileOutDir, "compiledCircuit"))
 	if err != nil {
 		return nil, nil, nil, nil, err
@@ -185,7 +186,10 @@ func ReadSetupFrom(compileOutDir string, maxReceipt, maxStorage, numMaxDataPoint
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	vk, vkHash, err := ReadVkFrom(filepath.Join(compileOutDir, "vk"), maxReceipt, maxStorage, numMaxDataPoints)
+
+	maxReceipt, maxStorage, _ := appCircuit.Allocate()
+
+	vk, vkHash, err := ReadVkFrom(filepath.Join(compileOutDir, "vk"), maxReceipt, maxStorage, NumMaxDataPoints)
 	return ccs, pk, vk, vkHash, err
 }
 

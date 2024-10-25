@@ -108,9 +108,7 @@ func TestE2E(t *testing.T) {
 	srsDir := "$HOME/kzgsrs"
 	// The compiled circuit, proving key, and verifying key are saved to outDir, and
 	// the downloaded SRS in the process is saved to srsDir
-	maxReceipt, maxStorage, _ := appCircuitAssignment.Allocate()
-
-	compiledCircuit, pk, vk, vkHash, err := sdk.Compile(&AppCircuit{}, outDir, srsDir, maxReceipt, maxStorage, sdk.NumMaxDataPoints)
+	compiledCircuit, pk, vk, vkHash, err := sdk.Compile(&AppCircuit{}, outDir, srsDir)
 	check(err)
 
 	fmt.Println("compilation/setup complete")
@@ -121,7 +119,7 @@ func TestE2E(t *testing.T) {
 
 	// Once you saved your ccs, pk, and vk files, you can read them back into memory
 	// for use with the provided utils
-	compiledCircuit, pk, vk, vkHash, err = sdk.ReadSetupFrom(outDir, maxReceipt, maxStorage, sdk.NumMaxDataPoints)
+	compiledCircuit, pk, vk, vkHash, err = sdk.ReadSetupFrom(&AppCircuit{}, outDir)
 	check(err)
 
 	witness, publicWitness, err := sdk.NewFullWitness(appCircuitAssignment, circuitInput)
