@@ -28,6 +28,7 @@ func Compile(app AppCircuit, compileOutDir, srsDir string, maxReceipt, maxStorag
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
+	maxReceipt, maxStorage, _ := app.Allocate()
 	fmt.Println(">> setup")
 	pk, vk, vkHash, err := Setup(ccs, srsDir, maxReceipt, maxStorage, numMaxDataPoints)
 	if err != nil {
@@ -174,7 +175,7 @@ func WriteTo(w io.WriterTo, path string) error {
 	return nil
 }
 
-func ReadSetupFrom(compileOutDir string, maxReceipt, maxStorage, numMaxDataPoints int) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, []byte, error) {
+func ReadSetupFrom(appCircuit AppCircuit, compileOutDir string) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, []byte, error) {
 	ccs, err := ReadCircuitFrom(filepath.Join(compileOutDir, "compiledCircuit"))
 	if err != nil {
 		return nil, nil, nil, nil, err
@@ -183,7 +184,10 @@ func ReadSetupFrom(compileOutDir string, maxReceipt, maxStorage, numMaxDataPoint
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	vk, vkHash, err := ReadVkFrom(filepath.Join(compileOutDir, "vk"), maxReceipt, maxStorage, numMaxDataPoints)
+
+	maxReceipt, maxStorage, _ := appCircuit.Allocate()
+
+	vk, vkHash, err := ReadVkFrom(filepath.Join(compileOutDir, "vk"), maxReceipt, maxStorage, NumMaxDataPoints)
 	return ccs, pk, vk, vkHash, err
 }
 
