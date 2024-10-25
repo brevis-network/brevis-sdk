@@ -9,3 +9,4 @@
 7. Add digest tool to calculate application vk hash for developer. change file: `sdk/circuit_digest_tool,go` [PR-17](https://github.com/brevis-network/brevis-sdk/pull/17)
 8. Add Keccak256 API. [PR-24](https://github.com/brevis-network/brevis-sdk/pull/24), change files: `sdk/circuit_api.go`.
 9. Fix plonk bn254 vk hash. [PR-27](https://github.com/brevis-network/brevis-sdk/pull/27), change files: `common/utils/plonk_util.go`.
+10. Bring back circuit input uniqueness check code. Use dynamic data points calculation [PR-30](https://github.com/brevis-network/brevis-sdk/pull/30), change files: `sdk/app.go, sdk/circuit_input.go, sdk/host_circuit.go, sdk/periphery.go`
