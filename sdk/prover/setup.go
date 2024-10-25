@@ -12,9 +12,9 @@ import (
 	"github.com/consensys/gnark/constraint"
 )
 
-func readOrSetup(circuit sdk.AppCircuit, numMaxDataPoints int, setupDir, srsDir string) (pk plonk.ProvingKey, vk plonk.VerifyingKey, ccs constraint.ConstraintSystem, vkHash []byte, err error) {
+func readOrSetup(circuit sdk.AppCircuit, setupDir, srsDir string) (pk plonk.ProvingKey, vk plonk.VerifyingKey, ccs constraint.ConstraintSystem, vkHash []byte, err error) {
 	fmt.Println(">> compiling circuit")
-	ccs, err = sdk.CompileOnly(circuit, numMaxDataPoints)
+	ccs, err = sdk.CompileOnly(circuit)
 	if err != nil {
 		return
 	}

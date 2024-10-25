@@ -10,9 +10,9 @@ import (
 )
 
 func TestCircuit(t *testing.T) {
+	rpc := "RPC_URL"
 	localDir := "$HOME/circuitOut/myBrevisApp/input"
-	numMaxDataPoints := 128
-	app, err := sdk.NewBrevisApp(1, numMaxDataPoints, "RPC_URL", localDir)
+	app, err := sdk.NewBrevisApp(1, rpc, localDir)
 	check(err)
 
 	USDT := common.HexToAddress("0xdac17f958d2ee523a2206206994597c13d831ec7")

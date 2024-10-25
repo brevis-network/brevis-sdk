@@ -36,14 +36,13 @@ func NewService(
 	rpcUrl string,
 	localStoragePath string,
 	srcChainId int,
-	numMaxDataPoints int,
 	app sdk.AppCircuit, config ServiceConfig) (*Service, error) {
-	pk, vk, ccs, vkHash, err := readOrSetup(app, numMaxDataPoints, config.SetupDir, config.GetSrsDir())
+	pk, vk, ccs, vkHash, err := readOrSetup(app, config.SetupDir, config.GetSrsDir())
 	if err != nil {
 		return nil, err
 	}
 	return &Service{
-		svr: newServer(rpcUrl, localStoragePath, srcChainId, app, numMaxDataPoints, pk, vk, ccs, vkHash),
+		svr: newServer(rpcUrl, localStoragePath, srcChainId, app, pk, vk, ccs, vkHash),
 	}, nil
 }
 
@@ -119,7 +118,6 @@ func newServer(
 	localStoragePath string,
 	srcChainId int,
 	appCircuit sdk.AppCircuit,
-	numMaxDataPoints int,
 	pk plonk.ProvingKey,
 	vk plonk.VerifyingKey,
 	ccs constraint.ConstraintSystem,
@@ -136,7 +134,7 @@ func newServer(
 		os.Exit(1)
 	}
 
-	brevisApp, err := sdk.NewBrevisApp(uint64(srcChainId), numMaxDataPoints, rpcUrl, localStoragePath)
+	brevisApp, err := sdk.NewBrevisApp(uint64(srcChainId), rpcUrl, localStoragePath)
 	if err != nil {
 		fmt.Printf("failed to initiate brevis app %s", err.Error())
 		os.Exit(1)

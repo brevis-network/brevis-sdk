@@ -13,7 +13,6 @@ func main() {
 		"RPC_URL",
 		"$HOME/circuitInput",
 		1,
-		128,
 		dummy.DefaultAppCircuit(),
 		prover.ServiceConfig{
 			SetupDir: "$HOME/circuitOut",

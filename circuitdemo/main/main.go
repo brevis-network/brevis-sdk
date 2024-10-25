@@ -19,7 +19,7 @@ func (c *AppCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions int) {
 	// Our app is only ever going to use one storage data at a time so
 	// we can simply limit the max number of data for storage to 1 and
 	// 0 for all others
-	return 128, 128, 128
+	return 32, 32, 32
 }
 
 func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
@@ -38,7 +38,8 @@ func main() {
 	outDir := "$HOME/circuitOut/myBrevisApp"
 	localDir := "$HOME/circuitOut/myBrevisApp/input"
 	srsDir := "$HOME/kzgsrs"
-	app, err := sdk.NewBrevisApp(1, 128, "", localDir)
+	rpc := "RPC_URL"
+	app, err := sdk.NewBrevisApp(1, rpc, localDir)
 	check(err)
 	logFieldData := sdk.LogFieldData{
 		LogPos:     0,

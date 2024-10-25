@@ -25,7 +25,7 @@ type HostCircuit struct {
 	Guest AppCircuit
 }
 
-func DefaultHostCircuit(app AppCircuit, numMaxDataPoints int) *HostCircuit {
+func DefaultHostCircuit(app AppCircuit) *HostCircuit {
 	maxReceipts, maxStorage, maxTxs := app.Allocate()
 	dataPoints := DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
 	h := &HostCircuit{

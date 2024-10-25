@@ -12,9 +12,9 @@ import (
 )
 
 func TestCircuit(t *testing.T) {
+	rpc := "RPC_URL"
 	localDir := "$HOME/circuitOut/myBrevisApp/input"
-	numMaxDataPoints := 64
-	app, err := sdk.NewBrevisApp(1, numMaxDataPoints, "RPC_URL", localDir)
+	app, err := sdk.NewBrevisApp(1, rpc, localDir)
 	check(err)
 
 	txHash := common.HexToHash(
@@ -41,9 +41,9 @@ func TestCircuit(t *testing.T) {
 }
 
 func TestE2E(t *testing.T) {
+	rpc := "RPC_URL"
 	localDir := "$HOME/circuitOut/myBrevisApp/input"
-	numMaxDataPoints := 64
-	app, err := sdk.NewBrevisApp(1, numMaxDataPoints, "RPC_URL", localDir)
+	app, err := sdk.NewBrevisApp(1, rpc, localDir)
 	check(err)
 
 	txHash := common.HexToHash(

@@ -112,7 +112,6 @@ type BrevisApp struct {
 
 func NewBrevisApp(
 	srcChainId uint64,
-	numMaxDataPoints int,
 	rpcUrl string,
 	localStoragePath string,
 	gatewayUrlOverride ...string,
@@ -141,18 +140,6 @@ func NewBrevisApp(
 		return nil, err
 	}
 
-	if numMaxDataPoints < 64 {
-		return nil, fmt.Errorf("the minimum numMaxDataPoints is 64")
-	}
-
-	if numMaxDataPoints%64 != 0 {
-		return nil, fmt.Errorf("numMaxDataPoints %d should be integral multiple of 64", numMaxDataPoints)
-	}
-
-	if !CheckNumberPowerOfTwo(numMaxDataPoints / 64) {
-		return nil, fmt.Errorf("numMaxDataPoints / 32 %d should be a power of 2", numMaxDataPoints)
-	}
-
 	localInputDataPath := filepath.Join(localStoragePath, "data.json")
 	localInputData := readDataFromLocalStorage(localInputDataPath)
 	if localInputData == nil {
@@ -171,7 +158,6 @@ func NewBrevisApp(
 		receipts:           rawData[ReceiptData]{},
 		storageVals:        rawData[StorageData]{},
 		txs:                rawData[TransactionData]{},
-		numMaxDataPoints:   numMaxDataPoints,
 		localInputData:     localInputData,
 		localInputDataPath: localInputDataPath,
 	}, nil
@@ -686,14 +672,14 @@ func doHash(hasher *utils.PoseidonBn254Hasher, packed []*big.Int) (*big.Int, err
 // hash 32 toggles into one value which is used as merkle tree leaf.
 func (q *BrevisApp) assignToggleCommitment(in *CircuitInput) {
 	var err error
-	in.TogglesCommitment, err = CalTogglesHashRoot(in.Toggles(), q.dataPoints)
+	in.TogglesCommitment, err = q.calTogglesHashRoot(in.Toggles())
 	if err != nil {
 		log.Panicf("fail to CalTogglesHashRoot, err: %v", err)
 	}
 }
 
 func (q *BrevisApp) calTogglesHashRoot(toggles []frontend.Variable) (*big.Int, error) {
-	leafs := make([]*big.Int, dataPoints/32)
+	leafs := make([]*big.Int, q.dataPoints/32)
 	if len(toggles)%32 != 0 {
 		return nil, fmt.Errorf("invalid toggles length %d", len(toggles))
 	}

@@ -10,18 +10,16 @@ import (
 )
 
 type DataInput struct {
-	Receipts         DataPoints[Receipt]
-	StorageSlots     DataPoints[StorageSlot]
-	Transactions     DataPoints[Transaction]
-	NumMaxDataPoints int
+	Receipts     DataPoints[Receipt]
+	StorageSlots DataPoints[StorageSlot]
+	Transactions DataPoints[Transaction]
 }
 
-func defaultDataInput(maxReceipts, maxStorage, maxTxs, numMaxDataPoints int) DataInput {
+func defaultDataInput(maxReceipts, maxStorage, maxTxs int) DataInput {
 	return DataInput{
-		Receipts:         NewDataPoints(maxReceipts, defaultReceipt),
-		StorageSlots:     NewDataPoints(maxStorage, defaultStorageSlot),
-		Transactions:     NewDataPoints(maxTxs, defaultTransaction),
-		NumMaxDataPoints: numMaxDataPoints,
+		Receipts:     NewDataPoints(maxReceipts, defaultReceipt),
+		StorageSlots: NewDataPoints(maxStorage, defaultStorageSlot),
+		Transactions: NewDataPoints(maxTxs, defaultTransaction),
 	}
 }
 
@@ -59,13 +57,12 @@ type CircuitInput struct {
 }
 
 func defaultCircuitInput(maxReceipts, maxStorage, maxTxs, dataPoints int) CircuitInput {
-	// dataPoints := nextPowerOf2(maxReceipts + maxStorage + maxTxs)
 	var inputCommits = make([]frontend.Variable, dataPoints)
 	for i := 0; i < dataPoints; i++ {
 		inputCommits[i] = 0
 	}
 	return CircuitInput{
-		DataInput:                       defaultDataInput(maxReceipts, maxStorage, maxTxs, numMaxDataPoints),
+		DataInput:                       defaultDataInput(maxReceipts, maxStorage, maxTxs),
 		InputCommitmentsRoot:            0,
 		InputCommitments:                inputCommits,
 		TogglesCommitment:               0,
