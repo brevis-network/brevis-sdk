@@ -54,7 +54,17 @@ func (c *HostCircuit) Define(gapi frontend.API) error {
 		return fmt.Errorf("error building user-defined circuit %s", err.Error())
 	}
 
-	assertInputUniqueness(gapi, c.Input.InputCommitments, api.checkInputUniqueness)
+	toggles := c.Input.Toggles()
+	if len(c.Input.InputCommitments) != len(toggles) {
+		return fmt.Errorf("invalid input commitment toggle pair")
+	}
+
+	inputCommitmentsWithToggle := make([]frontend.Variable, len(c.Input.InputCommitments))
+	for i := range inputCommitmentsWithToggle {
+		inputCommitmentsWithToggle[i] = gapi.Mul(c.Input.InputCommitments[i], toggles[i])
+	}
+
+	assertInputUniqueness(gapi, inputCommitmentsWithToggle, api.checkInputUniqueness)
 	inputCommitmentRoot, err := CalMerkleRoot(gapi, c.Input.InputCommitments)
 	if err != nil {
 		return fmt.Errorf("error building user-defined circuit calMerkleRoot fail, %s", err.Error())
