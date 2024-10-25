@@ -146,8 +146,8 @@ func (dp DataPoints[T]) Clone() DataPoints[T] {
 // NumMaxDataPoints is the max amount of data points this circuit can handle at
 // once. This couples tightly to the batch size of the aggregation circuit on
 // Brevis' side
-// 512
-const NumMaxDataPoints = 128
+// 2048
+const NumMaxDataPoints = 2048
 
 // NumMaxLogFields is the max amount of log fields each Receipt can have. This
 // couples tightly to the decoding capacity of the receipt decoder circuit on
