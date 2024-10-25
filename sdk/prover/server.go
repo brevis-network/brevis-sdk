@@ -33,16 +33,13 @@ type Service struct {
 // compilation & setup, and serves as a GRPC server that interoperates with
 // brevis sdk in other languages.
 func NewService(
-	rpcUrl string,
-	localStoragePath string,
-	srcChainId int,
 	app sdk.AppCircuit, config ServiceConfig) (*Service, error) {
 	pk, vk, ccs, vkHash, err := readOrSetup(app, config.SetupDir, config.GetSrsDir())
 	if err != nil {
 		return nil, err
 	}
 	return &Service{
-		svr: newServer(rpcUrl, localStoragePath, srcChainId, app, pk, vk, ccs, vkHash),
+		svr: newServer(config.RpcURL, config.GetLocalStoragePath(), config.ChainId, app, pk, vk, ccs, vkHash),
 	}, nil
 }
 

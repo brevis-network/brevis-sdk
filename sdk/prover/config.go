@@ -12,6 +12,16 @@ type ServiceConfig struct {
 	// in a shared directory for all projects. Default to use the same dir as
 	// SetupDir if not specified
 	SrsDir string
+
+	// RpcURL will be used to query on-chain data by sending rpc call.
+	RpcURL string
+
+	// On-chain query data will be stored in LocalStoragePath/data.json. It will
+	// save rpc usage for developers.
+	LocalStoragePath string
+
+	// Source chain id.
+	ChainId int
 }
 
 func (c ServiceConfig) GetSetupDir() string {
@@ -23,4 +33,8 @@ func (c ServiceConfig) GetSrsDir() string {
 		return c.GetSetupDir()
 	}
 	return os.ExpandEnv(c.SrsDir)
+}
+
+func (c ServiceConfig) GetLocalStoragePath() string {
+	return os.ExpandEnv(c.LocalStoragePath)
 }

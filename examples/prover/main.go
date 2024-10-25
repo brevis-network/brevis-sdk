@@ -10,13 +10,13 @@ import (
 
 func main() {
 	proverService, err := prover.NewService(
-		"RPC_URL",
-		"$HOME/circuitInput",
-		1,
 		dummy.DefaultAppCircuit(),
 		prover.ServiceConfig{
-			SetupDir: "$HOME/circuitOut",
-			SrsDir:   "$HOME/kzgsrs",
+			SetupDir:         "$HOME/circuitOut",
+			SrsDir:           "$HOME/kzgsrs",
+			RpcURL:           "RPC_URL",
+			LocalStoragePath: "$HOME/circuitInput",
+			ChainId:          1,
 		})
 	if err != nil {
 		fmt.Println(err)
