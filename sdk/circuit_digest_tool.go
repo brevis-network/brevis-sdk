@@ -2,6 +2,7 @@ package sdk
 
 import (
 	"fmt"
+	"github.com/celer-network/goutils/log"
 	"math/big"
 
 	pgoldilocks "github.com/OpenAssetStandards/poseidon-goldilocks-go"
@@ -23,12 +24,14 @@ var (
 	MiddleNodeVkHashHex  = "0x15dc69eafcfd4546b82fecf468fd5878e2f7cb2270abee4e15abb638c77bbe52"
 	AggAllVkHash         = "0x078ab850e8148fc412016972abf837fddbc8c7f87d049e337fcdfdc1a47caca2"
 
-	ReceiptCircuitDigestHash              = &pgoldilocks.HashOut256{18342954016779928005, 1999111386698916995, 9821024959441469133, 15458253518461692125}
-	StorageCircuitDigestHash              = &pgoldilocks.HashOut256{8402615540623755850, 1961959628897547561, 932311736471219112, 2325436902703156259}
-	TxCircuitDigestHash                   = &pgoldilocks.HashOut256{4468797703754107005, 1772380112937592888, 10819062548913493240, 12550953239004764174}
-	P2AggRecursionLeafCircuitDigestHash   = &pgoldilocks.HashOut256{6297162860691876658, 7207440660511781486, 956392925008767441, 15443083968980057808}
-	P2AggRecursionNoLeafCircuitDigestHash = &pgoldilocks.HashOut256{14561383570925761150, 12116100132768392867, 2216989100987824959, 11720816772597981334}
-	P2Bn128WrapCircuitDigestHash          = utils.Hex2BigInt("0x08e1f454d096c46ebf2e1f40ff4858ce8188f86cc9623242ea605b774aee12aa")
+	ReceiptCircuitDigestHash                             = &pgoldilocks.HashOut256{18342954016779928005, 1999111386698916995, 9821024959441469133, 15458253518461692125}
+	StorageCircuitDigestHash                             = &pgoldilocks.HashOut256{8402615540623755850, 1961959628897547561, 932311736471219112, 2325436902703156259}
+	TxCircuitDigestHash                                  = &pgoldilocks.HashOut256{4468797703754107005, 1772380112937592888, 10819062548913493240, 12550953239004764174}
+	P2AggRecursionLeafCircuitDigestHash                  = &pgoldilocks.HashOut256{6297162860691876658, 7207440660511781486, 956392925008767441, 15443083968980057808}
+	P2AggRecursionMiddleFormMiddleLeafCircuitDigestHash  = &pgoldilocks.HashOut256{14561383570925761150, 12116100132768392867, 2216989100987824959, 11720816772597981334}
+	P2AggRecursionNoLeafCircuitDigestHash                = &pgoldilocks.HashOut256{14007309231803840793, 2325011900429631668, 6598512353030159473, 12456847712279341912}
+	P2Bn128WrapCircuitDigestHashForOnlyFromLeafRecursion = utils.Hex2BigInt("0x08e1f454d096c46ebf2e1f40ff4858ce8188f86cc9623242ea605b774aee12aa")
+	P2Bn128WrapCircuitDigestHash                         = utils.Hex2BigInt("0x1E24794162210326BC751EB2FB4AFB6CB76B2CD94E6CEAFB9191A18B6E24A9D1")
 
 	ReceiptVkHash     = utils.Hex2BigInt(ReceiptVkHashHex)
 	StorageVkHash     = utils.Hex2BigInt(StorageVkHashHex)
@@ -75,15 +78,21 @@ func CalBrevisCircuitDigest(receiptCount, storageCount, transactionCount int, ap
 	appVkHashBytes := utils.CalculateAppVkHashForBn254(reVk)
 	appVkHashBigInt := new(big.Int).SetBytes(appVkHashBytes)
 
+	log.Infof("appVkHashBigInt: %x", appVkHashBigInt)
+
 	hash2HashDigest, err := GetHash2HashCircuitDigest(receiptCount, storageCount, transactionCount)
 	if err != nil {
 		return nil, err
 	}
 
-	plonky2RootFromBn128Digest, err := GetPlonky2CircuitDigestFromWrapBn128(receiptCount, storageCount, transactionCount)
+	log.Infof("hash2HashDigest: %x", hash2HashDigest)
+
+	plonky2RootFromBn128Digest, isRecursionRecursionOfLeaf, err := GetPlonky2CircuitDigestFromWrapBn128(receiptCount, storageCount, transactionCount)
 	if err != nil {
 		return nil, err
 	}
+
+	log.Infof("plonky2RootFromBn128Digest: %v %v %v %v", plonky2RootFromBn128Digest[0], plonky2RootFromBn128Digest[1], plonky2RootFromBn128Digest[2], plonky2RootFromBn128Digest[3])
 
 	hasher := zkhashutils.NewPoseidonBn254()
 	hasher.Write(new(big.Int).SetUint64(plonky2RootFromBn128Digest[0]))
@@ -91,7 +100,13 @@ func CalBrevisCircuitDigest(receiptCount, storageCount, transactionCount int, ap
 	hasher.Write(new(big.Int).SetUint64(plonky2RootFromBn128Digest[2]))
 	hasher.Write(new(big.Int).SetUint64(plonky2RootFromBn128Digest[3]))
 
-	hasher.Write(P2Bn128WrapCircuitDigestHash)
+	if isRecursionRecursionOfLeaf {
+		log.Infof("use P2Bn128WrapCircuitDigestHashForOnlyFromLeafRecursion")
+		hasher.Write(P2Bn128WrapCircuitDigestHashForOnlyFromLeafRecursion)
+	} else {
+		hasher.Write(P2Bn128WrapCircuitDigestHash)
+		log.Infof("use P2Bn128WrapCircuitDigestHash")
+	}
 
 	hasher.Write(hash2HashDigest)
 	hasher.Write(utils.Hex2BigInt(MiddleNodeVkHashHex))
@@ -155,28 +170,38 @@ func CalOneHash2HashNodeDigest(left, right Hash2HashDigestNode) (*big.Int, error
 }
 
 type Plonky2DigestNode struct {
-	PubCircuitDigest *pgoldilocks.HashOut256 // in pub
-	CurCircuitDigest *pgoldilocks.HashOut256 // in json
-	IsLeafNode       bool
+	PubCircuitDigest           *pgoldilocks.HashOut256 // in pub
+	CurCircuitDigest           *pgoldilocks.HashOut256 // in json
+	IsLeafNode                 bool
+	IsRecursionOfLeaf          bool
+	IsRecursionRecursionOfLeaf bool
 }
 
-func GetPlonky2CircuitDigestFromWrapBn128(receiptCount, storageCount, transactionCount int) (*pgoldilocks.HashOut256, error) {
-	plonky2RootNode, err := GetPlonky2CircuitDigest(receiptCount, storageCount, transactionCount)
+func GetPlonky2CircuitDigestFromWrapBn128(receiptCount, storageCount, transactionCount int) (*pgoldilocks.HashOut256, bool, error) {
+	plonky2RootNode, isRecursionRecursionOfLeaf, err := GetPlonky2CircuitDigest(receiptCount, storageCount, transactionCount)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
+
+	log.Infof("plonky2RootNode hash: %v %v %v %v", plonky2RootNode.PubCircuitDigest[0], plonky2RootNode.PubCircuitDigest[1], plonky2RootNode.PubCircuitDigest[2], plonky2RootNode.PubCircuitDigest[3])
+	log.Infof("plonky2RootNode circuit digest in json hash: %v %v %v %v", plonky2RootNode.CurCircuitDigest[0], plonky2RootNode.CurCircuitDigest[1], plonky2RootNode.CurCircuitDigest[2], plonky2RootNode.CurCircuitDigest[3])
 
 	var data []uint64
 	data = append(data, plonky2RootNode.PubCircuitDigest[:]...)
 	data = append(data, plonky2RootNode.CurCircuitDigest[:]...)
 
-	return pgoldilocks.HashNoPadU64Array(data[:])
+	hashRes, err := pgoldilocks.HashNoPadU64Array(data[:])
+	if err != nil {
+		return nil, false, err
+	}
+
+	return hashRes, isRecursionRecursionOfLeaf, nil
 }
 
-func GetPlonky2CircuitDigest(receiptCount, storageCount, transactionCount int) (*Plonky2DigestNode, error) {
+func GetPlonky2CircuitDigest(receiptCount, storageCount, transactionCount int) (*Plonky2DigestNode, bool, error) {
 	receiptLeafCount, storageLeafCount, transactionLeafCount, totalLeafCount, err := GetAndCheckLeafCount(receiptCount, storageCount, transactionCount)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	var totalLeafs []Plonky2DigestNode
@@ -190,22 +215,29 @@ func GetPlonky2CircuitDigest(receiptCount, storageCount, transactionCount int) (
 		totalLeafs = append(totalLeafs, TransactionPlonky2Node)
 	}
 	if len(totalLeafs) != totalLeafCount {
-		return nil, fmt.Errorf("len(totalLeafs) != totalLeafCount, %d %d", len(totalLeafs), totalLeafCount)
+		return nil, false, fmt.Errorf("len(totalLeafs) != totalLeafCount, %d %d", len(totalLeafs), totalLeafCount)
 	}
 	elementCount := totalLeafCount
 	for {
 		if elementCount == 1 {
-			return &totalLeafs[0], nil
+			return &totalLeafs[0], totalLeafs[0].IsRecursionRecursionOfLeaf, nil
 		}
 		for i := 0; i < elementCount/2; i++ {
 			parent, hashErr := CalOnePlonky2NodeDigest(totalLeafs[2*i], totalLeafs[2*i+1])
 			if hashErr != nil {
-				return nil, fmt.Errorf("fail to hash in CalOneHash2HashNodeDigest, %d %d -> %d err: %v", 2*i, 2*i+1, i, hashErr)
+				return nil, false, fmt.Errorf("fail to hash in CalOneHash2HashNodeDigest, %d %d -> %d err: %v", 2*i, 2*i+1, i, hashErr)
 			}
 			if totalLeafs[2*i].IsLeafNode {
 				totalLeafs[i] = Plonky2DigestNode{
-					PubCircuitDigest: parent,
-					CurCircuitDigest: P2AggRecursionLeafCircuitDigestHash,
+					PubCircuitDigest:  parent,
+					CurCircuitDigest:  P2AggRecursionLeafCircuitDigestHash,
+					IsRecursionOfLeaf: true,
+				}
+			} else if totalLeafs[2*i].IsRecursionOfLeaf {
+				totalLeafs[i] = Plonky2DigestNode{
+					PubCircuitDigest:           parent,
+					CurCircuitDigest:           P2AggRecursionMiddleFormMiddleLeafCircuitDigestHash,
+					IsRecursionRecursionOfLeaf: true,
 				}
 			} else {
 				totalLeafs[i] = Plonky2DigestNode{
