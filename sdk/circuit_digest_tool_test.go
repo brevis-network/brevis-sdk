@@ -60,7 +60,7 @@ func TestGlPoseidonOnDigest(t *testing.T) {
 
 func TestPlonky2RootDigest(t *testing.T) {
 	assert := test.NewAssert(t)
-	digest, err := GetPlonky2CircuitDigestFromWrapBn128(32, 32, 64)
+	digest, _, err := GetPlonky2CircuitDigestFromWrapBn128(32, 32, 64)
 	assert.NoError(err)
 	log.Infof("plonky2RootNode digest after wrapbn128: %d %d %d %d", digest[0], digest[1], digest[2], digest[3])
 }
@@ -82,7 +82,7 @@ func TestHashAllDigest(t *testing.T) {
 	hash2HashDigest, err := GetHash2HashCircuitDigest(32, 32, 64)
 	assert.NoError(err)
 
-	plonky2RootFromBn128Digest, err := GetPlonky2CircuitDigestFromWrapBn128(32, 32, 64)
+	plonky2RootFromBn128Digest, _, err := GetPlonky2CircuitDigestFromWrapBn128(32, 32, 64)
 	assert.NoError(err)
 
 	hasher := utils2.NewPoseidonBn254()
