@@ -36,10 +36,9 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 
 func main() {
 	outDir := "$HOME/circuitOut/myBrevisApp"
-	localDir := "$HOME/circuitOut/myBrevisApp/input"
 	srsDir := "$HOME/kzgsrs"
 	rpc := "RPC_URL"
-	app, err := sdk.NewBrevisApp(1, rpc, localDir)
+	app, err := sdk.NewBrevisApp(1, rpc, outDir)
 	check(err)
 	logFieldData := sdk.LogFieldData{
 		LogPos:     0,
@@ -64,7 +63,7 @@ func main() {
 		})
 	}
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 1; i++ {
 		app.AddTransaction(sdk.TransactionData{
 			Hash: utils.Hex2Hash("0x3b762c2829801787b44ea8afba9510241014faa7dd86dbf03d729846aa346894"),
 		}, i)

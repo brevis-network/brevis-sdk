@@ -113,7 +113,7 @@ type BrevisApp struct {
 func NewBrevisApp(
 	srcChainId uint64,
 	rpcUrl string,
-	localStoragePath string,
+	outDir string,
 	gatewayUrlOverride ...string,
 ) (*BrevisApp, error) {
 	ec, err := ethclient.Dial(rpcUrl)
@@ -140,7 +140,7 @@ func NewBrevisApp(
 		return nil, err
 	}
 
-	localInputDataPath := filepath.Join(localStoragePath, "data.json")
+	localInputDataPath := filepath.Join(outDir, "input", "data.json")
 	localInputData := readDataFromLocalStorage(localInputDataPath)
 	if localInputData == nil {
 		localInputData = &DataPersistence{

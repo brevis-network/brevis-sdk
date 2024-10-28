@@ -10,9 +10,14 @@ import (
 )
 
 func TestCircuit(t *testing.T) {
+	// The compiled circuit, proving key, and verifying key are saved to outDir,,
+	// query data will be stored in outDir/input/data.json and
+	// the downloaded SRS in the process is saved to srsDir
+	outDir := "$HOME/circuitOut/myBrevisApp"
 	rpc := "RPC_URL"
-	localDir := "$HOME/circuitOut/myBrevisApp/input"
-	app, err := sdk.NewBrevisApp(1, rpc, localDir)
+	app, err := sdk.NewBrevisApp(1, rpc, outDir)
+	check(err)
+
 	check(err)
 
 	EthUsdcPair := common.HexToAddress("0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc")

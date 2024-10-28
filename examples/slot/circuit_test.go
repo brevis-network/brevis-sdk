@@ -12,8 +12,8 @@ import (
 
 func TestCircuit(t *testing.T) {
 	rpc := "RPC_URL"
-	localDir := "$HOME/circuitOut/myBrevisApp/input"
-	app, err := sdk.NewBrevisApp(1, rpc, localDir)
+	outDir := "$HOME/circuitOut/myBrevisApp"
+	app, err := sdk.NewBrevisApp(1, rpc, outDir)
 	check(err)
 
 	account := common.HexToAddress("0x5427FEFA711Eff984124bFBB1AB6fbf5E3DA1820")
@@ -47,9 +47,13 @@ func TestCircuit(t *testing.T) {
 }
 
 func TestE2E(t *testing.T) {
+	// The compiled circuit, proving key, and verifying key are saved to outDir,,
+	// query data will be stored in outDir/input/data.json and
+	// the downloaded SRS in the process is saved to srsDir
+	outDir := "$HOME/circuitOut/myBrevisApp"
+	srsDir := "$HOME/kzgsrs"
 	rpc := "RPC_URL"
-	localDir := "$HOME/circuitOut/myBrevisApp/input"
-	app, err := sdk.NewBrevisApp(1, rpc, localDir)
+	app, err := sdk.NewBrevisApp(1, rpc, outDir)
 	check(err)
 
 	account := common.HexToAddress("0x5427FEFA711Eff984124bFBB1AB6fbf5E3DA1820")
@@ -85,10 +89,6 @@ func TestE2E(t *testing.T) {
 	// Compiling and Setup
 	///////////////////////////////////////////////////////////////////////////////
 
-	// The compiled circuit, proving key, and verifying key are saved to outDir, and
-	// the downloaded SRS in the process is saved to srsDir
-	outDir := "$HOME/circuitOut/storage"
-	srsDir := "$HOME/kzgsrs"
 	compiledCircuit, pk, vk, _, err := sdk.Compile(appCircuit, outDir, srsDir)
 	check(err)
 

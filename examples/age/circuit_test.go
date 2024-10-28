@@ -13,7 +13,7 @@ import (
 
 func TestCircuit(t *testing.T) {
 	rpc := "RPC_URL"
-	localDir := "$HOME/circuitOut/myBrevisApp/input"
+	localDir := "$HOME/circuitOut/myBrevisApp"
 	app, err := sdk.NewBrevisApp(1, rpc, localDir)
 	check(err)
 
@@ -42,8 +42,8 @@ func TestCircuit(t *testing.T) {
 
 func TestE2E(t *testing.T) {
 	rpc := "RPC_URL"
-	localDir := "$HOME/circuitOut/myBrevisApp/input"
-	app, err := sdk.NewBrevisApp(1, rpc, localDir)
+	outDir := "$HOME/circuitOut/age"
+	app, err := sdk.NewBrevisApp(1, rpc, outDir)
 	check(err)
 
 	txHash := common.HexToHash(
@@ -70,7 +70,6 @@ func TestE2E(t *testing.T) {
 	// Compiling and Setup
 	///////////////////////////////////////////////////////////////////////////////
 
-	outDir := "$HOME/circuitOut/age"
 	srsDir := "$HOME/kzgsrs"
 	// The compiled circuit, proving key, and verifying key are saved to outDir, and
 	// the downloaded SRS in the process is saved to srsDir
