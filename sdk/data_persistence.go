@@ -68,35 +68,30 @@ type TransactionPersistence struct {
 }
 
 func generateReceiptKey(receipt ReceiptData, srcChainId uint64) string {
-	input := []byte{}
-	input = append(input, new(big.Int).SetUint64(srcChainId).Bytes()...)
-	input = append(input, receipt.TxHash.Bytes()...)
-	for _, f := range receipt.Fields {
-		input = append(input, new(big.Int).SetUint64(uint64(f.LogPos)).Bytes()...)
-		if f.IsTopic {
-			input = append(input, 1)
-		} else {
-			input = append(input, 0)
-		}
-		input = append(input, new(big.Int).SetUint64(uint64(f.FieldIndex)).Bytes()...)
+	data, err := json.Marshal(receipt)
+	data = append(data, new(big.Int).SetUint64(srcChainId).Bytes()...)
+	if err != nil {
+		panic("failed to generate receipt data persistence key")
 	}
-	return crypto.Keccak256Hash(input).Hex()
+	return crypto.Keccak256Hash(data).Hex()
 }
 
 func generateStorageKey(storage StorageData, srcChainId uint64) string {
-	input := []byte{}
-	input = append(input, new(big.Int).SetUint64(srcChainId).Bytes()...)
-	input = append(input, storage.BlockNum.Bytes()...)
-	input = append(input, storage.Address.Bytes()...)
-	input = append(input, storage.Slot.Bytes()...)
-	return crypto.Keccak256Hash(input).Hex()
+	data, err := json.Marshal(storage)
+	data = append(data, new(big.Int).SetUint64(srcChainId).Bytes()...)
+	if err != nil {
+		panic("failed to generate receipt data persistence key")
+	}
+	return crypto.Keccak256Hash(data).Hex()
 }
 
 func generateTxKey(tx TransactionData, srcChainId uint64) string {
-	input := []byte{}
-	input = append(input, new(big.Int).SetUint64(srcChainId).Bytes()...)
-	input = append(input, tx.Hash.Bytes()...)
-	return crypto.Keccak256Hash(input).Hex()
+	data, err := json.Marshal(tx)
+	data = append(data, new(big.Int).SetUint64(srcChainId).Bytes()...)
+	if err != nil {
+		panic("failed to generate receipt data persistence key")
+	}
+	return crypto.Keccak256Hash(data).Hex()
 }
 
 func readDataFromLocalStorage(path string) *DataPersistence {

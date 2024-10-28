@@ -5,6 +5,8 @@ import "os"
 type ServiceConfig struct {
 	// SetupDir saves the circuit compilation outputs (proving key, verifying key,
 	// verifying key hash)
+	// On-chain query data will be stored in SetupDir/input/data.json. It will
+	// save rpc usage for developers.
 	SetupDir string
 
 	// SrsDir saves the SRS files that will be automatically downloaded. These files
@@ -15,10 +17,6 @@ type ServiceConfig struct {
 
 	// RpcURL will be used to query on-chain data by sending rpc call.
 	RpcURL string
-
-	// On-chain query data will be stored in LocalStoragePath/data.json. It will
-	// save rpc usage for developers.
-	LocalStoragePath string
 
 	// Source chain id.
 	ChainId int
@@ -36,5 +34,5 @@ func (c ServiceConfig) GetSrsDir() string {
 }
 
 func (c ServiceConfig) GetLocalStoragePath() string {
-	return os.ExpandEnv(c.LocalStoragePath)
+	return c.GetSetupDir() + "/input"
 }

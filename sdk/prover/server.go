@@ -34,7 +34,7 @@ type Service struct {
 // brevis sdk in other languages.
 func NewService(
 	app sdk.AppCircuit, config ServiceConfig) (*Service, error) {
-	pk, vk, ccs, vkHash, err := readOrSetup(app, config.SetupDir, config.GetSrsDir())
+	pk, vk, ccs, vkHash, err := readOrSetup(app, config.GetSetupDir(), config.GetSrsDir())
 	if err != nil {
 		return nil, err
 	}
