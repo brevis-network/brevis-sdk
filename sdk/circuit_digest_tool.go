@@ -17,14 +17,14 @@ var (
 	StorageD     = new(big.Int).SetUint64(uint64(2))
 	TransactionD = new(big.Int).SetUint64(uint64(3))
 
-	ReceiptVkHashHex     = "0x2d7428934e98c37e081f124a9a4e4eba6b41147a8ceba440ca82ccaec2a0af52"
+	ReceiptVkHashHex     = "0x03e2e4a805080e6a792c9927ab14a83f427ec91d601ab463446231954b4a6d38"
 	StorageVkHashHex     = "0x19efa435ccc1bf59b4e97281e7dcc612e2eda104987cfa9f6457435a90156297"
 	TransactionVkHashHex = "0x051756e504e16aa2635181222db1d8a9310930599ce44c000414b02101431c89"
 	MiddleNodeVkHashHex  = "0x15dc69eafcfd4546b82fecf468fd5878e2f7cb2270abee4e15abb638c77bbe52"
 	AggAllVkHash         = "0x078ab850e8148fc412016972abf837fddbc8c7f87d049e337fcdfdc1a47caca2"
 
 	ReceiptCircuitDigestHash                             = &pgoldilocks.HashOut256{18342954016779928005, 1999111386698916995, 9821024959441469133, 15458253518461692125}
-	StorageCircuitDigestHash                             = &pgoldilocks.HashOut256{8402615540623755850, 1961959628897547561, 932311736471219112, 2325436902703156259}
+	StorageCircuitDigestHash                             = &pgoldilocks.HashOut256{4042215064603061775, 14063122104860698852, 844953845653799173, 12599854710728207088}
 	TxCircuitDigestHash                                  = &pgoldilocks.HashOut256{4468797703754107005, 1772380112937592888, 10819062548913493240, 12550953239004764174}
 	P2AggRecursionLeafCircuitDigestHash                  = &pgoldilocks.HashOut256{6297162860691876658, 7207440660511781486, 956392925008767441, 15443083968980057808}
 	P2AggRecursionMiddleFormMiddleLeafCircuitDigestHash  = &pgoldilocks.HashOut256{14561383570925761150, 12116100132768392867, 2216989100987824959, 11720816772597981334}
