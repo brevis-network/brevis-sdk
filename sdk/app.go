@@ -514,6 +514,66 @@ func (q *BrevisApp) prepareQueryForBrevisPartnerFlow(
 	return nil, common.BytesToHash(queryId), q.nonce, feeValue, err
 }
 
+func (q *BrevisApp) GenerateProtoQuery(
+	vk plonk.VerifyingKey,
+	witness witness.Witness,
+	proof []byte,
+	callbackAddr common.Address,
+) (*gwproto.Query, error) {
+	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, q.maxReceipts, q.maxStorage, q.maxTxs, vk, witness)
+	if err != nil {
+		return nil, err
+	}
+
+	vkHashInBigInt, err := CalBrevisCircuitDigest(q.maxReceipts, q.maxStorage, q.dataPoints-q.maxReceipts-q.maxStorage, vk)
+	if err != nil {
+		fmt.Printf("error computing vk hash: %s", err.Error())
+		return nil, err
+	}
+
+	// Make sure vk hash is 32-bytes
+	vkHash := common.BytesToHash(vkHashInBigInt.Bytes()).Bytes()
+
+	return &gwproto.Query{
+		ReceiptInfos:      buildReceiptInfos(q.receipts, q.maxReceipts),
+		StorageQueryInfos: buildStorageQueryInfos(q.storageVals, q.maxStorage),
+		TransactionInfos:  buildTxInfos(q.txs, q.maxTxs),
+		AppCircuitInfo: &commonproto.AppCircuitInfoWithProof{
+			OutputCommitment:     appCircuitInfo.OutputCommitment,
+			VkHash:               hexutil.Encode(vkHash),
+			InputCommitments:     appCircuitInfo.InputCommitments,
+			Toggles:              appCircuitInfo.Toggles,
+			Output:               appCircuitInfo.Output,
+			CallbackAddr:         hexutil.Encode(callbackAddr[:]),
+			InputCommitmentsRoot: appCircuitInfo.InputCommitmentsRoot,
+			MaxReceipts:          appCircuitInfo.MaxReceipts,
+			MaxStorage:           appCircuitInfo.MaxStorage,
+			MaxTx:                appCircuitInfo.MaxTx,
+		},
+	}, nil
+}
+
+func (q *BrevisApp) SendBatchQuery(
+	queries []*gwproto.Query,
+	batchAPIKey string,
+	queryOption *gwproto.QueryOption,
+) (queryKeys []*gwproto.QueryKey, fee string, err error) {
+	req := &gwproto.SendBatchQueriesRequest{
+		ChainId:       q.srcChainId,
+		TargetChainId: q.dstChainId,
+		Queries:       queries,
+		Option:        *queryOption,
+		ApiKey:        batchAPIKey,
+	}
+	res, err := q.gc.SendBatchQueries(req)
+	if err != nil {
+		return nil, "", fmt.Errorf("error calling brevis gateway SendBatchQuery: %s", err.Error())
+	}
+	queryKeys = res.QueryKeys
+	fee = res.Fee
+	return
+}
+
 func (q *BrevisApp) checkAllocations(cb AppCircuit) error {
 	maxReceipts, maxSlots, maxTxs := cb.Allocate()
 
