@@ -55,7 +55,7 @@ type TransactionData struct {
 	Hash common.Hash `json:"hash,omitempty"`
 }
 
-type rawData[T ReceiptData | StorageData | TransactionData] struct {
+type rawData[T ReceiptData | StorageData | TransactionData | MockReceipt | MockStorage | MockTransaction] struct {
 	ordered []T
 	special map[int]T
 }
@@ -96,6 +96,10 @@ type BrevisApp struct {
 	receipts    rawData[ReceiptData]
 	storageVals rawData[StorageData]
 	txs         rawData[TransactionData]
+
+	mockReceipts rawData[MockReceipt]
+	mockStorage  rawData[MockStorage]
+	mockTxs      rawData[MockTransaction]
 
 	localInputDataPath string
 	localInputData     *DataPersistence
@@ -172,11 +176,32 @@ func (q *BrevisApp) AddReceipt(data ReceiptData, index ...int) {
 	q.receipts.add(data, index...)
 }
 
+// AddMockReceipt adds the MockReceipt to be queried. If an index is specified, the
+// data will be assigned to the specified index of DataInput.Receipts.
+// It should be used ONLY for circuit implementation and testing.
+func (q *BrevisApp) AddMockReceipt(data MockReceipt, index ...int) {
+	if len(data.Fields) > NumMaxLogFields {
+		panic(fmt.Sprintf("maximum number of log fields in one receipt is %d", NumMaxLogFields))
+	}
+	q.mockReceipts.add(data, index...)
+}
+
 // AddStorage adds the StorageData to be queried. If an index is
 // specified, the data will be assigned to the specified index of
 // DataInput.StorageSlots.
 func (q *BrevisApp) AddStorage(data StorageData, index ...int) {
+	if data.BlockNum == nil {
+		panic(fmt.Sprintf("storage data block num missing: %+v", data))
+	}
 	q.storageVals.add(data, index...)
+}
+
+// AddMockStorage adds the MockStorage to be queried. If an index is
+// specified, the data will be assigned to the specified index of
+// DataInput.StorageSlots.
+// It should be used ONLY for circuit implementation and testing.
+func (q *BrevisApp) AddMockStorage(data MockStorage, index ...int) {
+	q.mockStorage.add(data, index...)
 }
 
 // AddTransaction adds the TransactionData to be queried. If an index is
@@ -184,6 +209,14 @@ func (q *BrevisApp) AddStorage(data StorageData, index ...int) {
 // DataInput.Transactions.
 func (q *BrevisApp) AddTransaction(data TransactionData, index ...int) {
 	q.txs.add(data, index...)
+}
+
+// AddMockTransaction adds the MockTransaction to be queried. If an index is
+// specified, the data will be assigned to the specified index of
+// DataInput.Transactions.
+// It should be used ONLY for circuit implementation and testing.
+func (q *BrevisApp) AddMockTransaction(data MockTransaction, index ...int) {
+	q.mockTxs.add(data, index...)
 }
 
 // BuildCircuitInput executes all added queries and package the query results
@@ -223,6 +256,26 @@ func (q *BrevisApp) BuildCircuitInput(app AppCircuit) (CircuitInput, error) {
 
 	q.writeDataIntoLocalStorage()
 
+	if q.realDataLength() > 0 && q.mockDataLength() > 0 {
+		return CircuitInput{}, fmt.Errorf("you cannot add real data and mock data at the same time")
+	}
+	err = q.assignMockReceipts(&in)
+	if err != nil {
+		return buildCircuitInputErr("failed to assign in from receipt queries", err)
+	}
+
+	// storage
+	err = q.assignMockStorageSlots(&in)
+	if err != nil {
+		return buildCircuitInputErr("failed to assign in from storage queries", err)
+	}
+
+	// transaction
+	err = q.assignMockTransactions(&in)
+	if err != nil {
+		return buildCircuitInputErr("failed to assign in from transaction queries", err)
+	}
+
 	// commitment
 	q.assignInputCommitment(&in)
 	q.assignToggleCommitment(&in)
@@ -253,6 +306,9 @@ func (q *BrevisApp) PrepareRequest(
 	apiKey string, // used for brevis partner flow
 	vkHash []byte,
 ) (calldata []byte, requestId common.Hash, nonce uint64, feeValue *big.Int, err error) {
+	if q.mockDataLength() > 0 {
+		panic("you cannot use mock data to send PrepareRequest")
+	}
 	if !q.buildInputCalled {
 		panic("must call BuildCircuitInput before PrepareRequest")
 	}
@@ -520,6 +576,9 @@ func (q *BrevisApp) GenerateProtoQuery(
 	proof []byte,
 	callbackAddr common.Address,
 ) (*gwproto.Query, error) {
+	if q.mockDataLength() > 0 {
+		panic("you cannot use mock data to generate proto query")
+	}
 	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, q.maxReceipts, q.maxStorage, q.maxTxs, vk, witness)
 	if err != nil {
 		return nil, err
@@ -984,4 +1043,12 @@ func (q *BrevisApp) calculateMPTKeyWithIndex(index int) *big.Int {
 	var indexBuf []byte
 	keyIndex := rlp.AppendUint64(indexBuf[:0], uint64(index))
 	return new(big.Int).SetBytes(keyIndex)
+}
+
+func (q *BrevisApp) realDataLength() int {
+	return len(q.receipts.ordered) + len(q.receipts.special) + len(q.storageVals.ordered) + len(q.storageVals.special) + len(q.txs.ordered) + len(q.txs.special)
+}
+
+func (q *BrevisApp) mockDataLength() int {
+	return len(q.mockReceipts.ordered) + len(q.mockReceipts.special) + len(q.mockStorage.ordered) + len(q.mockStorage.special) + len(q.mockTxs.ordered) + len(q.mockTxs.special)
 }

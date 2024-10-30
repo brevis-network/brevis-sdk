@@ -147,6 +147,10 @@ func buildLogFieldsPersistence(fs []LogFieldData, receipt *types.Receipt) (field
 		return nil, fmt.Errorf("each receipt can use up to 4 fields")
 	}
 
+	if len(fs) == 0 {
+		return nil, fmt.Errorf("empty log field data for receipts: %s", receipt.TxHash.Hex())
+	}
+
 	for _, f := range fs {
 		if len(receipt.Logs) <= int(f.LogPos) {
 			return nil, fmt.Errorf("invalid log pos %d for receipt %s", f.LogPos, receipt.TxHash.Hex())
