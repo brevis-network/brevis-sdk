@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"path/filepath"
 	"time"
 
 	"github.com/consensys/gnark/frontend"
@@ -15,32 +16,34 @@ import (
 	"github.com/brevis-network/brevis-sdk/sdk/proto/commonproto"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
 
+	"github.com/brevis-network/brevis-sdk/sdk/eth"
 	"github.com/brevis-network/zk-hash/utils"
-	"github.com/brevis-network/zk-utils/common/eth"
 	bn254_fr "github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/consensys/gnark/backend/plonk"
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 type ReceiptData struct {
-	BlockNum     *big.Int                      `json:"block_num,omitempty"`
-	BlockBaseFee *big.Int                      `json:"block_base_fee,omitempty"`
-	TxHash       common.Hash                   `json:"tx_hash,omitempty"`
-	MptKeyPath   *big.Int                      `json:"mpt_key_path,omitempty"`
-	Fields       [NumMaxLogFields]LogFieldData `json:"fields,omitempty"`
+	TxHash       common.Hash    `json:"tx_hash,omitempty"`
+	BlockNum     *big.Int       `json:"block_num,omitempty"`
+	BlockBaseFee *big.Int       `json:"block_base_fee,omitempty"`
+	MptKeyPath   *big.Int       `json:"mpt_key_path,omitempty"`
+	Fields       []LogFieldData `json:"fields,omitempty"`
 }
 
-// LogFieldData represents a single field of an event.
+// Used for data persistence only
 type LogFieldData struct {
 	// The contract from which the event is emitted
 	Contract common.Address `json:"contract,omitempty"`
-	// the log's position in the receipt
-	LogPos uint `json:"log_index,omitempty"`
 	// The event ID of the event to which the field belong (aka topics[0])
 	EventID common.Hash `json:"event_id,omitempty"`
+	// the log's position in the receipt
+	LogPos uint `json:"log_index,omitempty"`
 	// Whether the field is a topic (aka "indexed" as in solidity events)
 	IsTopic bool `json:"is_topic,omitempty"`
 	// The index of the field in either a log's topics or data. For example, if a
@@ -52,6 +55,7 @@ type LogFieldData struct {
 	Value common.Hash `json:"value,omitempty"`
 }
 
+// Used for data persistence only
 type StorageData struct {
 	BlockNum     *big.Int       `json:"block_num,omitempty"`
 	BlockBaseFee *big.Int       `json:"block_base_fee,omitempty"`
@@ -60,23 +64,13 @@ type StorageData struct {
 	Value        common.Hash    `json:"value,omitempty"`
 }
 
+// Used for data persistence only
 type TransactionData struct {
 	Hash         common.Hash `json:"hash,omitempty"`
-	ChainId      *big.Int    `json:"chain_id,omitempty"`
 	BlockNum     *big.Int    `json:"block_num,omitempty"`
 	BlockBaseFee *big.Int    `json:"block_base_fee,omitempty"`
-	Nonce        uint64      `json:"nonce,omitempty"`
-	// GasTipCapOrGasPrice is GasPrice for legacy tx (type 0) and GasTipCapOap for
-	// dynamic-fee tx (type 2)
-	GasTipCapOrGasPrice *big.Int `json:"max_priority_fee_per_gas,omitempty"`
-	// GasFeeCap is always 0 for legacy tx
-	GasFeeCap  *big.Int       `json:"gas_price_or_fee_cap,omitempty"`
-	GasLimit   uint64         `json:"gas_limit,omitempty"`
-	From       common.Address `json:"from,omitempty"`
-	To         common.Address `json:"to,omitempty"`
-	Value      *big.Int       `json:"value,omitempty"`
-	MptKeyPath *big.Int       `json:"mpt_key_path,omitempty"`
-	LeafHash   common.Hash    `json:"leaf_hash,omitempty"`
+	MptKeyPath   *big.Int    `json:"mpt_key_path,omitempty"`
+	LeafHash     common.Hash `json:"leaf_hash,omitempty"`
 }
 
 type rawData[T ReceiptData | StorageData | TransactionData] struct {
@@ -99,12 +93,11 @@ func (q *rawData[T]) add(data T, index ...int) {
 }
 
 func (q *rawData[T]) list(max int) []T {
-	var empty T
 	var l []T
 	ordered := q.ordered
 	for i := 0; i < max; i++ {
-		if q.special[i] != empty {
-			l = append(l, q.special[i])
+		if e, ok := q.special[i]; ok {
+			l = append(l, e)
 		} else if len(ordered) > 0 {
 			l = append(l, ordered[0])
 			ordered = ordered[1:]
@@ -115,11 +108,19 @@ func (q *rawData[T]) list(max int) []T {
 
 type BrevisApp struct {
 	gc            *GatewayClient
+	ec            *ethclient.Client
 	brevisRequest *abi.ABI
 
 	receipts    rawData[ReceiptData]
 	storageVals rawData[StorageData]
 	txs         rawData[TransactionData]
+
+	mockReceipts rawData[ReceiptData]
+	mockStorage  rawData[StorageData]
+	mockTxs      rawData[TransactionData]
+
+	localInputDataPath string
+	localInputData     *DataPersistence
 
 	// cache fields
 	circuitInput                    CircuitInput
@@ -131,7 +132,26 @@ type BrevisApp struct {
 	dataPoints                      int
 }
 
-func NewBrevisApp(srcChainId uint64, gatewayUrlOverride ...string) (*BrevisApp, error) {
+func NewBrevisApp(
+	srcChainId uint64,
+	rpcUrl string,
+	outDir string,
+	gatewayUrlOverride ...string,
+) (*BrevisApp, error) {
+	ec, err := ethclient.Dial(rpcUrl)
+	if err != nil {
+		fmt.Printf("dialing invalid rpc url %s: %s\n", rpcUrl, err.Error())
+		return nil, err
+	}
+
+	chainId, err := ec.ChainID(context.Background())
+	if err != nil {
+		return nil, err
+	}
+
+	if srcChainId != chainId.Uint64() {
+		return nil, fmt.Errorf("invalid src chain id %d rpcUrl %s pair", srcChainId, rpcUrl)
+	}
 	gc, err := NewGatewayClient(gatewayUrlOverride...)
 	if err != nil {
 		return nil, err
@@ -141,27 +161,65 @@ func NewBrevisApp(srcChainId uint64, gatewayUrlOverride ...string) (*BrevisApp, 
 	if err != nil {
 		return nil, err
 	}
+
+	localInputDataPath := filepath.Join(outDir, "input", "data.json")
+	localInputData := readDataFromLocalStorage(localInputDataPath)
+	if localInputData == nil {
+		localInputData = &DataPersistence{
+			Receipts: map[string]*ReceiptData{},
+			Storages: map[string]*StorageData{},
+			Txs:      map[string]*TransactionData{},
+		}
+	}
+
 	return &BrevisApp{
-		gc:            gc,
-		brevisRequest: br,
-		srcChainId:    srcChainId,
-		receipts:      rawData[ReceiptData]{},
-		storageVals:   rawData[StorageData]{},
-		txs:           rawData[TransactionData]{},
+		gc:                 gc,
+		ec:                 ec,
+		brevisRequest:      br,
+		srcChainId:         srcChainId,
+		receipts:           rawData[ReceiptData]{},
+		storageVals:        rawData[StorageData]{},
+		txs:                rawData[TransactionData]{},
+		localInputData:     localInputData,
+		localInputDataPath: localInputDataPath,
 	}, nil
 }
 
 // AddReceipt adds the ReceiptData to be queried. If an index is specified, the
 // data will be assigned to the specified index of DataInput.Receipts.
 func (q *BrevisApp) AddReceipt(data ReceiptData, index ...int) {
+	if len(data.Fields) > NumMaxLogFields {
+		panic(fmt.Sprintf("maximum number of log fields in one receipt is %d", NumMaxLogFields))
+	}
 	q.receipts.add(data, index...)
+}
+
+// AddMockReceipt adds the MockReceipt to be queried. If an index is specified, the
+// data will be assigned to the specified index of DataInput.Receipts.
+// It should be used ONLY for circuit implementation and testing.
+func (q *BrevisApp) AddMockReceipt(data ReceiptData, index ...int) {
+	if len(data.Fields) > NumMaxLogFields {
+		panic(fmt.Sprintf("maximum number of log fields in one receipt is %d", NumMaxLogFields))
+	}
+	q.mockReceipts.add(data, index...)
 }
 
 // AddStorage adds the StorageData to be queried. If an index is
 // specified, the data will be assigned to the specified index of
 // DataInput.StorageSlots.
 func (q *BrevisApp) AddStorage(data StorageData, index ...int) {
+	if data.BlockNum == nil {
+		panic(fmt.Sprintf("storage data block num missing: %+v", data))
+	}
 	q.storageVals.add(data, index...)
+}
+
+// AddMockStorage adds the MockStorage to be queried. If an index is
+// specified, the data will be assigned to the specified index of
+// DataInput.StorageSlots.
+// It should be used ONLY for circuit implementation and testing.
+func (q *BrevisApp) AddMockStorage(data StorageData, index ...int) {
+	q.mockStorage.add(data, index...)
 }
 
 // AddTransaction adds the TransactionData to be queried. If an index is
@@ -169,6 +227,14 @@ func (q *BrevisApp) AddStorage(data StorageData, index ...int) {
 // DataInput.Transactions.
 func (q *BrevisApp) AddTransaction(data TransactionData, index ...int) {
 	q.txs.add(data, index...)
+}
+
+// AddMockTransaction adds the MockTransaction to be queried. If an index is
+// specified, the data will be assigned to the specified index of
+// DataInput.Transactions.
+// It should be used ONLY for circuit implementation and testing.
+func (q *BrevisApp) AddMockTransaction(data TransactionData, index ...int) {
+	q.mockTxs.add(data, index...)
 }
 
 // BuildCircuitInput executes all added queries and package the query results
@@ -189,19 +255,41 @@ func (q *BrevisApp) BuildCircuitInput(app AppCircuit) (CircuitInput, error) {
 	in := defaultCircuitInput(q.maxReceipts, q.maxStorage, q.maxTxs, q.dataPoints)
 
 	// receipt
-	err = q.assignReceipts(q.maxReceipts, &in)
+	err = q.assignReceipts(&in)
 	if err != nil {
 		return buildCircuitInputErr("failed to assign in from receipt queries", err)
 	}
 
 	// storage
-	err = q.assignStorageSlots(q.maxStorage, &in)
+	err = q.assignStorageSlots(&in)
 	if err != nil {
 		return buildCircuitInputErr("failed to assign in from storage queries", err)
 	}
 
 	// transaction
-	err = q.assignTransactions(q.maxTxs, &in)
+	err = q.assignTransactions(&in)
+	if err != nil {
+		return buildCircuitInputErr("failed to assign in from transaction queries", err)
+	}
+
+	q.writeDataIntoLocalStorage()
+
+	if q.realDataLength() > 0 && q.mockDataLength() > 0 {
+		return CircuitInput{}, fmt.Errorf("you cannot add real data and mock data at the same time")
+	}
+	err = q.assignMockReceipts(&in)
+	if err != nil {
+		return buildCircuitInputErr("failed to assign in from receipt queries", err)
+	}
+
+	// storage
+	err = q.assignMockStorageSlots(&in)
+	if err != nil {
+		return buildCircuitInputErr("failed to assign in from storage queries", err)
+	}
+
+	// transaction
+	err = q.assignMockTransactions(&in)
 	if err != nil {
 		return buildCircuitInputErr("failed to assign in from transaction queries", err)
 	}
@@ -236,6 +324,9 @@ func (q *BrevisApp) PrepareRequest(
 	apiKey string, // used for brevis partner flow
 	vkHash []byte,
 ) (calldata []byte, requestId common.Hash, nonce uint64, feeValue *big.Int, err error) {
+	if q.mockDataLength() > 0 {
+		panic("you cannot use mock data to send PrepareRequest")
+	}
 	if !q.buildInputCalled {
 		panic("must call BuildCircuitInput before PrepareRequest")
 	}
@@ -497,6 +588,69 @@ func (q *BrevisApp) prepareQueryForBrevisPartnerFlow(
 	return nil, common.BytesToHash(queryId), q.nonce, feeValue, err
 }
 
+func (q *BrevisApp) GenerateProtoQuery(
+	vk plonk.VerifyingKey,
+	witness witness.Witness,
+	proof []byte,
+	callbackAddr common.Address,
+) (*gwproto.Query, error) {
+	if q.mockDataLength() > 0 {
+		panic("you cannot use mock data to generate proto query")
+	}
+	appCircuitInfo, err := buildAppCircuitInfo(q.circuitInput, q.maxReceipts, q.maxStorage, q.maxTxs, vk, witness)
+	if err != nil {
+		return nil, err
+	}
+
+	vkHashInBigInt, err := CalBrevisCircuitDigest(q.maxReceipts, q.maxStorage, q.dataPoints-q.maxReceipts-q.maxStorage, vk)
+	if err != nil {
+		fmt.Printf("error computing vk hash: %s", err.Error())
+		return nil, err
+	}
+
+	// Make sure vk hash is 32-bytes
+	vkHash := common.BytesToHash(vkHashInBigInt.Bytes()).Bytes()
+
+	return &gwproto.Query{
+		ReceiptInfos:      buildReceiptInfos(q.receipts, q.maxReceipts),
+		StorageQueryInfos: buildStorageQueryInfos(q.storageVals, q.maxStorage),
+		TransactionInfos:  buildTxInfos(q.txs, q.maxTxs),
+		AppCircuitInfo: &commonproto.AppCircuitInfoWithProof{
+			OutputCommitment:     appCircuitInfo.OutputCommitment,
+			VkHash:               hexutil.Encode(vkHash),
+			InputCommitments:     appCircuitInfo.InputCommitments,
+			Toggles:              appCircuitInfo.Toggles,
+			Output:               appCircuitInfo.Output,
+			CallbackAddr:         hexutil.Encode(callbackAddr[:]),
+			InputCommitmentsRoot: appCircuitInfo.InputCommitmentsRoot,
+			MaxReceipts:          appCircuitInfo.MaxReceipts,
+			MaxStorage:           appCircuitInfo.MaxStorage,
+			MaxTx:                appCircuitInfo.MaxTx,
+		},
+	}, nil
+}
+
+func (q *BrevisApp) SendBatchQuery(
+	queries []*gwproto.Query,
+	batchAPIKey string,
+	queryOption *gwproto.QueryOption,
+) (queryKeys []*gwproto.QueryKey, fee string, err error) {
+	req := &gwproto.SendBatchQueriesRequest{
+		ChainId:       q.srcChainId,
+		TargetChainId: q.dstChainId,
+		Queries:       queries,
+		Option:        *queryOption,
+		ApiKey:        batchAPIKey,
+	}
+	res, err := q.gc.SendBatchQueries(req)
+	if err != nil {
+		return nil, "", fmt.Errorf("error calling brevis gateway SendBatchQuery: %s", err.Error())
+	}
+	queryKeys = res.QueryKeys
+	fee = res.Fee
+	return
+}
+
 func (q *BrevisApp) checkAllocations(cb AppCircuit) error {
 	maxReceipts, maxSlots, maxTxs := cb.Allocate()
 
@@ -655,14 +809,14 @@ func doHash(hasher *utils.PoseidonBn254Hasher, packed []*big.Int) (*big.Int, err
 // hash 32 toggles into one value which is used as merkle tree leaf.
 func (q *BrevisApp) assignToggleCommitment(in *CircuitInput) {
 	var err error
-	in.TogglesCommitment, err = CalTogglesHashRoot(in.Toggles(), q.dataPoints)
+	in.TogglesCommitment, err = q.calTogglesHashRoot(in.Toggles())
 	if err != nil {
 		log.Panicf("fail to CalTogglesHashRoot, err: %v", err)
 	}
 }
 
-func CalTogglesHashRoot(toggles []frontend.Variable, dataPoints int) (*big.Int, error) {
-	leafs := make([]*big.Int, dataPoints/32)
+func (q *BrevisApp) calTogglesHashRoot(toggles []frontend.Variable) (*big.Int, error) {
+	leafs := make([]*big.Int, q.dataPoints/32)
 	if len(toggles)%32 != 0 {
 		return nil, fmt.Errorf("invalid toggles length %d", len(toggles))
 	}
@@ -717,30 +871,28 @@ func CalPoseidonBn254MerkleTree(leafs []*big.Int) (*big.Int, error) {
 	}
 }
 
-func (q *BrevisApp) assignReceipts(maxReceipts int, in *CircuitInput) error {
+func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
 	// assigning user appointed receipts at specific indices
-	for i, receipt := range q.receipts.special {
-		in.Receipts.Raw[i] = Receipt{
-			BlockNum:     newU32(receipt.BlockNum),
-			BlockBaseFee: newU248(receipt.BlockBaseFee),
-			MptKeyPath:   newU32(receipt.MptKeyPath),
-			Fields:       buildLogFields(receipt.Fields),
+	for i, r := range q.receipts.special {
+		receipt, err := q.buildReceipt(r)
+		if err != nil {
+			return err
 		}
+		in.Receipts.Raw[i] = receipt
 		in.Receipts.Toggles[i] = 1
 	}
 
 	// distribute other receipts in order to the rest of the unassigned spaces
 	j := 0
-	for _, receipt := range q.receipts.ordered {
+	for _, r := range q.receipts.ordered {
 		for in.Receipts.Toggles[j] == 1 {
 			j++
 		}
-		in.Receipts.Raw[j] = Receipt{
-			BlockNum:     newU32(receipt.BlockNum),
-			BlockBaseFee: newU248(receipt.BlockBaseFee),
-			MptKeyPath:   newU32(receipt.MptKeyPath),
-			Fields:       buildLogFields(receipt.Fields),
+		receipt, err := q.buildReceipt(r)
+		if err != nil {
+			return err
 		}
+		in.Receipts.Raw[j] = receipt
 		in.Receipts.Toggles[j] = 1
 		j++
 	}
@@ -748,43 +900,48 @@ func (q *BrevisApp) assignReceipts(maxReceipts int, in *CircuitInput) error {
 	return nil
 }
 
-func BuildLogFields(fs [NumMaxLogFields]LogFieldData) (fields [NumMaxLogFields]LogField) {
-	return buildLogFields(fs)
+func (q *BrevisApp) BuildReceipt(t ReceiptData) (Receipt, error) {
+	return q.buildReceipt(t)
 }
 
-func buildLogFields(fs [NumMaxLogFields]LogFieldData) (fields [NumMaxLogFields]LogField) {
-	empty := LogFieldData{}
-
-	lastNonEmpty := fs[0]
-	for i := 0; i < NumMaxLogFields; i++ {
-		// Due to backend circuit's limitations, we must fill []LogField with valid data
-		// up to NumMaxLogFields. If the user actually only wants less NumMaxLogFields
-		// log fields, then we simply copy the previous log field in the list to fill the
-		// empty spots.
-		f := fs[i]
-		if i > 0 && f == empty {
-			f = lastNonEmpty
+func (q *BrevisApp) buildReceipt(r ReceiptData) (Receipt, error) {
+	key := generateReceiptKey(r, q.srcChainId)
+	data := q.localInputData.Receipts[key]
+	if data == nil {
+		if r.isReadyToSave() {
+			fmt.Println("adding manual input receipt data")
+			data = &r
 		} else {
-			lastNonEmpty = f
+			receiptInfo, mptKey, blockNum, blockBaseFee, err := q.getReceiptInfos(r.TxHash)
+			if err != nil {
+				return Receipt{}, err
+			}
+			fields, err := buildLogFieldsData(r.Fields, receiptInfo)
+			if err != nil {
+				return Receipt{}, err
+			}
+
+			data = &ReceiptData{
+				TxHash:       r.TxHash,
+				BlockNum:     blockNum,
+				BlockBaseFee: blockBaseFee,
+				MptKeyPath:   mptKey,
+				Fields:       fields,
+			}
 		}
-		fields[i] = LogField{
-			Contract: ConstUint248(f.Contract),
-			LogPos:   ConstUint32(f.LogPos),
-			// we only constrain the first 6 bytes of EventID in circuit for performance reasons
-			// 6 bytes give us 1/2^48 chance of two logs of different IDs clashing per contract.
-			EventID: ConstUint248(f.EventID[:6]),
-			IsTopic: ConstUint248(f.IsTopic),
-			Index:   ConstUint248(f.FieldIndex),
-			Value:   ConstBytes32(f.Value[:]),
-		}
+		q.localInputData.Receipts[key] = data
 	}
-	return
+	return convertReceiptDataToReceipt(data), nil
 }
 
-func (q *BrevisApp) assignStorageSlots(maxStorageSlots int, in *CircuitInput) (err error) {
+func (q *BrevisApp) assignStorageSlots(in *CircuitInput) (err error) {
 	// assigning user appointed data at specific indices
 	for i, val := range q.storageVals.special {
-		in.StorageSlots.Raw[i] = buildStorageSlot(val)
+		s, err := q.buildStorageSlot(val)
+		if err != nil {
+			return err
+		}
+		in.StorageSlots.Raw[i] = s
 		in.StorageSlots.Toggles[i] = 1
 	}
 
@@ -794,7 +951,11 @@ func (q *BrevisApp) assignStorageSlots(maxStorageSlots int, in *CircuitInput) (e
 		for in.StorageSlots.Toggles[j] == 1 {
 			j++
 		}
-		in.StorageSlots.Raw[j] = buildStorageSlot(val)
+		s, err := q.buildStorageSlot(val)
+		if err != nil {
+			return err
+		}
+		in.StorageSlots.Raw[j] = s
 		in.StorageSlots.Toggles[j] = 1
 		j++
 	}
@@ -802,24 +963,50 @@ func (q *BrevisApp) assignStorageSlots(maxStorageSlots int, in *CircuitInput) (e
 	return nil
 }
 
-func BuildStorageSlot(s StorageData) StorageSlot {
-	return buildStorageSlot(s)
+func (q *BrevisApp) BuildStorageSlot(s StorageData) (StorageSlot, error) {
+	return q.buildStorageSlot(s)
 }
 
-func buildStorageSlot(s StorageData) StorageSlot {
-	return StorageSlot{
-		BlockNum:     newU32(s.BlockNum),
-		BlockBaseFee: newU248(s.BlockBaseFee),
-		Contract:     ConstUint248(s.Address),
-		Slot:         ConstBytes32(s.Slot[:]),
-		Value:        ConstBytes32(s.Value[:]),
+func (q *BrevisApp) buildStorageSlot(s StorageData) (StorageSlot, error) {
+	key := generateStorageKey(s, q.srcChainId)
+	data := q.localInputData.Storages[key]
+	if data == nil {
+		if s.isReadyToSave() {
+			fmt.Println("adding manual input storage data")
+			data = &s
+		} else {
+			blockBaseFee, err := q.getBlockBaseFee(s.BlockNum)
+			if err != nil {
+				return StorageSlot{}, nil
+			}
+
+			value, err := q.getStorageValue(s.BlockNum, s.Address, s.Slot)
+			if err != nil {
+				return StorageSlot{}, nil
+			}
+
+			data = &StorageData{
+				BlockNum:     s.BlockNum,
+				BlockBaseFee: blockBaseFee,
+				Address:      s.Address,
+				Slot:         s.Slot,
+				Value:        value,
+			}
+		}
+		q.localInputData.Storages[key] = data
 	}
+
+	return convertStorageDataToStorage(data), nil
 }
 
-func (q *BrevisApp) assignTransactions(maxTransactions int, in *CircuitInput) (err error) {
+func (q *BrevisApp) assignTransactions(in *CircuitInput) (err error) {
 	// assigning user appointed data at specific indices
 	for i, t := range q.txs.special {
-		in.Transactions.Raw[i] = buildTx(t)
+		tx, err := q.buildTx(t)
+		if err != nil {
+			return err
+		}
+		in.Transactions.Raw[i] = tx
 		in.Transactions.Toggles[i] = 1
 	}
 
@@ -828,7 +1015,11 @@ func (q *BrevisApp) assignTransactions(maxTransactions int, in *CircuitInput) (e
 		for in.Transactions.Toggles[j] == 1 {
 			j++
 		}
-		in.Transactions.Raw[i] = buildTx(t)
+		tx, err := q.buildTx(t)
+		if err != nil {
+			return err
+		}
+		in.Transactions.Raw[i] = tx
 		in.Transactions.Toggles[i] = 1
 		j++
 	}
@@ -836,25 +1027,34 @@ func (q *BrevisApp) assignTransactions(maxTransactions int, in *CircuitInput) (e
 	return nil
 }
 
-func BuildTx(t TransactionData) Transaction {
-	return buildTx(t)
+func (q *BrevisApp) BuildTx(t TransactionData) (Transaction, error) {
+	return q.buildTx(t)
 }
 
-func buildTx(t TransactionData) Transaction {
-	return Transaction{
-		// ChainId:             ConstUint248(t.ChainId),
-		BlockNum:     ConstUint32(t.BlockNum),
-		BlockBaseFee: newU248(t.BlockBaseFee),
-		MptKeyPath:   newU32(t.MptKeyPath),
-		// Nonce:               ConstUint248(t.Nonce),
-		// GasTipCapOrGasPrice: ConstUint248(t.GasTipCapOrGasPrice),
-		// GasFeeCap:           ConstUint248(t.GasFeeCap),
-		// GasLimit:            ConstUint248(t.GasLimit),
-		// From:                ConstUint248(t.From),
-		// To:                  ConstUint248(t.To),
-		// Value:               ConstBytes32(t.Value.Bytes()),
-		LeafHash: ConstBytes32(t.LeafHash.Bytes()),
+func (q *BrevisApp) buildTx(t TransactionData) (Transaction, error) {
+	key := generateTxKey(t, q.srcChainId)
+	data := q.localInputData.Txs[key]
+	if data == nil {
+		if t.isReadyToSave() {
+			data = &t
+		} else {
+			leafHash, mptKey, blockNumber, baseFee, err := q.calculateTxLeafHashBlockBaseFeeAndMPTKey(t.Hash)
+			if err != nil {
+				return Transaction{}, err
+			}
+
+			data = &TransactionData{
+				Hash:         t.Hash,
+				BlockNum:     blockNumber,
+				BlockBaseFee: baseFee,
+				MptKeyPath:   mptKey,
+				LeafHash:     leafHash,
+			}
+		}
+		q.localInputData.Txs[key] = data
 	}
+
+	return convertTxDataToTransaction(data), nil
 }
 
 func buildCircuitInputErr(m string, err error) (CircuitInput, error) {
@@ -869,4 +1069,18 @@ func allocationMultipleErr(name string, queryCount int) error {
 func allocationLenErr(name string, queryCount, maxCount int) error {
 	return fmt.Errorf("# of %s queries (%d) must not exceed the allocated max %s (%d), check your AppCircuit.Allocate() method",
 		name, queryCount, name, maxCount)
+}
+
+func (q *BrevisApp) calculateMPTKeyWithIndex(index int) *big.Int {
+	var indexBuf []byte
+	keyIndex := rlp.AppendUint64(indexBuf[:0], uint64(index))
+	return new(big.Int).SetBytes(keyIndex)
+}
+
+func (q *BrevisApp) realDataLength() int {
+	return len(q.receipts.ordered) + len(q.receipts.special) + len(q.storageVals.ordered) + len(q.storageVals.special) + len(q.txs.ordered) + len(q.txs.special)
+}
+
+func (q *BrevisApp) mockDataLength() int {
+	return len(q.mockReceipts.ordered) + len(q.mockReceipts.special) + len(q.mockStorage.ordered) + len(q.mockStorage.special) + len(q.mockTxs.ordered) + len(q.mockTxs.special)
 }

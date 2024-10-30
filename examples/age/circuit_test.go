@@ -9,37 +9,19 @@ import (
 	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
 	"github.com/brevis-network/brevis-sdk/test"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 func TestCircuit(t *testing.T) {
-	app, err := sdk.NewBrevisApp(1)
+	rpc := "RPC_URL"
+	localDir := "$HOME/circuitOut/myBrevisApp"
+	app, err := sdk.NewBrevisApp(1, rpc, localDir)
 	check(err)
 
 	txHash := common.HexToHash(
 		"0x6dc75e61220cc775aafa17796c20e49ac08030020fce710e3e546aa4e003454c")
 
-	ec, err := ethclient.Dial("https://eth.llamarpc.com")
-	check(err)
-	tx, _, err := ec.TransactionByHash(context.Background(), txHash)
-	check(err)
-	receipt, err := ec.TransactionReceipt(context.Background(), txHash)
-	check(err)
-	from, err := types.Sender(types.NewLondonSigner(tx.ChainId()), tx)
-	check(err)
-
 	txData := sdk.TransactionData{
-		Hash:                txHash,
-		ChainId:             tx.ChainId(),
-		BlockNum:            receipt.BlockNumber,
-		Nonce:               tx.Nonce(),
-		GasTipCapOrGasPrice: tx.GasTipCap(),
-		GasFeeCap:           tx.GasFeeCap(),
-		GasLimit:            tx.Gas(),
-		From:                from,
-		To:                  *tx.To(),
-		Value:               tx.Value(),
+		Hash: txHash,
 	}
 	fmt.Printf("%+v\n", txData)
 	app.AddTransaction(txData)
@@ -59,32 +41,16 @@ func TestCircuit(t *testing.T) {
 }
 
 func TestE2E(t *testing.T) {
-	app, err := sdk.NewBrevisApp(1)
+	rpc := "RPC_URL"
+	outDir := "$HOME/circuitOut/age"
+	app, err := sdk.NewBrevisApp(1, rpc, outDir)
 	check(err)
 
 	txHash := common.HexToHash(
 		"0x6dc75e61220cc775aafa17796c20e49ac08030020fce710e3e546aa4e003454c")
 
-	ec, err := ethclient.Dial("")
-	check(err)
-	tx, _, err := ec.TransactionByHash(context.Background(), txHash)
-	check(err)
-	receipt, err := ec.TransactionReceipt(context.Background(), txHash)
-	check(err)
-	from, err := types.Sender(types.NewLondonSigner(tx.ChainId()), tx)
-	check(err)
-
 	app.AddTransaction(sdk.TransactionData{
-		Hash:                txHash,
-		ChainId:             tx.ChainId(),
-		BlockNum:            receipt.BlockNumber,
-		Nonce:               tx.Nonce(),
-		GasTipCapOrGasPrice: tx.GasTipCap(),
-		GasFeeCap:           tx.GasFeeCap(),
-		GasLimit:            tx.Gas(),
-		From:                from,
-		To:                  *tx.To(),
-		Value:               tx.Value(),
+		Hash: txHash,
 	})
 
 	appCircuit := &AppCircuit{}
@@ -104,7 +70,6 @@ func TestE2E(t *testing.T) {
 	// Compiling and Setup
 	///////////////////////////////////////////////////////////////////////////////
 
-	outDir := "$HOME/circuitOut/age"
 	srsDir := "$HOME/kzgsrs"
 	// The compiled circuit, proving key, and verifying key are saved to outDir, and
 	// the downloaded SRS in the process is saved to srsDir

@@ -48,18 +48,14 @@ func buildAppCircuitInfo(in CircuitInput,
 }
 
 func buildReceiptInfos(r rawData[ReceiptData], max int) (infos []*gwproto.ReceiptInfo) {
-	empty := LogFieldData{}
 	for _, d := range r.list(max) {
 		var logExtractInfo []*gwproto.LogExtractInfo
 		for _, f := range d.Fields {
-			// only use non-empty LogFieldData
-			if f != empty {
-				logExtractInfo = append(logExtractInfo, &gwproto.LogExtractInfo{
-					LogPos:         uint64(f.LogPos),
-					ValueFromTopic: f.IsTopic,
-					ValueIndex:     uint64(f.FieldIndex),
-				})
-			}
+			logExtractInfo = append(logExtractInfo, &gwproto.LogExtractInfo{
+				LogPos:         uint64(f.LogPos),
+				ValueFromTopic: f.IsTopic,
+				ValueIndex:     uint64(f.FieldIndex),
+			})
 		}
 		infos = append(infos, &gwproto.ReceiptInfo{
 			TransactionHash: d.TxHash.Hex(),

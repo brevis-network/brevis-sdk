@@ -9,10 +9,14 @@ import (
 )
 
 func main() {
-	proverService, err := prover.NewService(dummy.DefaultAppCircuit(), prover.ServiceConfig{
-		SetupDir: "$HOME/circuitOut",
-		SrsDir:   "$HOME/kzgsrs",
-	})
+	proverService, err := prover.NewService(
+		dummy.DefaultAppCircuit(),
+		prover.ServiceConfig{
+			SetupDir: "$HOME/circuitOut",
+			SrsDir:   "$HOME/kzgsrs",
+			RpcURL:   "RPC_URL",
+			ChainId:  1,
+		})
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

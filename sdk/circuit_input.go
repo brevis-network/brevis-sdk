@@ -57,7 +57,6 @@ type CircuitInput struct {
 }
 
 func defaultCircuitInput(maxReceipts, maxStorage, maxTxs, dataPoints int) CircuitInput {
-	// dataPoints := nextPowerOf2(maxReceipts + maxStorage + maxTxs)
 	var inputCommits = make([]frontend.Variable, dataPoints)
 	for i := 0; i < dataPoints; i++ {
 		inputCommits[i] = 0

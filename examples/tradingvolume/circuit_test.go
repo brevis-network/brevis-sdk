@@ -2,7 +2,6 @@ package tradingvolume
 
 import (
 	"fmt"
-	"math/big"
 	"testing"
 
 	"github.com/brevis-network/brevis-sdk/sdk"
@@ -14,26 +13,19 @@ import (
 // UniversalRouter contract. Let's declare the fields we want to use:
 
 func TestCircuit(t *testing.T) {
-	app, err := sdk.NewBrevisApp(1)
+	rpc := "RPC_URL"
+	outDir := "$HOME/circuitOut/myBrevisApp"
+	app, err := sdk.NewBrevisApp(1, rpc, outDir)
 	check(err)
-
-	usdcPool := common.HexToAddress("0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640")
-	usdc := common.HexToAddress("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")
-	swapEvent := common.HexToHash("0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67")
-	amount0 := common.BytesToHash(big.NewInt(724999999).Bytes())
-	recipient := common.HexToHash("0xEf1c6E67703c7BD7107eed8303Fbe6EC2554BF6B")
-	transferEvent := common.HexToHash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef")
-	from := common.HexToHash("0xaefB31e9EEee2822f4C1cBC13B70948b0B5C0b3c")
 
 	// Adding a receipt query into the querier
 	// In this tx, the user sold USDC and took native ETH out
 	app.AddReceipt(sdk.ReceiptData{
-		BlockNum: big.NewInt(18064070),
-		TxHash:   common.HexToHash("53b37ec7975d217295f4bdadf8043b261fc49dccc16da9b9fc8b9530845a5794"),
-		Fields: [sdk.NumMaxLogFields]sdk.LogFieldData{
-			{Contract: usdcPool, LogPos: 3, EventID: swapEvent, IsTopic: false, FieldIndex: 0, Value: amount0},  // field: USDCPool.Swap.amount0
-			{Contract: usdcPool, LogPos: 3, EventID: swapEvent, IsTopic: true, FieldIndex: 2, Value: recipient}, // field: USDCPool.Swap.recipient (topic field)
-			{Contract: usdc, LogPos: 2, EventID: transferEvent, IsTopic: true, FieldIndex: 1, Value: from},      // field: USDC.Transfer.from
+		TxHash: common.HexToHash("53b37ec7975d217295f4bdadf8043b261fc49dccc16da9b9fc8b9530845a5794"),
+		Fields: []sdk.LogFieldData{
+			{LogPos: 3, IsTopic: false, FieldIndex: 0}, // field: USDCPool.Swap.amount0
+			{LogPos: 3, IsTopic: true, FieldIndex: 2},  // field: USDCPool.Swap.recipient (topic field)
+			{LogPos: 2, IsTopic: true, FieldIndex: 1},  // field: USDC.Transfer.from
 		},
 	})
 	// More receipts can be added, but in this example we only add one to keep it simple
@@ -62,26 +54,23 @@ func TestCircuit(t *testing.T) {
 }
 
 func TestE2E(t *testing.T) {
-	app, err := sdk.NewBrevisApp(1)
+	// The compiled circuit, proving key, and verifying key are saved to outDir,,
+	// query data will be stored in outDir/input/data.json and
+	// the downloaded SRS in the process is saved to srsDir
+	outDir := "$HOME/circuitOut/tradingvolume"
+	srsDir := "$HOME/kzgsrs"
+	rpc := "RPC_URL"
+	app, err := sdk.NewBrevisApp(1, rpc, outDir)
 	check(err)
-
-	usdcPool := common.HexToAddress("0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640")
-	usdc := common.HexToAddress("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")
-	swapEvent := common.HexToHash("0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67")
-	amount0 := common.BytesToHash(big.NewInt(724999999).Bytes())
-	recipient := common.HexToHash("0xEf1c6E67703c7BD7107eed8303Fbe6EC2554BF6B")
-	transferEvent := common.HexToHash("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef")
-	from := common.HexToHash("0xaefB31e9EEee2822f4C1cBC13B70948b0B5C0b3c")
 
 	// Adding a receipt query into the querier
 	// In this tx, the user sold USDC and took native ETH out
 	app.AddReceipt(sdk.ReceiptData{
-		BlockNum: big.NewInt(18064070),
-		TxHash:   common.HexToHash("53b37ec7975d217295f4bdadf8043b261fc49dccc16da9b9fc8b9530845a5794"),
-		Fields: [sdk.NumMaxLogFields]sdk.LogFieldData{
-			{Contract: usdcPool, LogPos: 3, EventID: swapEvent, IsTopic: false, FieldIndex: 0, Value: amount0},  // field: USDCPool.Swap.amount0
-			{Contract: usdcPool, LogPos: 3, EventID: swapEvent, IsTopic: true, FieldIndex: 2, Value: recipient}, // field: USDCPool.Swap.recipient (topic field)
-			{Contract: usdc, LogPos: 2, EventID: transferEvent, IsTopic: true, FieldIndex: 1, Value: from},      // field: USDC.Transfer.from
+		TxHash: common.HexToHash("53b37ec7975d217295f4bdadf8043b261fc49dccc16da9b9fc8b9530845a5794"),
+		Fields: []sdk.LogFieldData{
+			{LogPos: 3, IsTopic: false, FieldIndex: 0}, // field: USDCPool.Swap.amount0
+			{LogPos: 3, IsTopic: true, FieldIndex: 2},  // field: USDCPool.Swap.recipient (topic field)
+			{LogPos: 2, IsTopic: true, FieldIndex: 1},  // field: USDC.Transfer.from
 		},
 	})
 	// More receipts can be added, but in this example we only add one to keep it simple
@@ -112,11 +101,6 @@ func TestE2E(t *testing.T) {
 	///////////////////////////////////////////////////////////////////////////////
 	// Compiling and Setup
 	///////////////////////////////////////////////////////////////////////////////
-
-	// The compiled circuit, proving key, and verifying key are saved to outDir, and
-	// the downloaded SRS in the process is saved to srsDir
-	outDir := "$HOME/circuitOut/tradingvolume"
-	srsDir := "$HOME/kzgsrs"
 
 	compiledCircuit, pk, vk, _, err := sdk.Compile(appCircuit, outDir, srsDir)
 	check(err)

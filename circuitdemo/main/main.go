@@ -19,7 +19,7 @@ func (c *AppCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions int) {
 	// Our app is only ever going to use one storage data at a time so
 	// we can simply limit the max number of data for storage to 1 and
 	// 0 for all others
-	return 128, 128, 128
+	return 32, 32, 32
 }
 
 func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
@@ -37,44 +37,37 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 func main() {
 	outDir := "$HOME/circuitOut/myBrevisApp"
 	srsDir := "$HOME/kzgsrs"
-	app, err := sdk.NewBrevisApp(1)
+	rpc := "RPC_URL"
+	app, err := sdk.NewBrevisApp(1, rpc, outDir)
 	check(err)
 	logFieldData := sdk.LogFieldData{
-		Contract:   utils.Hex2Addr("0x4446e0f8417C1db113899929A8F3cEe8e0DcBCDb"),
 		LogPos:     0,
-		EventID:    utils.Hex2Hash("0xfcc00a4bc74238c0d621a60c235a07a52789cca8e03b6e03f90d0b0c6e7bbecb"),
 		IsTopic:    false,
 		FieldIndex: 0,
-		Value:      utils.Hex2Hash("0x0000000000000000000000000000000000000000000000000000000000000001"),
 	}
 
 	receipt := sdk.ReceiptData{
-		BlockNum:     new(big.Int).SetUint64(20861588),
-		BlockBaseFee: new(big.Int).SetUint64(7343991989),
-		MptKeyPath:   new(big.Int).SetBytes(hexutil.MustDecode("0x2d")),
-		TxHash:       utils.Hex2Hash("0x3b762c2829801787b44ea8afba9510241014faa7dd86dbf03d729846aa346894"),
-		Fields: [sdk.NumMaxLogFields]sdk.LogFieldData{
+		TxHash: utils.Hex2Hash("0x3b762c2829801787b44ea8afba9510241014faa7dd86dbf03d729846aa346894"),
+		Fields: []sdk.LogFieldData{
 			logFieldData,
 		},
 	}
 
 	app.AddReceipt(receipt)
 
-	app.AddStorage(sdk.StorageData{
-		BlockNum:     new(big.Int).SetUint64(20861588),
-		BlockBaseFee: new(big.Int).SetUint64(7343991989),
-		Address:      utils.Hex2Addr("0x4446e0f8417C1db113899929A8F3cEe8e0DcBCDb"),
-		Slot:         utils.Hex2Hash("0x0000000000000000000000000000000000000000000000000000000000000000"),
-		Value:        utils.Hex2Hash("0x00000000000000000000000058b529f9084d7eaa598eb3477fe36064c5b7bbc1"),
-	})
+	for i := 0; i < 1; i++ {
+		app.AddStorage(sdk.StorageData{
+			BlockNum: new(big.Int).SetUint64(20861588),
+			Address:  utils.Hex2Addr("0x4446e0f8417C1db113899929A8F3cEe8e0DcBCDb"),
+			Slot:     utils.Hex2Hash("0x0000000000000000000000000000000000000000000000000000000000000000"),
+		})
+	}
 
-	app.AddTransaction(sdk.TransactionData{
-		BlockNum:     new(big.Int).SetUint64(20861588),
-		BlockBaseFee: new(big.Int).SetUint64(7343991989),
-		MptKeyPath:   new(big.Int).SetBytes(hexutil.MustDecode("0x2d")),
-		Hash:         utils.Hex2Hash("0x3b762c2829801787b44ea8afba9510241014faa7dd86dbf03d729846aa346894"),
-		LeafHash:     utils.Hex2Hash("0x72d15e4bf219afb31c502e2b24c9ae1d0c1b408cb8774706bfc48d6a2022b299"),
-	})
+	for i := 0; i < 1; i++ {
+		app.AddTransaction(sdk.TransactionData{
+			Hash: utils.Hex2Hash("0x3b762c2829801787b44ea8afba9510241014faa7dd86dbf03d729846aa346894"),
+		}, i)
+	}
 
 	appCircuitAssignment := &AppCircuit{}
 

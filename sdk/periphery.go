@@ -69,7 +69,6 @@ func NewFullWitness(assign AppCircuit, in CircuitInput) (w, wpub witness.Witness
 // CompileOnly is like Compile, but it does not automatically save the compilation output
 func CompileOnly(app AppCircuit) (constraint.ConstraintSystem, error) {
 	host := DefaultHostCircuit(app)
-
 	before := time.Now()
 	ccs, err := frontend.Compile(ecc.BN254.ScalarField(), scs.NewBuilder, host)
 	if err != nil {
@@ -80,7 +79,7 @@ func CompileOnly(app AppCircuit) (constraint.ConstraintSystem, error) {
 	return ccs, nil
 }
 
-func Setup(ccs constraint.ConstraintSystem, cacheDir string, maxReceipt, maxStorage, numMaxDataPoints int) (pk plonk.ProvingKey, vk plonk.VerifyingKey, vkHash []byte, err error) {
+func Setup(ccs constraint.ConstraintSystem, cacheDir string, maxReceipt, maxStorage, dataPoints int) (pk plonk.ProvingKey, vk plonk.VerifyingKey, vkHash []byte, err error) {
 	if len(cacheDir) == 0 {
 		return nil, nil, nil, fmt.Errorf("must provide a directory to save SRS")
 	}
@@ -104,7 +103,7 @@ func Setup(ccs constraint.ConstraintSystem, cacheDir string, maxReceipt, maxStor
 	}
 	fmt.Printf("setup done in %s\n", time.Since(before))
 
-	vkHash, err = printVkHash(vk, maxReceipt, maxStorage, numMaxDataPoints)
+	vkHash, err = printVkHash(vk, maxReceipt, maxStorage, dataPoints)
 
 	return
 }
@@ -117,17 +116,19 @@ func printVkHash(vk plonk.VerifyingKey, maxReceipt, maxStorage, dataPoints int) 
 		panic("invalid max storage")
 	}
 
-	vkHash, err := CalBrevisCircuitDigest(maxReceipt, maxStorage, dataPoints-maxReceipt-maxStorage, vk)
+	vkHashInBigInt, err := CalBrevisCircuitDigest(maxReceipt, maxStorage, dataPoints-maxReceipt-maxStorage, vk)
 	if err != nil {
 		fmt.Printf("error computing vk hash: %s", err.Error())
 		return nil, err
 	}
-	fmt.Println()
+
+	// Make sure vk hash is 32-bytes
+	vkHash := common.BytesToHash(vkHashInBigInt.Bytes()).Bytes()
 	fmt.Println("///////////////////////////////////////////////////////////////////////////////")
-	fmt.Printf("// vk hash: 0x%x\n", vkHash.Bytes())
+	fmt.Printf("// vk hash: 0x%x\n", vkHash)
 	fmt.Println("///////////////////////////////////////////////////////////////////////////////")
 	fmt.Println()
-	return vkHash.Bytes(), nil
+	return vkHash, nil
 }
 
 func ComputeVkHash(vk plonk.VerifyingKey) (common.Hash, error) {
