@@ -29,12 +29,19 @@ import (
 )
 
 type ReceiptData struct {
-	TxHash common.Hash    `json:"tx_hash,omitempty"`
-	Fields []LogFieldData `json:"fields,omitempty"`
+	TxHash       common.Hash    `json:"tx_hash,omitempty"`
+	BlockNum     *big.Int       `json:"block_num,omitempty"`
+	BlockBaseFee *big.Int       `json:"block_base_fee,omitempty"`
+	MptKeyPath   *big.Int       `json:"mpt_key_path,omitempty"`
+	Fields       []LogFieldData `json:"fields,omitempty"`
 }
 
-// LogFieldData represents a single field of an event.
+// Used for data persistence only
 type LogFieldData struct {
+	// The contract from which the event is emitted
+	Contract common.Address `json:"contract,omitempty"`
+	// The event ID of the event to which the field belong (aka topics[0])
+	EventID common.Hash `json:"event_id,omitempty"`
 	// the log's position in the receipt
 	LogPos uint `json:"log_index,omitempty"`
 	// Whether the field is a topic (aka "indexed" as in solidity events)
@@ -43,19 +50,30 @@ type LogFieldData struct {
 	// field is the second topic of a log, then FieldIndex is 1; if a field is the
 	// third field in the RLP decoded data, then FieldIndex is 2.
 	FieldIndex uint `json:"field_index,omitempty"`
+	// The value of the field in event, aka the actual thing we care about, only
+	// 32-byte fixed length values are supported.
+	Value common.Hash `json:"value,omitempty"`
 }
 
+// Used for data persistence only
 type StorageData struct {
-	BlockNum *big.Int       `json:"block_num,omitempty"`
-	Address  common.Address `json:"address,omitempty"`
-	Slot     common.Hash    `json:"slot,omitempty"`
+	BlockNum     *big.Int       `json:"block_num,omitempty"`
+	BlockBaseFee *big.Int       `json:"block_base_fee,omitempty"`
+	Address      common.Address `json:"address,omitempty"`
+	Slot         common.Hash    `json:"slot,omitempty"`
+	Value        common.Hash    `json:"value,omitempty"`
 }
 
+// Used for data persistence only
 type TransactionData struct {
-	Hash common.Hash `json:"hash,omitempty"`
+	Hash         common.Hash `json:"hash,omitempty"`
+	BlockNum     *big.Int    `json:"block_num,omitempty"`
+	BlockBaseFee *big.Int    `json:"block_base_fee,omitempty"`
+	MptKeyPath   *big.Int    `json:"mpt_key_path,omitempty"`
+	LeafHash     common.Hash `json:"leaf_hash,omitempty"`
 }
 
-type rawData[T ReceiptData | StorageData | TransactionData | MockReceipt | MockStorage | MockTransaction] struct {
+type rawData[T ReceiptData | StorageData | TransactionData] struct {
 	ordered []T
 	special map[int]T
 }
@@ -97,9 +115,9 @@ type BrevisApp struct {
 	storageVals rawData[StorageData]
 	txs         rawData[TransactionData]
 
-	mockReceipts rawData[MockReceipt]
-	mockStorage  rawData[MockStorage]
-	mockTxs      rawData[MockTransaction]
+	mockReceipts rawData[ReceiptData]
+	mockStorage  rawData[StorageData]
+	mockTxs      rawData[TransactionData]
 
 	localInputDataPath string
 	localInputData     *DataPersistence
@@ -148,9 +166,9 @@ func NewBrevisApp(
 	localInputData := readDataFromLocalStorage(localInputDataPath)
 	if localInputData == nil {
 		localInputData = &DataPersistence{
-			Receipts: map[string]*ReceiptPersistence{},
-			Storages: map[string]*StoragePersistence{},
-			Txs:      map[string]*TransactionPersistence{},
+			Receipts: map[string]*ReceiptData{},
+			Storages: map[string]*StorageData{},
+			Txs:      map[string]*TransactionData{},
 		}
 	}
 
@@ -179,7 +197,7 @@ func (q *BrevisApp) AddReceipt(data ReceiptData, index ...int) {
 // AddMockReceipt adds the MockReceipt to be queried. If an index is specified, the
 // data will be assigned to the specified index of DataInput.Receipts.
 // It should be used ONLY for circuit implementation and testing.
-func (q *BrevisApp) AddMockReceipt(data MockReceipt, index ...int) {
+func (q *BrevisApp) AddMockReceipt(data ReceiptData, index ...int) {
 	if len(data.Fields) > NumMaxLogFields {
 		panic(fmt.Sprintf("maximum number of log fields in one receipt is %d", NumMaxLogFields))
 	}
@@ -200,7 +218,7 @@ func (q *BrevisApp) AddStorage(data StorageData, index ...int) {
 // specified, the data will be assigned to the specified index of
 // DataInput.StorageSlots.
 // It should be used ONLY for circuit implementation and testing.
-func (q *BrevisApp) AddMockStorage(data MockStorage, index ...int) {
+func (q *BrevisApp) AddMockStorage(data StorageData, index ...int) {
 	q.mockStorage.add(data, index...)
 }
 
@@ -215,7 +233,7 @@ func (q *BrevisApp) AddTransaction(data TransactionData, index ...int) {
 // specified, the data will be assigned to the specified index of
 // DataInput.Transactions.
 // It should be used ONLY for circuit implementation and testing.
-func (q *BrevisApp) AddMockTransaction(data MockTransaction, index ...int) {
+func (q *BrevisApp) AddMockTransaction(data TransactionData, index ...int) {
 	q.mockTxs.add(data, index...)
 }
 
@@ -890,25 +908,30 @@ func (q *BrevisApp) buildReceipt(r ReceiptData) (Receipt, error) {
 	key := generateReceiptKey(r, q.srcChainId)
 	data := q.localInputData.Receipts[key]
 	if data == nil {
-		receiptInfo, mptKey, blockNum, blockBaseFee, err := q.getReceiptInfos(r.TxHash)
-		if err != nil {
-			return Receipt{}, err
-		}
-		fields, err := buildLogFieldsPersistence(r.Fields, receiptInfo)
-		if err != nil {
-			return Receipt{}, err
-		}
+		if r.isReadyToSave() {
+			fmt.Println("adding manual input receipt data")
+			data = &r
+		} else {
+			receiptInfo, mptKey, blockNum, blockBaseFee, err := q.getReceiptInfos(r.TxHash)
+			if err != nil {
+				return Receipt{}, err
+			}
+			fields, err := buildLogFieldsData(r.Fields, receiptInfo)
+			if err != nil {
+				return Receipt{}, err
+			}
 
-		data = &ReceiptPersistence{
-			TxHash:       r.TxHash,
-			BlockNum:     blockNum,
-			BlockBaseFee: blockBaseFee,
-			MptKeyPath:   mptKey,
-			Fields:       fields,
+			data = &ReceiptData{
+				TxHash:       r.TxHash,
+				BlockNum:     blockNum,
+				BlockBaseFee: blockBaseFee,
+				MptKeyPath:   mptKey,
+				Fields:       fields,
+			}
 		}
 		q.localInputData.Receipts[key] = data
 	}
-	return convertReceiptPersistenceToReceipt(data), nil
+	return convertReceiptDataToReceipt(data), nil
 }
 
 func (q *BrevisApp) assignStorageSlots(in *CircuitInput) (err error) {
@@ -948,27 +971,32 @@ func (q *BrevisApp) buildStorageSlot(s StorageData) (StorageSlot, error) {
 	key := generateStorageKey(s, q.srcChainId)
 	data := q.localInputData.Storages[key]
 	if data == nil {
-		blockBaseFee, err := q.getBlockBaseFee(s.BlockNum)
-		if err != nil {
-			return StorageSlot{}, nil
-		}
+		if s.isReadyToSave() {
+			fmt.Println("adding manual input storage data")
+			data = &s
+		} else {
+			blockBaseFee, err := q.getBlockBaseFee(s.BlockNum)
+			if err != nil {
+				return StorageSlot{}, nil
+			}
 
-		value, err := q.getStorageValue(s.BlockNum, s.Address, s.Slot)
-		if err != nil {
-			return StorageSlot{}, nil
-		}
+			value, err := q.getStorageValue(s.BlockNum, s.Address, s.Slot)
+			if err != nil {
+				return StorageSlot{}, nil
+			}
 
-		data = &StoragePersistence{
-			BlockNum:     s.BlockNum,
-			BlockBaseFee: blockBaseFee,
-			Address:      s.Address,
-			Slot:         s.Slot,
-			Value:        value,
+			data = &StorageData{
+				BlockNum:     s.BlockNum,
+				BlockBaseFee: blockBaseFee,
+				Address:      s.Address,
+				Slot:         s.Slot,
+				Value:        value,
+			}
 		}
 		q.localInputData.Storages[key] = data
 	}
 
-	return convertStoragePersistenceToStorage(data), nil
+	return convertStorageDataToStorage(data), nil
 }
 
 func (q *BrevisApp) assignTransactions(in *CircuitInput) (err error) {
@@ -1007,22 +1035,26 @@ func (q *BrevisApp) buildTx(t TransactionData) (Transaction, error) {
 	key := generateTxKey(t, q.srcChainId)
 	data := q.localInputData.Txs[key]
 	if data == nil {
-		leafHash, mptKey, blockNumber, baseFee, err := q.calculateTxLeafHashBlockBaseFeeAndMPTKey(t.Hash)
-		if err != nil {
-			return Transaction{}, err
-		}
+		if t.isReadyToSave() {
+			data = &t
+		} else {
+			leafHash, mptKey, blockNumber, baseFee, err := q.calculateTxLeafHashBlockBaseFeeAndMPTKey(t.Hash)
+			if err != nil {
+				return Transaction{}, err
+			}
 
-		data = &TransactionPersistence{
-			Hash:         t.Hash,
-			BlockNum:     blockNumber,
-			BlockBaseFee: baseFee,
-			MptKeyPath:   mptKey,
-			LeafHash:     leafHash,
+			data = &TransactionData{
+				Hash:         t.Hash,
+				BlockNum:     blockNumber,
+				BlockBaseFee: baseFee,
+				MptKeyPath:   mptKey,
+				LeafHash:     leafHash,
+			}
 		}
 		q.localInputData.Txs[key] = data
 	}
 
-	return convertTxPersistenceToTransaction(data), nil
+	return convertTxDataToTransaction(data), nil
 }
 
 func buildCircuitInputErr(m string, err error) (CircuitInput, error) {

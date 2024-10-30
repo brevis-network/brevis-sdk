@@ -16,26 +16,18 @@ import (
 
 // To reduce rpc requests for developers, save data into local storage for future reference
 type DataPersistence struct {
-	Receipts map[string]*ReceiptPersistence     `json:"receipts,omitempty"`
-	Storages map[string]*StoragePersistence     `json:"storage_slots,omitempty"`
-	Txs      map[string]*TransactionPersistence `json:"txs,omitempty"`
+	Receipts map[string]*ReceiptData     `json:"receipts,omitempty"`
+	Storages map[string]*StorageData     `json:"storage_slots,omitempty"`
+	Txs      map[string]*TransactionData `json:"txs,omitempty"`
 }
 
-// Used for data persistence only
-type ReceiptPersistence struct {
-	TxHash       common.Hash            `json:"tx_hash,omitempty"`
-	BlockNum     *big.Int               `json:"block_num,omitempty"`
-	BlockBaseFee *big.Int               `json:"block_base_fee,omitempty"`
-	MptKeyPath   *big.Int               `json:"mpt_key_path,omitempty"`
-	Fields       []*LogFieldPersistence `json:"fields,omitempty"`
+type ReceiptPos struct {
+	TxHash common.Hash   `json:"tx_hash,omitempty"`
+	Fields []LogFieldPos `json:"fields,omitempty"`
 }
 
-// Used for data persistence only
-type LogFieldPersistence struct {
-	// The contract from which the event is emitted
-	Contract common.Address `json:"contract,omitempty"`
-	// The event ID of the event to which the field belong (aka topics[0])
-	EventID common.Hash `json:"event_id,omitempty"`
+// LogFieldPos represents a single field of an event.
+type LogFieldPos struct {
 	// the log's position in the receipt
 	LogPos uint `json:"log_index,omitempty"`
 	// Whether the field is a topic (aka "indexed" as in solidity events)
@@ -44,31 +36,32 @@ type LogFieldPersistence struct {
 	// field is the second topic of a log, then FieldIndex is 1; if a field is the
 	// third field in the RLP decoded data, then FieldIndex is 2.
 	FieldIndex uint `json:"field_index,omitempty"`
-	// The value of the field in event, aka the actual thing we care about, only
-	// 32-byte fixed length values are supported.
-	Value common.Hash `json:"value,omitempty"`
 }
 
-// Used for data persistence only
-type StoragePersistence struct {
-	BlockNum     *big.Int       `json:"block_num,omitempty"`
-	BlockBaseFee *big.Int       `json:"block_base_fee,omitempty"`
-	Address      common.Address `json:"address,omitempty"`
-	Slot         common.Hash    `json:"slot,omitempty"`
-	Value        common.Hash    `json:"value,omitempty"`
+type StoragePos struct {
+	BlockNum *big.Int       `json:"block_num,omitempty"`
+	Address  common.Address `json:"address,omitempty"`
+	Slot     common.Hash    `json:"slot,omitempty"`
 }
 
-// Used for data persistence only
-type TransactionPersistence struct {
-	Hash         common.Hash `json:"hash,omitempty"`
-	BlockNum     *big.Int    `json:"block_num,omitempty"`
-	BlockBaseFee *big.Int    `json:"block_base_fee,omitempty"`
-	MptKeyPath   *big.Int    `json:"mpt_key_path,omitempty"`
-	LeafHash     common.Hash `json:"leaf_hash,omitempty"`
+type TransactionPos struct {
+	Hash common.Hash `json:"hash,omitempty"`
+}
+
+func (q *ReceiptData) isReadyToSave() bool {
+	return big.NewInt(0).Cmp(q.BlockBaseFee) == -1 && big.NewInt(0).Cmp(q.BlockNum) == -1 && big.NewInt(0).Cmp(q.MptKeyPath) == -1
+}
+
+func (q *StorageData) isReadyToSave() bool {
+	return big.NewInt(0).Cmp(q.BlockBaseFee) == -1
+}
+
+func (q *TransactionData) isReadyToSave() bool {
+	return big.NewInt(0).Cmp(q.BlockBaseFee) == -1 && big.NewInt(0).Cmp(q.BlockNum) == -1 && big.NewInt(0).Cmp(q.MptKeyPath) == -1
 }
 
 func generateReceiptKey(receipt ReceiptData, srcChainId uint64) string {
-	data, err := json.Marshal(receipt)
+	data, err := json.Marshal(convertReceiptDataToReceiptPos(receipt))
 	data = append(data, new(big.Int).SetUint64(srcChainId).Bytes()...)
 	if err != nil {
 		panic("failed to generate receipt data persistence key")
@@ -77,19 +70,19 @@ func generateReceiptKey(receipt ReceiptData, srcChainId uint64) string {
 }
 
 func generateStorageKey(storage StorageData, srcChainId uint64) string {
-	data, err := json.Marshal(storage)
+	data, err := json.Marshal(convertStorageDataToStoragePos(storage))
 	data = append(data, new(big.Int).SetUint64(srcChainId).Bytes()...)
 	if err != nil {
-		panic("failed to generate receipt data persistence key")
+		panic("failed to generate storage data persistence key")
 	}
 	return crypto.Keccak256Hash(data).Hex()
 }
 
 func generateTxKey(tx TransactionData, srcChainId uint64) string {
-	data, err := json.Marshal(tx)
+	data, err := json.Marshal(convertTxDataToTxPos(tx))
 	data = append(data, new(big.Int).SetUint64(srcChainId).Bytes()...)
 	if err != nil {
-		panic("failed to generate receipt data persistence key")
+		panic("failed to generate tx data persistence key")
 	}
 	return crypto.Keccak256Hash(data).Hex()
 }
@@ -97,9 +90,9 @@ func generateTxKey(tx TransactionData, srcChainId uint64) string {
 func readDataFromLocalStorage(path string) *DataPersistence {
 	fmt.Printf(">> scan local storage: %s\n", path)
 	empty := &DataPersistence{
-		Receipts: map[string]*ReceiptPersistence{},
-		Storages: map[string]*StoragePersistence{},
-		Txs:      map[string]*TransactionPersistence{},
+		Receipts: map[string]*ReceiptData{},
+		Storages: map[string]*StorageData{},
+		Txs:      map[string]*TransactionData{},
 	}
 	path = os.ExpandEnv(path)
 	data, err := os.ReadFile(path)
@@ -108,9 +101,9 @@ func readDataFromLocalStorage(path string) *DataPersistence {
 		return empty
 	}
 	result := DataPersistence{
-		Receipts: map[string]*ReceiptPersistence{},
-		Storages: map[string]*StoragePersistence{},
-		Txs:      map[string]*TransactionPersistence{},
+		Receipts: map[string]*ReceiptData{},
+		Storages: map[string]*StorageData{},
+		Txs:      map[string]*TransactionData{},
 	}
 	err = json.Unmarshal(data, &result)
 	if err != nil {
@@ -142,7 +135,7 @@ func (q *BrevisApp) writeDataIntoLocalStorage() {
 	fmt.Printf(">>finish write\n")
 }
 
-func buildLogFieldsPersistence(fs []LogFieldData, receipt *types.Receipt) (fields []*LogFieldPersistence, err error) {
+func buildLogFieldsData(fs []LogFieldData, receipt *types.Receipt) (fields []LogFieldData, err error) {
 	if len(fs) > 4 {
 		return nil, fmt.Errorf("each receipt can use up to 4 fields")
 	}
@@ -174,7 +167,7 @@ func buildLogFieldsPersistence(fs []LogFieldData, receipt *types.Receipt) (field
 			logValue = common.BytesToHash(log.Data[f.FieldIndex*32 : f.FieldIndex*32+32])
 		}
 
-		fields = append(fields, &LogFieldPersistence{
+		fields = append(fields, LogFieldData{
 			Contract:   log.Address,
 			LogPos:     f.LogPos,
 			EventID:    log.Topics[0],
@@ -203,10 +196,10 @@ func (q *BrevisApp) getReceiptInfos(txHash common.Hash) (receipt *types.Receipt,
 	return
 }
 
-func convertReceiptPersistenceToReceipt(r *ReceiptPersistence) Receipt {
+func convertReceiptDataToReceipt(r *ReceiptData) Receipt {
 	var fields [NumMaxLogFields]LogField
 	for i, log := range r.Fields {
-		fields[i] = convertFieldPersistenceToField(log)
+		fields[i] = convertFieldDataToField(log)
 	}
 	for i := len(r.Fields); i < NumMaxLogFields; i++ {
 		fields[i] = fields[len(r.Fields)-1]
@@ -219,7 +212,7 @@ func convertReceiptPersistenceToReceipt(r *ReceiptPersistence) Receipt {
 	}
 }
 
-func convertFieldPersistenceToField(f *LogFieldPersistence) LogField {
+func convertFieldDataToField(f LogFieldData) LogField {
 	return LogField{
 		Contract: ConstUint248(f.Contract),
 		LogPos:   ConstUint32(f.LogPos),
@@ -249,7 +242,7 @@ func (q *BrevisApp) getStorageValue(blkNum *big.Int, account common.Address, slo
 	return common.BytesToHash(value), nil
 }
 
-func convertStoragePersistenceToStorage(data *StoragePersistence) StorageSlot {
+func convertStorageDataToStorage(data *StorageData) StorageSlot {
 	return StorageSlot{
 		BlockNum:     newU32(data.BlockNum),
 		BlockBaseFee: newU248(data.BlockBaseFee),
@@ -283,11 +276,44 @@ func (q *BrevisApp) calculateTxLeafHashBlockBaseFeeAndMPTKey(txHash common.Hash)
 	return
 }
 
-func convertTxPersistenceToTransaction(data *TransactionPersistence) Transaction {
+func convertTxDataToTransaction(data *TransactionData) Transaction {
 	return Transaction{
 		BlockNum:     ConstUint32(data.BlockNum),
 		BlockBaseFee: newU248(data.BlockBaseFee),
 		MptKeyPath:   newU32(data.MptKeyPath),
 		LeafHash:     ConstBytes32(data.LeafHash.Bytes()),
+	}
+}
+
+func convertReceiptDataToReceiptPos(data ReceiptData) ReceiptPos {
+	fields := make([]LogFieldPos, len(data.Fields))
+	for i, fieldData := range data.Fields {
+		fields[i] = convertLogFieldDataToLogFieldPos(fieldData)
+	}
+	return ReceiptPos{
+		TxHash: data.TxHash,
+		Fields: fields,
+	}
+}
+
+func convertLogFieldDataToLogFieldPos(data LogFieldData) LogFieldPos {
+	return LogFieldPos{
+		LogPos:     data.LogPos,
+		IsTopic:    data.IsTopic,
+		FieldIndex: data.FieldIndex,
+	}
+}
+
+func convertStorageDataToStoragePos(data StorageData) StoragePos {
+	return StoragePos{
+		BlockNum: data.BlockNum,
+		Address:  data.Address,
+		Slot:     data.Slot,
+	}
+}
+
+func convertTxDataToTxPos(data TransactionData) TransactionPos {
+	return TransactionPos{
+		Hash: data.Hash,
 	}
 }

@@ -1,53 +1,5 @@
 package sdk
 
-import (
-	"math/big"
-
-	"github.com/ethereum/go-ethereum/common"
-)
-
-// Mock Data should be used only for application circuit testing
-type MockReceipt struct {
-	BlockNum     *big.Int        `json:"block_num,omitempty"`
-	BlockBaseFee *big.Int        `json:"block_base_fee,omitempty"`
-	MptKeyPath   *big.Int        `json:"mpt_key_path,omitempty"`
-	Fields       []*MockLogField `json:"fields,omitempty"`
-}
-
-type MockLogField struct {
-	// The contract from which the event is emitted
-	Contract common.Address `json:"contract,omitempty"`
-	// The event ID of the event to which the field belong (aka topics[0])
-	EventID common.Hash `json:"event_id,omitempty"`
-	// the log's position in the receipt
-	LogPos uint `json:"log_index,omitempty"`
-	// Whether the field is a topic (aka "indexed" as in solidity events)
-	IsTopic bool `json:"is_topic,omitempty"`
-	// The index of the field in either a log's topics or data. For example, if a
-	// field is the second topic of a log, then FieldIndex is 1; if a field is the
-	// third field in the RLP decoded data, then FieldIndex is 2.
-	FieldIndex uint `json:"field_index,omitempty"`
-	// The value of the field in event, aka the actual thing we care about, only
-	// 32-byte fixed length values are supported.
-	Value common.Hash `json:"value,omitempty"`
-}
-
-type MockStorage struct {
-	BlockNum     *big.Int       `json:"block_num,omitempty"`
-	BlockBaseFee *big.Int       `json:"block_base_fee,omitempty"`
-	Address      common.Address `json:"address,omitempty"`
-	Slot         common.Hash    `json:"slot,omitempty"`
-	Value        common.Hash    `json:"value,omitempty"`
-}
-
-type MockTransaction struct {
-	Hash         common.Hash `json:"hash,omitempty"`
-	BlockNum     *big.Int    `json:"block_num,omitempty"`
-	BlockBaseFee *big.Int    `json:"block_base_fee,omitempty"`
-	MptKeyPath   *big.Int    `json:"mpt_key_path,omitempty"`
-	LeafHash     common.Hash `json:"leaf_hash,omitempty"`
-}
-
 func (q *BrevisApp) assignMockReceipts(in *CircuitInput) error {
 	// assigning user appointed receipts at specific indices
 	for i, r := range q.mockReceipts.special {
@@ -77,7 +29,7 @@ func (q *BrevisApp) assignMockReceipts(in *CircuitInput) error {
 	return nil
 }
 
-func (q *BrevisApp) buildMockReceipt(r MockReceipt) (Receipt, error) {
+func (q *BrevisApp) buildMockReceipt(r ReceiptData) (Receipt, error) {
 	var fields [NumMaxLogFields]LogField
 	for i, log := range r.Fields {
 		fields[i] = LogField{
@@ -145,7 +97,7 @@ func (q *BrevisApp) assignMockStorageSlots(in *CircuitInput) (err error) {
 	return nil
 }
 
-func (q *BrevisApp) buildMockStorageSlot(s MockStorage) (StorageSlot, error) {
+func (q *BrevisApp) buildMockStorageSlot(s StorageData) (StorageSlot, error) {
 	return StorageSlot{
 		BlockNum:     newU32(s.BlockNum),
 		BlockBaseFee: newU248(s.BlockBaseFee),
@@ -183,7 +135,7 @@ func (q *BrevisApp) assignMockTransactions(in *CircuitInput) (err error) {
 	return nil
 }
 
-func (q *BrevisApp) buildMockTx(t MockTransaction) (Transaction, error) {
+func (q *BrevisApp) buildMockTx(t TransactionData) (Transaction, error) {
 	return Transaction{
 		BlockNum:     ConstUint32(t.BlockNum),
 		BlockBaseFee: newU248(t.BlockBaseFee),
