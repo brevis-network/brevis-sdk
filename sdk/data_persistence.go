@@ -49,15 +49,15 @@ type TransactionPos struct {
 }
 
 func (q *ReceiptData) isReadyToSave() bool {
-	return big.NewInt(0).Cmp(q.BlockBaseFee) == -1 && big.NewInt(0).Cmp(q.BlockNum) == -1 && big.NewInt(0).Cmp(q.MptKeyPath) == -1
+	return q.BlockBaseFee != nil && q.BlockNum != nil && q.MptKeyPath != nil && big.NewInt(0).Cmp(q.BlockBaseFee) == -1 && big.NewInt(0).Cmp(q.BlockNum) == -1 && big.NewInt(0).Cmp(q.MptKeyPath) == -1
 }
 
 func (q *StorageData) isReadyToSave() bool {
-	return big.NewInt(0).Cmp(q.BlockBaseFee) == -1
+	return q.BlockBaseFee != nil && big.NewInt(0).Cmp(q.BlockBaseFee) == -1
 }
 
 func (q *TransactionData) isReadyToSave() bool {
-	return big.NewInt(0).Cmp(q.BlockBaseFee) == -1 && big.NewInt(0).Cmp(q.BlockNum) == -1 && big.NewInt(0).Cmp(q.MptKeyPath) == -1
+	return q.BlockBaseFee != nil && q.BlockNum != nil && q.MptKeyPath != nil && big.NewInt(0).Cmp(q.BlockBaseFee) == -1 && big.NewInt(0).Cmp(q.BlockNum) == -1 && big.NewInt(0).Cmp(q.MptKeyPath) == -1
 }
 
 func generateReceiptKey(receipt ReceiptData, srcChainId uint64) string {
