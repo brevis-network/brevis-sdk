@@ -14,7 +14,7 @@ This SDK aims to provide developers with a framework to implement custom data an
 `BrevisApp` is the entry point for most of the operations. To create a new app, use
 
 ```go
-app := sdk.NewBrevisApp(1)
+app := sdk.NewBrevisApp(1, "RPC_URL", "OutputDir")
 ```
 
 ### Adding Data
