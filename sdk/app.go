@@ -380,6 +380,7 @@ func (q *BrevisApp) SubmitProof(proof plonk.Proof, options ...SubmitProofOption)
 			if err != nil {
 				fmt.Println(err.Error())
 				opts.onError(err)
+				return
 			}
 			opts.onSubmitted(tx)
 		}()
