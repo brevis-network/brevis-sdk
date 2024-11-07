@@ -284,18 +284,7 @@ func (api *CircuitAPI) ToUint521(i interface{}) Uint521 {
 		el := api.Uint521.f.NewElement(limbs)
 		return newU521(el)
 	case Uint248:
-		bits := v.Values()
-		f := Uint521Field{}
-		if len(bits) > int(f.BitsPerLimb()) {
-			panic("the value could not be hold in first limb")
-		}
-		limbs := make([]variable, f.NbLimbs())
-		limbs[0] = v.Val
-		for i := 1; i < int(f.NbLimbs()); i++ {
-			limbs[i] = 0
-		}
-		el := api.Uint521.f.NewElement(limbs)
-		return newU521(el)
+		return api.ToUint521(api.ToBytes32(v))
 	}
 	panic(fmt.Errorf("unsupported casting from %T to Uint521", i))
 }

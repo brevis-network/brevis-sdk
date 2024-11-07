@@ -1,7 +1,6 @@
 package sdk
 
 import (
-	"fmt"
 	"math/big"
 	"testing"
 
@@ -59,14 +58,8 @@ func (c *TestUint521APICircuit) Define(g frontend.API) error {
 	for i, b := range expectedBits {
 		g.AssertIsEqual(b, v[i].Val)
 	}
-	num := api.ToUint521(api.Uint248.FromBinary(v...))
+	num := api.ToUint521(api.Uint248.FromBinary(v[:248]...))
 	api.Uint521.AssertIsEqual(num, binaryTestU521)
 
 	return nil
-}
-
-func checkStrings(a, b fmt.Stringer) {
-	if a.String() != b.String() {
-		panic(fmt.Errorf("string value not equal %s != %s", a, b))
-	}
 }

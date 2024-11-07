@@ -16,14 +16,6 @@ func newU32(v frontend.Variable) Uint32 {
 	return Uint32{Val: v}
 }
 
-func newU32s(vs ...frontend.Variable) List[Uint32] {
-	ret := make([]Uint32, len(vs))
-	for i, v := range vs {
-		ret[i] = newU32(v)
-	}
-	return ret
-}
-
 // ConstUint32 initializes a constant Uint32. This function does not generate
 // circuit wires and should only be used outside of circuit. Supports all int and
 // uint variants, bool, []byte (big-endian), *big.Int, and string inputs. If

@@ -16,14 +16,6 @@ func newU64(v frontend.Variable) Uint64 {
 	return Uint64{Val: v}
 }
 
-func newU64s(vs ...frontend.Variable) List[Uint64] {
-	ret := make([]Uint64, len(vs))
-	for i, v := range vs {
-		ret[i] = newU64(v)
-	}
-	return ret
-}
-
 // ConstUint64 initializes a constant Uint64. This function does not generate
 // circuit wires and should only be used outside of circuit. Supports all int and
 // uint variants, bool, []byte (big-endian), *big.Int, and string inputs. If

@@ -2,6 +2,9 @@ package sdk
 
 import (
 	"bytes"
+	"math/big"
+	"testing"
+
 	pgoldilocks "github.com/OpenAssetStandards/poseidon-goldilocks-go"
 	"github.com/brevis-network/brevis-sdk/common/utils"
 	utils2 "github.com/brevis-network/zk-hash/utils"
@@ -11,8 +14,6 @@ import (
 	"github.com/consensys/gnark/std/algebra/emulated/sw_bn254"
 	replonk "github.com/consensys/gnark/std/recursion/plonk"
 	"github.com/consensys/gnark/test"
-	"math/big"
-	"testing"
 )
 
 func TestHash2HashCircuitDigest(t *testing.T) {
@@ -52,7 +53,7 @@ func TestGlPoseidonOnDigest(t *testing.T) {
 	middle3 = append(middle3, hashA[:]...)
 	middle3 = append(middle3, hashB[:]...)
 
-	hashMiddle, err := pgoldilocks.HashNoPadU64Array(middle3)
+	hashMiddle, _ := pgoldilocks.HashNoPadU64Array(middle3)
 
 	log.Infof("hash digest of combile : %d %d %d %d", hashMiddle[0], hashMiddle[1], hashMiddle[2], hashMiddle[3])
 

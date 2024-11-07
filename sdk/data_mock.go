@@ -134,12 +134,3 @@ func (q *BrevisApp) assignMockTransactions(in *CircuitInput) (err error) {
 
 	return nil
 }
-
-func (q *BrevisApp) buildMockTx(t TransactionData) (Transaction, error) {
-	return Transaction{
-		BlockNum:     ConstUint32(t.BlockNum),
-		BlockBaseFee: newU248(t.BlockBaseFee),
-		MptKeyPath:   newU32(t.MptKeyPath),
-		LeafHash:     ConstFromBigEndianBytes(t.LeafHash.Bytes()),
-	}, nil
-}
