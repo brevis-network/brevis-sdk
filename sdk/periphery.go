@@ -82,7 +82,7 @@ func Setup(ccs constraint.ConstraintSystem, cacheDir string, maxReceipt, maxStor
 	if len(cacheDir) == 0 {
 		return nil, nil, nil, fmt.Errorf("must provide a directory to save SRS")
 	}
-	r1cs := ccs.(*cs.SparseR1CS)
+	r1cs := ccs.(*cs_bn254.SparseR1CS)
 	srsDir := os.ExpandEnv(cacheDir)
 
 	canonical, lagrange, err := srs.NewSRS(r1cs, srsDir)
