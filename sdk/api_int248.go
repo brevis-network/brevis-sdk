@@ -19,6 +19,9 @@ type Int248 struct {
 // newI248 constructs a new Int248 instance.
 // It is important that the input value `v` is at most 248 bits wide.
 func newI248(v ...frontend.Variable) Int248 {
+	if len(v) > 2 {
+		panic(fmt.Sprintf("newI248 expects 1 or 2 variables, got %d", len(v)))
+	}
 	ret := Int248{Val: v[0]}
 	if len(v) > 1 {
 		ret.SignBit = v[1]
