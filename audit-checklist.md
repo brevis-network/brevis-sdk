@@ -10,3 +10,4 @@
 8. Add Keccak256 API. [PR-24](https://github.com/brevis-network/brevis-sdk/pull/24), change files: `sdk/circuit_api.go`.
 9. Fix plonk bn254 vk hash. [PR-27](https://github.com/brevis-network/brevis-sdk/pull/27), change files: `common/utils/plonk_util.go`.
 10. Bring back circuit input uniqueness check code. Use dynamic data points calculation [PR-30](https://github.com/brevis-network/brevis-sdk/pull/30), change files: `sdk/app.go, sdk/circuit_input.go, sdk/host_circuit.go, sdk/periphery.go`
+11. Replacing test kzg srs with srs which is generated with AZTEC Ignition Ceremony data [PR-42](https://github.com/brevis-network/brevis-sdk/pull/42), change files: `sdk/srs/srs.go, sdk/periphery.go`.

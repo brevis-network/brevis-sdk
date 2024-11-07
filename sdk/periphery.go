@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/brevis-network/brevis-sdk/common/utils"
+	"github.com/brevis-network/brevis-sdk/sdk/srs"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/plonk"
 	"github.com/consensys/gnark/backend/witness"
@@ -18,7 +19,6 @@ import (
 	"github.com/consensys/gnark/frontend/cs/scs"
 	"github.com/consensys/gnark/std/algebra/emulated/sw_bn254"
 	replonk "github.com/consensys/gnark/std/recursion/plonk"
-	"github.com/consensys/gnark/test/unsafekzg"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -82,15 +82,10 @@ func Setup(ccs constraint.ConstraintSystem, cacheDir string, maxReceipt, maxStor
 	if len(cacheDir) == 0 {
 		return nil, nil, nil, fmt.Errorf("must provide a directory to save SRS")
 	}
-	r1cs := ccs.(*cs_bn254.SparseR1CS)
-	// srsDir := os.ExpandEnv(cacheDir)
+	r1cs := ccs.(*cs.SparseR1CS)
+	srsDir := os.ExpandEnv(cacheDir)
 
-	// canonical, lagrange, err := srs.NewSRS(r1cs, "https://kzg-srs.s3.us-west-2.amazonaws.com", srsDir)
-	// if err != nil {
-	// 	return
-	// }
-
-	canonical, lagrange, err := unsafekzg.NewSRS(r1cs)
+	canonical, lagrange, err := srs.NewSRS(r1cs, srsDir)
 	if err != nil {
 		return
 	}
