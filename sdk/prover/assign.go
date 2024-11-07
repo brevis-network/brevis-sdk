@@ -26,6 +26,11 @@ func assignCustomInput(app sdk.AppCircuit, input *sdkproto.CustomInput) (sdk.App
 	jsonBytes := ""
 	if input == nil {
 		jsonBytes = "{}"
+	} else {
+		jsonBytes = input.JsonBytes
+		if len(jsonBytes) == 0 {
+			jsonBytes = "{}"
+		}
 	}
 
 	// every custom input must be either at the top level or in a list that's at the top level of the struct
