@@ -19,6 +19,8 @@ github.com/bits-and-blooms/bitset v1.10.0 h1:ePXTeiPEazB5+opbv5fr8umg2R/1NlzgDsy
 github.com/bits-and-blooms/bitset v1.10.0/go.mod h1:7hO7Gc7Pp1vODcmWvKMRA9BNmbv6a/7QIWpPxHddWR8=
 github.com/blang/semver/v4 v4.0.0 h1:1PFHFE6yCCTv8C1TeyNNarDzntLi7wMI5i/pzqYIsAM=
 github.com/blang/semver/v4 v4.0.0/go.mod h1:IbckMUScFkM3pff0VJDNKRiT6TG/YpiHIM2yvyW5YoQ=
+github.com/brevis-network/gnark v0.1.0 h1:c16PFBs0W5RHxP3nRUuTRjyBjc3RkFMUtzOmb1vKy6o=
+github.com/brevis-network/gnark v0.1.0/go.mod h1:2pxSqtFhSLeN7OdA9nQXPj4Gp4Tovzk+r/7eiIA/Qeg=
 github.com/brevis-network/poseidon-goldilocks-go v0.0.0-20240826082508-8017eb90f413 h1:Q1+JagFYZ/atuJejVOfxBSeYGqeVkRVWXqaGu03HmUQ=
 github.com/brevis-network/poseidon-goldilocks-go v0.0.0-20240826082508-8017eb90f413/go.mod h1:sGddb8GeVcQErqlTrfUIP/2SmIzpG7DmPsFy3tBY9KQ=
 github.com/brevis-network/zk-hash v0.0.0-20240903111749-fedffbe8a45c h1:+tXzO1P9S0FT4uQ7kw3xSe0BpxnOH+VazNxQstX0qXI=
@@ -29,8 +31,6 @@ github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1 h1:q0rUy8C/TYNBQS1+CGKw68tLOF
 github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1/go.mod h1:7SFka0XMvUgj3hfZtydOrQY2mwhPclbT2snogU7SQQc=
 github.com/cbergoon/merkletree v0.2.0 h1:Bttqr3OuoiZEo4ed1L7fTasHka9II+BF9fhBfbNEEoQ=
 github.com/cbergoon/merkletree v0.2.0/go.mod h1:5c15eckUgiucMGDOCanvalj/yJnD+KAZj1qyJtRW5aM=
-github.com/celer-network/gnark v0.1.0 h1:717CxKghLj02v2tAdE6hCuKUouGgzDfZv/W1D4e/sFA=
-github.com/celer-network/gnark v0.1.0/go.mod h1:2pxSqtFhSLeN7OdA9nQXPj4Gp4Tovzk+r/7eiIA/Qeg=
 github.com/celer-network/goutils v0.2.0 h1:FIt4XLuHaHRviqycmJFywdbBCvTHJO6Yd/GGFXps/TY=
 github.com/celer-network/goutils v0.2.0/go.mod h1:1cyIPHvkF//E0Ok6H3roaJkZuy56sPyRycq7MPTkS6U=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
