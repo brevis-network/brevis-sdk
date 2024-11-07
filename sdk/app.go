@@ -29,48 +29,51 @@ import (
 )
 
 type ReceiptData struct {
-	TxHash       common.Hash    `json:"tx_hash,omitempty"`
-	BlockNum     *big.Int       `json:"block_num,omitempty"`
-	BlockBaseFee *big.Int       `json:"block_base_fee,omitempty"`
-	MptKeyPath   *big.Int       `json:"mpt_key_path,omitempty"`
-	Fields       []LogFieldData `json:"fields,omitempty"`
+	TxHash       common.Hash    `json:"tx_hash,omitempty"`        // Required value
+	BlockNum     *big.Int       `json:"block_num,omitempty"`      // Optional value
+	BlockBaseFee *big.Int       `json:"block_base_fee,omitempty"` // Optional value
+	MptKeyPath   *big.Int       `json:"mpt_key_path,omitempty"`   // Optional value
+	Fields       []LogFieldData `json:"fields,omitempty"`         // required value
 }
 
-// Used for data persistence only
 type LogFieldData struct {
 	// The contract from which the event is emitted
+	// Optional value
 	Contract common.Address `json:"contract,omitempty"`
 	// The event ID of the event to which the field belong (aka topics[0])
+	// Optional value
 	EventID common.Hash `json:"event_id,omitempty"`
 	// the log's position in the receipt
+	// Required value
 	LogPos uint `json:"log_index,omitempty"`
 	// Whether the field is a topic (aka "indexed" as in solidity events)
+	// Required value
 	IsTopic bool `json:"is_topic,omitempty"`
 	// The index of the field in either a log's topics or data. For example, if a
 	// field is the second topic of a log, then FieldIndex is 1; if a field is the
 	// third field in the RLP decoded data, then FieldIndex is 2.
+	// Required value
 	FieldIndex uint `json:"field_index,omitempty"`
 	// The value of the field in event, aka the actual thing we care about, only
 	// 32-byte fixed length values are supported.
+	// Optional value
 	Value common.Hash `json:"value,omitempty"`
 }
 
-// Used for data persistence only
 type StorageData struct {
-	BlockNum     *big.Int       `json:"block_num,omitempty"`
-	BlockBaseFee *big.Int       `json:"block_base_fee,omitempty"`
-	Address      common.Address `json:"address,omitempty"`
-	Slot         common.Hash    `json:"slot,omitempty"`
-	Value        common.Hash    `json:"value,omitempty"`
+	BlockNum     *big.Int       `json:"block_num,omitempty"`      // Required value
+	BlockBaseFee *big.Int       `json:"block_base_fee,omitempty"` // Optional value
+	Address      common.Address `json:"address,omitempty"`        // Required value
+	Slot         common.Hash    `json:"slot,omitempty"`           // Required value
+	Value        common.Hash    `json:"value,omitempty"`          // Optional value
 }
 
-// Used for data persistence only
 type TransactionData struct {
-	Hash         common.Hash `json:"hash,omitempty"`
-	BlockNum     *big.Int    `json:"block_num,omitempty"`
-	BlockBaseFee *big.Int    `json:"block_base_fee,omitempty"`
-	MptKeyPath   *big.Int    `json:"mpt_key_path,omitempty"`
-	LeafHash     common.Hash `json:"leaf_hash,omitempty"`
+	Hash         common.Hash `json:"hash,omitempty"`           // Required value
+	BlockNum     *big.Int    `json:"block_num,omitempty"`      // Optional value
+	BlockBaseFee *big.Int    `json:"block_base_fee,omitempty"` // Optional value
+	MptKeyPath   *big.Int    `json:"mpt_key_path,omitempty"`   // Optional value
+	LeafHash     common.Hash `json:"leaf_hash,omitempty"`      // Optional value
 }
 
 type rawData[T ReceiptData | StorageData | TransactionData] struct {
