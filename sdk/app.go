@@ -325,7 +325,6 @@ func (q *BrevisApp) PrepareRequest(
 	callbackGasLimit uint64,
 	option *gwproto.QueryOption,
 	apiKey string, // used for brevis partner flow
-	vkHash []byte,
 ) (calldata []byte, requestId common.Hash, nonce uint64, feeValue *big.Int, err error) {
 	if q.mockDataLength() > 0 {
 		panic("you cannot use mock data to send PrepareRequest")
@@ -336,8 +335,7 @@ func (q *BrevisApp) PrepareRequest(
 	if len(apiKey) > 0 {
 		fmt.Println("Use Brevis Partner Flow to PrepareRequest...")
 		return q.prepareQueryForBrevisPartnerFlow(
-			vk, witness, srcChainId, dstChainId, appContract, option, apiKey, vkHash,
-		)
+			vk, witness, srcChainId, dstChainId, appContract, option, apiKey)
 	}
 
 	q.srcChainId = srcChainId
@@ -522,7 +520,6 @@ func (q *BrevisApp) prepareQueryForBrevisPartnerFlow(
 	appContract common.Address,
 	option *gwproto.QueryOption,
 	apiKey string, // used for brevis partner flow
-	vkHash []byte,
 ) (calldata []byte, requestId common.Hash, nonce uint64, feeValue *big.Int, err error) {
 	if !q.buildInputCalled {
 		panic("must call BuildCircuitInput before PrepareRequest")
@@ -535,6 +532,15 @@ func (q *BrevisApp) prepareQueryForBrevisPartnerFlow(
 		err = fmt.Errorf("failed to build app circuit info: %s", err.Error())
 		return
 	}
+
+	vkHashInBigInt, err := CalBrevisCircuitDigest(q.maxReceipts, q.maxStorage, q.dataPoints-q.maxReceipts-q.maxStorage, vk)
+	if err != nil {
+		fmt.Printf("error computing vk hash: %s", err.Error())
+		return
+	}
+
+	// Make sure vk hash is 32-bytes
+	vkHash := common.BytesToHash(vkHashInBigInt.Bytes()).Bytes()
 
 	req := &gwproto.SendBatchQueriesRequest{
 		ChainId: srcChainId,
