@@ -4,6 +4,13 @@ import (
 	"bufio"
 	"crypto/rand"
 	"fmt"
+	"math/big"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	fr_bn254 "github.com/consensys/gnark-crypto/ecc/bn254/fr"
@@ -11,12 +18,6 @@ import (
 	kzg_bn254 "github.com/consensys/gnark-crypto/ecc/bn254/kzg"
 	"github.com/consensys/gnark-crypto/kzg"
 	"github.com/consensys/gnark/constraint"
-	"math/big"
-	"net/http"
-	"os"
-	"path/filepath"
-	"strings"
-	"sync"
 )
 
 const curveID = ecc.BN254
@@ -160,7 +161,7 @@ type CacheEntry struct {
 }
 
 func CacheKey(k uint64) string {
-	return fmt.Sprintf("kzgsrs-%s-%d", curveID.String(), k)
+	return fmt.Sprintf("perpetual-powers-of-tau-%d", k)
 }
 
 func ReadFile(filePath string) (CacheEntry, error) {

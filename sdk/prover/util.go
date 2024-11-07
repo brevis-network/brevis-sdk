@@ -83,81 +83,43 @@ func parseBig(encoded string) (*big.Int, error) {
 }
 
 func convertProtoReceiptToSdkReceipt(in *sdkproto.ReceiptData) (sdk.ReceiptData, error) {
-	var fields [sdk.NumMaxLogFields]sdk.LogFieldData
+	fields := make([]sdk.LogFieldData, len(in.Fields))
 	if len(in.Fields) == 0 {
 		return sdk.ReceiptData{}, fmt.Errorf("invalid log field")
 	}
 
 	for i := range fields {
-		if i < len(in.Fields) {
-			field, err := convertProtoFieldToSdkLogField(in.Fields[i])
-			if err != nil {
-				return sdk.ReceiptData{}, err
-			}
-			fields[i] = field
-		} else {
-			fields[i] = fields[len(in.Fields)-1]
+		field, err := convertProtoFieldToSdkLogField(in.Fields[i])
+		if err != nil {
+			return sdk.ReceiptData{}, err
 		}
+		fields[i] = field
 	}
 
 	return sdk.ReceiptData{
-		BlockNum: new(big.Int).SetUint64(in.BlockNum),
-		TxHash:   hex2Hash(in.TxHash),
-		Fields:   fields,
+		TxHash: hex2Hash(in.TxHash),
+		Fields: fields[:],
 	}, nil
 }
 
 func convertProtoFieldToSdkLogField(in *sdkproto.Field) (sdk.LogFieldData, error) {
-	value, err := parseHash(in.Value)
-	if err != nil {
-		return sdk.LogFieldData{}, err
-	}
 	return sdk.LogFieldData{
-		Contract:   hex2Addr(in.Contract),
 		LogPos:     uint(in.LogPos),
-		EventID:    hex2Hash(in.EventId),
 		IsTopic:    in.IsTopic,
 		FieldIndex: uint(in.FieldIndex),
-		Value:      value,
 	}, nil
 }
 
 func convertProtoStorageToSdkStorage(in *sdkproto.StorageData) (sdk.StorageData, error) {
-	value, err := parseHash(in.Value)
-	if err != nil {
-		return sdk.StorageData{}, err
-	}
 	return sdk.StorageData{
 		BlockNum: new(big.Int).SetUint64(in.BlockNum),
 		Address:  hex2Addr(in.Address),
 		Slot:     hex2Hash(in.Slot),
-		Value:    value,
 	}, nil
 }
 
 func convertProtoTxToSdkTx(in *sdkproto.TransactionData) (sdk.TransactionData, error) {
-	value, err := parseBig(in.Value)
-	if err != nil {
-		return sdk.TransactionData{}, err
-	}
-	gasTipCapOrGasPrice, err := parseBig(in.GasTipCapOrGasPrice)
-	if err != nil {
-		return sdk.TransactionData{}, err
-	}
-	gasFeeCap, err := parseBig(in.GasFeeCap)
-	if err != nil {
-		return sdk.TransactionData{}, err
-	}
 	return sdk.TransactionData{
-		Hash:                hex2Hash(in.Hash),
-		ChainId:             new(big.Int).SetUint64(in.ChainId),
-		BlockNum:            new(big.Int).SetUint64(in.BlockNum),
-		Nonce:               in.Nonce,
-		GasTipCapOrGasPrice: gasTipCapOrGasPrice,
-		GasFeeCap:           gasFeeCap,
-		GasLimit:            in.GasLimit,
-		From:                hex2Addr(in.From),
-		To:                  hex2Addr(in.To),
-		Value:               value,
+		Hash: hex2Hash(in.Hash),
 	}, nil
 }

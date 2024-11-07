@@ -10,7 +10,9 @@ import (
 )
 
 func TestCircuit(t *testing.T) {
-	app, err := sdk.NewBrevisApp(1)
+	rpc := "RPC_URL"
+	outDir := "$HOME/circuitOut/myBrevisApp"
+	app, err := sdk.NewBrevisApp(1, rpc, outDir)
 	check(err)
 
 	USDT := common.HexToAddress("0xdac17f958d2ee523a2206206994597c13d831ec7")
@@ -19,14 +21,12 @@ func TestCircuit(t *testing.T) {
 		BlockNum: big.NewInt(19290434),
 		Address:  USDT,
 		Slot:     common.HexToHash("0x568f97cb8c4c4a5582f76b76203c3168e6b403a6cad2536bcda6c6a37564ab52"),
-		Value:    common.HexToHash("0x00000000000000000000000000000000000000000000000000000005a3d8ce7b"),
 	})
 
 	app.AddStorage(sdk.StorageData{
 		BlockNum: big.NewInt(19525436),
 		Address:  USDT,
 		Slot:     common.HexToHash("0x568f97cb8c4c4a5582f76b76203c3168e6b403a6cad2536bcda6c6a37564ab52"),
-		Value:    common.HexToHash("0x0000000000000000000000000000000000000000000000000000000660eafbb9"),
 	})
 
 	appCircuit := &AppCircuit{}

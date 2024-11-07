@@ -28,8 +28,9 @@ func (d DataInput) Toggles() []frontend.Variable {
 	toggles = append(toggles, d.Receipts.Toggles...)
 	toggles = append(toggles, d.StorageSlots.Toggles...)
 	toggles = append(toggles, d.Transactions.Toggles...)
+	dataPoints := DataPointsNextPowerOf2(len(d.Receipts.Toggles) + len(d.StorageSlots.Toggles) + len(d.Transactions.Toggles))
 	// pad the reset (the dummy part) with off toggles
-	for i := len(toggles); i < NumMaxDataPoints; i++ {
+	for i := len(toggles); i < dataPoints; i++ {
 		toggles = append(toggles, 0)
 	}
 	return toggles
@@ -55,9 +56,9 @@ type CircuitInput struct {
 	dryRunOutput []byte `gnark:"-"`
 }
 
-func defaultCircuitInput(maxReceipts, maxStorage, maxTxs int) CircuitInput {
-	var inputCommits = make([]frontend.Variable, NumMaxDataPoints)
-	for i := 0; i < NumMaxDataPoints; i++ {
+func defaultCircuitInput(maxReceipts, maxStorage, maxTxs, dataPoints int) CircuitInput {
+	var inputCommits = make([]frontend.Variable, dataPoints)
+	for i := 0; i < dataPoints; i++ {
 		inputCommits[i] = 0
 	}
 	return CircuitInput{
@@ -142,12 +143,6 @@ func (dp DataPoints[T]) Clone() DataPoints[T] {
 		Toggles: toggles,
 	}
 }
-
-// NumMaxDataPoints is the max amount of data points this circuit can handle at
-// once. This couples tightly to the batch size of the aggregation circuit on
-// Brevis' side
-// 512
-const NumMaxDataPoints = 128
 
 // NumMaxLogFields is the max amount of log fields each Receipt can have. This
 // couples tightly to the decoding capacity of the receipt decoder circuit on

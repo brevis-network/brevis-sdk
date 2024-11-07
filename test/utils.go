@@ -1,11 +1,12 @@
 package test
 
 import (
+	"testing"
+
 	"github.com/brevis-network/brevis-sdk/sdk"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend"
 	"github.com/consensys/gnark/test"
-	"testing"
 )
 
 // ProverSucceeded checks:

@@ -29,6 +29,8 @@ func buildAppCircuitInfo(in CircuitInput,
 		return nil, err
 	}
 
+	dataPoints := DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
+
 	return &commonproto.AppCircuitInfo{
 		OutputCommitment:     hexutil.Encode(in.OutputCommitment.Hash().Bytes()),
 		Vk:                   hexutil.Encode(mustWriteToBytes(vk)),
@@ -41,22 +43,19 @@ func buildAppCircuitInfo(in CircuitInput,
 		MaxReceipts:          uint32(maxReceipts),
 		MaxStorage:           uint32(maxStorage),
 		MaxTx:                uint32(maxTxs),
+		MaxNumDataPoints:     uint32(dataPoints),
 	}, nil
 }
 
 func buildReceiptInfos(r rawData[ReceiptData], max int) (infos []*gwproto.ReceiptInfo) {
-	empty := LogFieldData{}
 	for _, d := range r.list(max) {
 		var logExtractInfo []*gwproto.LogExtractInfo
 		for _, f := range d.Fields {
-			// only use non-empty LogFieldData
-			if f != empty {
-				logExtractInfo = append(logExtractInfo, &gwproto.LogExtractInfo{
-					LogPos:         uint64(f.LogPos),
-					ValueFromTopic: f.IsTopic,
-					ValueIndex:     uint64(f.FieldIndex),
-				})
-			}
+			logExtractInfo = append(logExtractInfo, &gwproto.LogExtractInfo{
+				LogPos:         uint64(f.LogPos),
+				ValueFromTopic: f.IsTopic,
+				ValueIndex:     uint64(f.FieldIndex),
+			})
 		}
 		infos = append(infos, &gwproto.ReceiptInfo{
 			TransactionHash: d.TxHash.Hex(),
