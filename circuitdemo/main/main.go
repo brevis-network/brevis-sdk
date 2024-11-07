@@ -19,7 +19,7 @@ func (c *AppCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions int) {
 	// Our app is only ever going to use one storage data at a time so
 	// we can simply limit the max number of data for storage to 1 and
 	// 0 for all others
-	return 32, 32, 32
+	return 32, 32, 64
 }
 
 func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
@@ -71,7 +71,7 @@ func main() {
 
 	appCircuitAssignment := &AppCircuit{}
 
-	compiledCircuit, pk, vk, vkHash, err := sdk.Compile(&AppCircuit{}, outDir, srsDir)
+	compiledCircuit, pk, vk, _, err := sdk.Compile(&AppCircuit{}, outDir, srsDir)
 	check(err)
 	circuitInput, err := app.BuildCircuitInput(appCircuitAssignment)
 	check(err)
@@ -91,7 +91,7 @@ func main() {
 	proof.WriteTo(buf)
 	fmt.Println("Proof: ", hexutil.Encode(buf.Bytes()))
 
-	_, _, _, _, err = app.PrepareRequest(vk, witness, 1, 11155111, refundee, appContract, 400000, gwproto.QueryOption_ZK_MODE.Enum(), "", vkHash)
+	_, _, _, _, err = app.PrepareRequest(vk, witness, 1, 421614, refundee, appContract, 400000, gwproto.QueryOption_ZK_MODE.Enum(), "")
 	check(err)
 
 	err = app.SubmitProof(proof)

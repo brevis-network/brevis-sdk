@@ -2,220 +2,140 @@ package srs
 
 import (
 	"bufio"
-	"crypto/rand"
+	"bytes"
+	"crypto/md5"
 	"fmt"
-	"math/big"
+	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/consensys/gnark-crypto/ecc"
-	"github.com/consensys/gnark-crypto/ecc/bn254"
-	fr_bn254 "github.com/consensys/gnark-crypto/ecc/bn254/fr"
-	fft_bn254 "github.com/consensys/gnark-crypto/ecc/bn254/fr/fft"
-	kzg_bn254 "github.com/consensys/gnark-crypto/ecc/bn254/kzg"
 	"github.com/consensys/gnark-crypto/kzg"
 	"github.com/consensys/gnark/constraint"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+
+	kzg_bn254 "github.com/consensys/gnark-crypto/ecc/bn254/kzg"
 )
 
 const curveID = ecc.BN254
+const key = "kzg_srs_100800000_bn254_MAIN_IGNITION"
 
 var (
-	cache           = make(map[string]CacheEntry)
-	memLock, fsLock sync.RWMutex
+	fsLock sync.RWMutex
 )
 
-func NewSRS(ccs constraint.ConstraintSystem, downloadUrl, fsCacheDir string) (canonical, lagrange kzg.SRS, err error) {
+func NewSRS(ccs constraint.ConstraintSystem, fsCacheDir string) (canonical, lagrange kzg.SRS, err error) {
 	nbConstraints := ccs.GetNbConstraints()
 	sizeSystem := nbConstraints + ccs.GetNbPublicVariables()
 	fmt.Println("size system", sizeSystem)
 	sizeLagrange := ecc.NextPowerOfTwo(uint64(sizeSystem))
 	fmt.Println("size lagrange", sizeLagrange)
 
-	k := log2(sizeLagrange)
-	key := CacheKey(k)
-	fmt.Println("fetching SRS from cache")
-	memLock.RLock()
-	entry, ok := cache[key]
-	memLock.RUnlock()
-	if ok {
-		fmt.Println("SRS found in mem cache")
-		return entry.Canonical, entry.Lagrange, nil
-	}
-	fmt.Println("SRS not found in mem cache")
+	initDir(fsCacheDir)
 
+	fmt.Println("fetching srs ignition from file")
 	filePath := filepath.Join(fsCacheDir, key)
-	fmt.Println("fetching SRS from fs cache", filePath)
 	fsLock.RLock()
-	entry, err = ReadFile(filePath)
+	srsIgnition, err := ReadFile(filePath)
 	fsLock.RUnlock()
 	if err == nil {
-		fmt.Println("SRS found in fs cache")
-		memLock.Lock()
-		cache[key] = entry
-		memLock.Unlock()
-		return entry.Canonical, entry.Lagrange, nil
-	} else {
-		fmt.Println("SRS not found in fs cache")
+		return generateLagrange(srsIgnition, sizeLagrange)
 	}
 
-	fmt.Println("Downloading SRS from url")
-
-	// not in cache, download
-	entry, err = download(downloadUrl, key)
-	if err != nil {
-		return nil, nil, err
+	fmt.Println("srs ignition not found in file")
+	srsIgnition, err = downloadSRSIgnition(filePath)
+	if err == nil {
+		return generateLagrange(srsIgnition, sizeLagrange)
 	}
-
-	// cache it
-	memLock.Lock()
-	cache[key] = entry
-	memLock.Unlock()
-
-	fmt.Println("writing SRS to fs cache")
-	fsLock.Lock()
-	defer fsLock.Unlock()
-	err = WriteFile(filePath, entry)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return entry.Canonical, entry.Lagrange, nil
+	return nil, nil, err
 }
 
-func log2(num uint64) uint64 {
-	var res uint64 = 0
-	for num > 1 {
-		num >>= 1
-		res++
-	}
-	return res
-}
-
-func Generate(canonicalSize uint64) (kzg.SRS, kzg.SRS, error) {
-	tau, err := rand.Int(rand.Reader, ecc.BN254.ScalarField())
+func generateLagrange(srsIgnition kzg.SRS, sizeLagrange uint64) (kzg.SRS, kzg.SRS, error) {
+	fmt.Println("srs iginition ready")
+	var err error
+	bn254Srs := srsIgnition.(*kzg_bn254.SRS)
+	lagrangeSRS := &kzg_bn254.SRS{Vk: bn254Srs.Vk}
+	lagrangeSRS.Pk.G1, err = kzg_bn254.ToLagrangeG1(bn254Srs.Pk.G1[:sizeLagrange])
 	if err != nil {
+		fmt.Println("cannot generate lagrange srs:", err)
 		return nil, nil, err
 	}
-	srs, err := kzg_bn254.NewSRS(canonicalSize, tau)
-	if err != nil {
-		return nil, nil, err
-	}
-	return srs, toLagrange(srs, tau), nil
+	return bn254Srs, lagrangeSRS, nil
 }
 
-func toLagrange(canonical kzg.SRS, tau *big.Int) kzg.SRS {
-	srs := canonical.(*kzg_bn254.SRS)
-	s := &kzg_bn254.SRS{Vk: srs.Vk}
-	size := uint64(len(srs.Pk.G1)) - 3
+func downloadSRSIgnition(filePath string) (kzg.SRS, error) {
+	url := fmt.Sprintf("https://kzg-srs.s3.us-west-2.amazonaws.com/%s", key)
+	fmt.Println("downloading file", url)
 
-	pAlpha := make([]fr_bn254.Element, size)
-	pAlpha[0].SetUint64(1)
-	pAlpha[1].SetBigInt(tau)
-	for i := 2; i < len(pAlpha); i++ {
-		pAlpha[i].Mul(&pAlpha[i-1], &pAlpha[1])
+	// Saving downloading time with curl command
+	cmd := exec.Command("curl", "-O", filePath, url)
+	err := cmd.Run()
+	if err == nil {
+		return ReadFile(filePath)
 	}
 
-	d := fft_bn254.NewDomain(size)
-	d.FFTInverse(pAlpha, fft_bn254.DIF)
-	fmt.Println("pAlpha len", len(pAlpha))
-	fft_bn254.BitReverse(pAlpha)
-
-	_, _, g1gen, _ := bn254.Generators()
-	s.Pk.G1 = bn254.BatchScalarMultiplicationG1(&g1gen, pAlpha)
-	var lagrange kzg.SRS
-	lagrange = s
-	return lagrange
-}
-
-func download(url string, key string) (CacheEntry, error) {
-	base := strings.Trim(url, "/")
-	fullUrl := fmt.Sprintf("%s/%s", base, key)
-	fmt.Println("downloading file", fullUrl)
-	res, err := http.Get(fullUrl)
+	res, err := http.Get(url)
 	if err != nil {
-		return CacheEntry{}, err
+		return kzg.NewSRS(curveID), err
 	}
 	defer res.Body.Close()
-	entry := CacheEntry{
-		Canonical: kzg.NewSRS(curveID),
-		Lagrange:  kzg.NewSRS(curveID),
-	}
-	r := bufio.NewReaderSize(res.Body, 1<<20)
-	_, err = entry.Canonical.UnsafeReadFrom(r)
+
+	f, err := os.Create(filePath)
 	if err != nil {
-		return entry, err
+		panic("cannot create file")
 	}
-	_, err = entry.Lagrange.UnsafeReadFrom(r)
+	fmt.Println("writing srs ignition file")
+	fsLock.RLock()
+	_, err = io.Copy(f, res.Body)
+	fsLock.RUnlock()
+
 	if err != nil {
-		return entry, err
+		panic("cannot save srs ignition file")
 	}
-	return entry, nil
+
+	return ReadFile(filePath)
 }
 
-type CacheEntry struct {
-	Canonical kzg.SRS
-	Lagrange  kzg.SRS
-}
-
-func CacheKey(k uint64) string {
-	return fmt.Sprintf("perpetual-powers-of-tau-%d", k)
-}
-
-func ReadFile(filePath string) (CacheEntry, error) {
+func validateFile(filePath string) error {
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return CacheEntry{}, fmt.Errorf("file %s does not exist", filePath)
+		return fmt.Errorf("file %s does not exist", filePath)
 	}
 
 	f, err := os.Open(filePath)
 	if err != nil {
-		return CacheEntry{}, err
+		return err
 	}
 	defer f.Close()
 
-	r := bufio.NewReaderSize(f, 1<<20)
+	buf := bytes.NewBuffer([]byte{})
+	buf.ReadFrom(f)
 
-	entry := CacheEntry{
-		Canonical: kzg.NewSRS(curveID),
-		Lagrange:  kzg.NewSRS(curveID),
+	md5Original := md5.Sum(buf.Bytes())
+	if hexutil.Encode(md5Original[:]) != "0x2abd249241a7fe883379db93530365f8" {
+		return fmt.Errorf("invalid checksum of local file")
 	}
-	_, err = entry.Canonical.UnsafeReadFrom(r)
-	if err != nil {
-		return entry, err
-	}
-	_, err = entry.Lagrange.UnsafeReadFrom(r)
-	if err != nil {
-		return entry, err
-	}
-
-	return entry, nil
+	return nil
 }
 
-func WriteFile(filePath string, entry CacheEntry) error {
-	dir, _ := filepath.Split(filePath)
-	initDir(dir)
-	// if file exist, return.
-	if _, err := os.Stat(filePath); err == nil {
-		return err
-	}
-	// else open file and write the srs.
-	f, err := os.Create(filePath)
+func ReadFile(filePath string) (kzg.SRS, error) {
+	err := validateFile(filePath)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	f, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
 	}
 	defer f.Close()
+	r := bufio.NewReaderSize(f, 1<<20)
 
-	w := bufio.NewWriterSize(f, 1<<20)
-	if _, err = entry.Canonical.WriteRawTo(w); err != nil {
-		return err
-	}
-	if _, err = entry.Lagrange.WriteRawTo(w); err != nil {
-		return err
-	}
-	err = w.Flush()
-	return err
+	kzgSrs := kzg.NewSRS(curveID)
+	kzgSrs.UnsafeReadFrom(r)
+
+	return kzgSrs, nil
 }
 
 func initDir(cacheDir string) {
