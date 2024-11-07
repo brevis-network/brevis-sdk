@@ -71,7 +71,7 @@ func main() {
 
 	appCircuitAssignment := &AppCircuit{}
 
-	compiledCircuit, pk, vk, vkHash, err := sdk.Compile(&AppCircuit{}, outDir, srsDir)
+	compiledCircuit, pk, vk, _, err := sdk.Compile(&AppCircuit{}, outDir, srsDir)
 	check(err)
 	circuitInput, err := app.BuildCircuitInput(appCircuitAssignment)
 	check(err)
@@ -91,7 +91,7 @@ func main() {
 	proof.WriteTo(buf)
 	fmt.Println("Proof: ", hexutil.Encode(buf.Bytes()))
 
-	_, _, _, _, err = app.PrepareRequest(vk, witness, 1, 421614, refundee, appContract, 400000, gwproto.QueryOption_ZK_MODE.Enum(), "", vkHash)
+	_, _, _, _, err = app.PrepareRequest(vk, witness, 1, 421614, refundee, appContract, 400000, gwproto.QueryOption_ZK_MODE.Enum(), "")
 	check(err)
 
 	err = app.SubmitProof(proof)

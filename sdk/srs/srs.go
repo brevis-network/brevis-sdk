@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sync"
 
@@ -68,6 +69,14 @@ func generateLagrange(srsIgnition kzg.SRS, sizeLagrange uint64) (kzg.SRS, kzg.SR
 func downloadSRSIgnition(filePath string) (kzg.SRS, error) {
 	url := fmt.Sprintf("https://kzg-srs.s3.us-west-2.amazonaws.com/%s", key)
 	fmt.Println("downloading file", url)
+
+	// Saving downloading time with curl command
+	cmd := exec.Command("curl", "-O", filePath, url)
+	err := cmd.Run()
+	if err == nil {
+		return ReadFile(filePath)
+	}
+
 	res, err := http.Get(url)
 	if err != nil {
 		return kzg.NewSRS(curveID), err
