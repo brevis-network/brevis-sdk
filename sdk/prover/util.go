@@ -33,7 +33,7 @@ func hex2Hash(s string) common.Hash {
 	return common.BytesToHash(hex2Bytes(s))
 }
 
-func buildAppCircuitInfo(in sdk.CircuitInput, vk, vkHash, witness string) *commonproto.AppCircuitInfo {
+func buildAppCircuitInfo(app sdk.AppCircuit, in sdk.CircuitInput, vk, vkHash, witness string) *commonproto.AppCircuitInfo {
 	inputCommitments := make([]string, len(in.InputCommitments))
 	for i, value := range in.InputCommitments {
 		inputCommitments[i] = fmt.Sprintf("0x%x", value)
@@ -44,17 +44,23 @@ func buildAppCircuitInfo(in sdk.CircuitInput, vk, vkHash, witness string) *commo
 		toggles[i] = fmt.Sprintf("%x", value) == "1"
 	}
 
+	maxReceipts, maxStorage, maxTxs := app.Allocate()
+	dataPoints := sdk.DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
+
 	return &commonproto.AppCircuitInfo{
 		OutputCommitment:     hexutil.Encode(in.OutputCommitment.Hash().Bytes()),
 		Vk:                   vk,
 		InputCommitments:     inputCommitments,
-		TogglesCommitment:    fmt.Sprintf("0x%x", in.TogglesCommitment),
 		Toggles:              toggles,
 		UseCallback:          true,
 		Output:               hexutil.Encode(in.GetAbiPackedOutput()),
 		VkHash:               vkHash,
 		InputCommitmentsRoot: fmt.Sprintf("0x%x", in.InputCommitmentsRoot),
 		Witness:              witness,
+		MaxReceipts:          uint32(maxReceipts),
+		MaxStorage:           uint32(maxStorage),
+		MaxTx:                uint32(maxTxs),
+		MaxNumDataPoints:     uint32(dataPoints),
 	}
 }
 
