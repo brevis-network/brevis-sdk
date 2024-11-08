@@ -221,7 +221,7 @@ func convertFieldDataToField(f LogFieldData) LogField {
 		EventID: ConstUint248(f.EventID.Bytes()[0:6]),
 		IsTopic: ConstUint248(f.IsTopic),
 		Index:   ConstUint248(f.FieldIndex),
-		Value:   ConstBytes32(f.Value[:]),
+		Value:   ConstFromBigEndianBytes(f.Value[:]),
 	}
 }
 
@@ -247,8 +247,8 @@ func convertStorageDataToStorage(data *StorageData) StorageSlot {
 		BlockNum:     newU32(data.BlockNum),
 		BlockBaseFee: newU248(data.BlockBaseFee),
 		Contract:     ConstUint248(data.Address),
-		Slot:         ConstBytes32(data.Slot[:]),
-		Value:        ConstBytes32(data.Value[:]),
+		Slot:         ConstFromBigEndianBytes(data.Slot[:]),
+		Value:        ConstFromBigEndianBytes(data.Value[:]),
 	}
 }
 
@@ -281,7 +281,7 @@ func convertTxDataToTransaction(data *TransactionData) Transaction {
 		BlockNum:     ConstUint32(data.BlockNum),
 		BlockBaseFee: newU248(data.BlockBaseFee),
 		MptKeyPath:   newU32(data.MptKeyPath),
-		LeafHash:     ConstBytes32(data.LeafHash.Bytes()),
+		LeafHash:     ConstFromBigEndianBytes(data.LeafHash.Bytes()),
 	}
 }
 

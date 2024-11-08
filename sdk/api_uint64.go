@@ -16,14 +16,6 @@ func newU64(v frontend.Variable) Uint64 {
 	return Uint64{Val: v}
 }
 
-func newU64s(vs ...frontend.Variable) List[Uint64] {
-	ret := make([]Uint64, len(vs))
-	for i, v := range vs {
-		ret[i] = newU64(v)
-	}
-	return ret
-}
-
 // ConstUint64 initializes a constant Uint64. This function does not generate
 // circuit wires and should only be used outside of circuit. Supports all int and
 // uint variants, bool, []byte (big-endian), *big.Int, and string inputs. If
@@ -31,7 +23,14 @@ func newU64s(vs ...frontend.Variable) List[Uint64] {
 // the string
 func ConstUint64(i interface{}) Uint64 {
 	ensureNotCircuitVariable(i)
-	return newU64(fromInterface(i))
+	v := fromInterface(i)
+	if v.Sign() < 0 {
+		panic("cannot initialize Uint64 with negative number")
+	}
+	if v.BitLen() > 64 {
+		panic("cannot initialize Uint64 with bit length > 64")
+	}
+	return newU64(v)
 }
 
 func (v Uint64) Values() []frontend.Variable {
@@ -108,6 +107,7 @@ func (api *Uint64API) Div(a, b Uint64) (quotient, remainder Uint64) {
 	q, r := out[0], out[1]
 	orig := api.g.Add(api.g.Mul(q, b.Val), r)
 	api.g.AssertIsEqual(orig, a.Val)
+	api.g.IsZero(api.g.Sub(q, api.g.Div(a.Val, b.Val)))
 	return newU64(q), newU64(r)
 }
 
@@ -117,7 +117,12 @@ func (api *Uint64API) Sqrt(a Uint64) Uint64 {
 	if err != nil {
 		panic(fmt.Errorf("failed to initialize SqrtHint instance: %s", err.Error()))
 	}
-	return newU64(out[0])
+	s := out[0]
+	api.g.AssertIsLessOrEqual(api.g.Mul(s, s), a.Val) // s**2 <= a
+	incS := api.g.Add(s, 1)
+	next := api.g.Mul(incS, incS)
+	api.g.IsZero(api.g.Add(api.g.Cmp(a.Val, next), 1)) // a < (s+1)**2
+	return newU64(s)
 }
 
 // IsZero returns 1 if a == 0, and 0 otherwise
@@ -141,7 +146,7 @@ func (api *Uint64API) IsLessThan(a, b Uint64) Uint64 {
 
 // IsGreaterThan returns 1 if a > b, and 0 otherwise
 func (api *Uint64API) IsGreaterThan(a, b Uint64) Uint64 {
-	return api.IsZero(api.Sub(api.cmp(a, b), newU64(1)))
+	return api.IsLessThan(b, a)
 }
 
 // And returns 1 if a && b [&& other[0] [&& other[1]...]] is true, and 0 otherwise

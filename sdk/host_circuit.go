@@ -185,8 +185,11 @@ func assertInputUniqueness(api frontend.API, in []frontend.Variable, shouldCheck
 		if err != nil {
 			panic(err)
 		}
+		for i := 0; i < len(sorted)-1; i++ {
+			api.AssertIsLessOrEqual(sorted[i+1], sorted[i])
+		}
 		// Grand product check. Asserts the following equation holds:
-		// Σ_{a \in in} a+ɣ = Σ_{b \in sorted} b+ɣ
+		// Π_{a \in in} a+ɣ = Σ_{b \in sorted} b+ɣ
 		var lhs, rhs frontend.Variable = 0, 0
 		for i := 0; i < len(sorted); i++ {
 			lhs = api.Mul(lhs, api.Add(in[i], gamma))
@@ -222,16 +225,16 @@ func (c *HostCircuit) validateInput() error {
 	}
 	maxReceipts, maxSlots, maxTransactions := c.Guest.Allocate()
 	if len(d.Receipts.Raw) != len(d.Receipts.Toggles) || len(d.Receipts.Raw) != maxReceipts {
-		return fmt.Errorf("receipt input/toggle len mismatch: %d vs %d",
-			len(d.Receipts.Raw), len(d.Receipts.Toggles))
+		return fmt.Errorf("receipt input/toggle len mismatch: len(d.Receipts.Raw) %d vs len(d.Receipts.Toggles) %d vs maxReceipts %d",
+			len(d.Receipts.Raw), len(d.Receipts.Toggles), maxReceipts)
 	}
 	if len(d.StorageSlots.Raw) != len(d.StorageSlots.Toggles) || len(d.StorageSlots.Raw) != maxSlots {
-		return fmt.Errorf("storageSlots input/toggle len mismatch: %d vs %d",
-			len(d.StorageSlots.Raw), len(d.StorageSlots.Toggles))
+		return fmt.Errorf("storageSlots input/toggle len mismatch: len(d.StorageSlots.Raw) %d vs len(d.StorageSlots.Toggles) %d vs maxSlots %d",
+			len(d.StorageSlots.Raw), len(d.StorageSlots.Toggles), maxSlots)
 	}
 	if len(d.Transactions.Raw) != len(d.Transactions.Toggles) || len(d.Transactions.Raw) != maxTransactions {
-		return fmt.Errorf("transaction input/toggle len mismatch: %d vs %d",
-			len(d.Transactions.Raw), len(d.Transactions.Toggles))
+		return fmt.Errorf("transaction input/toggle len mismatch: len(d.Transactions.Raw) %d vs len(d.Transactions.Toggles) %d vs maxTransactions %d",
+			len(d.Transactions.Raw), len(d.Transactions.Toggles), maxTransactions)
 	}
 	return nil
 }
@@ -243,7 +246,7 @@ func (c *HostCircuit) commitOutput(bits []frontend.Variable) OutputCommitment {
 		panic(fmt.Errorf("len bits (%d) must be multiple of 8", len(bits)))
 	}
 
-	rounds := len(bits)/1088 + 1
+	rounds := (len(bits)+1)/1088 + 1
 	paddedLen := rounds * 1088
 	padded := make([]frontend.Variable, paddedLen)
 	copy(padded, bits)
@@ -271,6 +274,10 @@ func (c *HostCircuit) commitOutput(bits []frontend.Variable) OutputCommitment {
 }
 
 func bits2Bytes(data []frontend.Variable) []byte {
+	if len(data)%8 != 0 {
+		panic("data size must be multiple of 8")
+	}
+
 	var bits []uint
 	for _, b := range data {
 		bits = append(bits, uint(fromInterface(b).Int64()))

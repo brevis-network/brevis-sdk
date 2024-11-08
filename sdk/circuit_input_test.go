@@ -83,7 +83,7 @@ func TestReceiptPack(t *testing.T) {
 			EventID:  ParseEventID(hexutil.MustDecode("0xDEF171Fe48CF")),
 			IsTopic:  ConstUint248(true),
 			Index:    ConstUint248(0),
-			Value:    ConstBytes32(hexutil.MustDecode("0x1234")),
+			Value:    ConstFromBigEndianBytes(hexutil.MustDecode("0x1234")),
 		}
 	}
 	fmt.Println("expected packed", r.goPack())
@@ -136,8 +136,8 @@ func TestStoragePack(t *testing.T) {
 		BlockNum:     ConstUint32(1234567),
 		BlockBaseFee: ConstUint248(1),
 		Contract:     ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
-		Slot:         ConstBytes32(common.FromHex("0x9c2d3d42dcdafb0cb8c10089d02447b96c5fce87f298e50f88f2e188a6afcc41")),
-		Value:        ConstBytes32(common.FromHex("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
+		Slot:         ConstFromBigEndianBytes(common.FromHex("0x9c2d3d42dcdafb0cb8c10089d02447b96c5fce87f298e50f88f2e188a6afcc41")),
+		Value:        ConstFromBigEndianBytes(common.FromHex("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
 	}
 	c := &TestStoragePackCircuit{
 		Slot:   s,
@@ -182,7 +182,7 @@ func TestTransactionPack(t *testing.T) {
 		// From:                ConstUint248(common.HexToAddress("0x58b529F9084D7eAA598EB3477Fe36064C5B7bbC1")),
 		// To:                  ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
 		// Value:               ConstBytes32(hexutil.MustDecode("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
-		LeafHash: ConstBytes32(hexutil.MustDecode("0x784ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c732")),
+		LeafHash: ConstFromBigEndianBytes(hexutil.MustDecode("0x784ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c732")),
 	}
 	c := &TestTransactionPackCircuit{
 		Transaction: tx,
@@ -211,7 +211,7 @@ func TestReceiptCircuitVariable(t *testing.T) {
 				EventID:  ParseEventID(hexutil.MustDecode("0xDEF171Fe48CF")),
 				IsTopic:  ConstUint248(true),
 				Index:    ConstUint248(0),
-				Value:    ConstBytes32(hexutil.MustDecode("0x1234")),
+				Value:    ConstFromBigEndianBytes(hexutil.MustDecode("0x1234")),
 			},
 			{
 				Contract: ConstUint248(common.HexToAddress("0xDEF171Fe18CF0115B1d80b88dc8eAB59176FEe57")),
@@ -219,7 +219,7 @@ func TestReceiptCircuitVariable(t *testing.T) {
 				EventID:  ParseEventID(hexutil.MustDecode("0xDEF171F148CF")),
 				IsTopic:  ConstUint248(false),
 				Index:    ConstUint248(0),
-				Value:    ConstBytes32(hexutil.MustDecode("0x1234")),
+				Value:    ConstFromBigEndianBytes(hexutil.MustDecode("0x1234")),
 			},
 		},
 	}
@@ -232,8 +232,8 @@ func TestStorageCircuitVariable(t *testing.T) {
 	s := StorageSlot{
 		BlockNum: ConstUint32(1234567),
 		Contract: ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
-		Slot:     ConstBytes32(hexutil.MustDecode("0x9c2d3d42dcdafb0cb8c10089d02447b96c5fce87f298e50f88f2e188a6afcc41")),
-		Value:    ConstBytes32(hexutil.MustDecode("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
+		Slot:     ConstFromBigEndianBytes(hexutil.MustDecode("0x9c2d3d42dcdafb0cb8c10089d02447b96c5fce87f298e50f88f2e188a6afcc41")),
+		Value:    ConstFromBigEndianBytes(hexutil.MustDecode("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
 	}
 	values := s.Values()
 	reconstructed := s.FromValues(values...)
@@ -251,7 +251,7 @@ func TestTransactionCircuitVariable(t *testing.T) {
 		// From:                ConstUint248(common.HexToAddress("0x58b529F9084D7eAA598EB3477Fe36064C5B7bbC1")),
 		// To:                  ConstUint248(common.HexToAddress("0xDEF171Fe48CF0115B1d80b88dc8eAB59176FEe57")),
 		// Value:               ConstBytes32(hexutil.MustDecode("0xaa4ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c726")),
-		LeafHash: ConstBytes32(hexutil.MustDecode("0x784ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c732")),
+		LeafHash: ConstFromBigEndianBytes(hexutil.MustDecode("0x784ba4b304228a9d05087e147c9e86d84c708bbbe62bb35b28dab74492f6c732")),
 	}
 	values := tx.Values()
 	reconstructed := tx.FromValues(values...)

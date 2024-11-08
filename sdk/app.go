@@ -89,6 +89,9 @@ func (q *rawData[T]) add(data T, index ...int) {
 		q.special = make(map[int]T)
 	}
 	if len(index) == 1 {
+		if _, ok := q.special[index[0]]; ok {
+			panic(fmt.Sprintf("an element already pinned at index %d", index[0]))
+		}
 		q.special[index[0]] = data
 	} else {
 		q.ordered = append(q.ordered, data)
@@ -471,6 +474,7 @@ func (q *BrevisApp) SubmitProof(proof plonk.Proof, options ...SubmitProofOption)
 			if err != nil {
 				fmt.Println(err.Error())
 				opts.onError(err)
+				return
 			}
 			opts.onSubmitted(tx)
 		}()
@@ -667,6 +671,11 @@ func (q *BrevisApp) checkAllocations(cb AppCircuit) error {
 	if maxReceipts%32 != 0 {
 		return allocationMultipleErr("receipt", maxReceipts)
 	}
+	for index := range q.receipts.special {
+		if index >= maxReceipts {
+			return allocationIndexErr("receipt", index, maxReceipts)
+		}
+	}
 	if numReceipts > maxReceipts {
 		return allocationLenErr("receipt", numReceipts, maxReceipts)
 	}
@@ -674,12 +683,22 @@ func (q *BrevisApp) checkAllocations(cb AppCircuit) error {
 	if maxSlots%32 != 0 {
 		return allocationMultipleErr("storage", maxSlots)
 	}
+	for index := range q.storageVals.special {
+		if index >= maxSlots {
+			return allocationIndexErr("storage", index, maxSlots)
+		}
+	}
 	if numStorages > maxSlots {
 		return allocationLenErr("storage", numStorages, maxSlots)
 	}
 	numTxs := len(q.txs.special) + len(q.txs.ordered)
 	if maxTxs%32 != 0 {
 		return allocationMultipleErr("transaction", maxTxs)
+	}
+	for index := range q.txs.special {
+		if index >= maxTxs {
+			return allocationIndexErr("transaction", index, maxTxs)
+		}
 	}
 	if numTxs > maxTxs {
 		return allocationLenErr("transaction", numTxs, maxTxs)
@@ -694,9 +713,8 @@ func (q *BrevisApp) checkAllocations(cb AppCircuit) error {
 func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 	leafs := make([]*big.Int, q.dataPoints)
 	hasher := utils.NewPoseidonBn254()
-	// assign 0 to input commit for dummy and actual data hash for non-dummies
-	j := 0
 
+	j := 0
 	ric := brevisCommon.DummyReceiptInputCommitment[q.srcChainId]
 	if len(ric) == 0 {
 		panic(fmt.Sprintf("cannot find dummy receipt info for chain %d", q.srcChainId))
@@ -844,7 +862,7 @@ func (q *BrevisApp) calTogglesHashRoot(toggles []frontend.Variable) (*big.Int, e
 		}
 		result, err := hasher.Sum()
 		if err != nil {
-			return nil, fmt.Errorf("invalid toggles length %d", len(toggles))
+			return nil, err
 		}
 		leafs[i] = result
 	}
@@ -1092,4 +1110,9 @@ func (q *BrevisApp) realDataLength() int {
 
 func (q *BrevisApp) mockDataLength() int {
 	return len(q.mockReceipts.ordered) + len(q.mockReceipts.special) + len(q.mockStorage.ordered) + len(q.mockStorage.special) + len(q.mockTxs.ordered) + len(q.mockTxs.special)
+}
+
+func allocationIndexErr(name string, pinnedIndex, maxCount int) error {
+	return fmt.Errorf("# of pinned entry index (%d) must not exceed the allocated max %s (%d), check your AppCircuit.Allocate() method",
+		pinnedIndex, name, maxCount)
 }

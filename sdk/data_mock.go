@@ -40,7 +40,7 @@ func (q *BrevisApp) buildMockReceipt(r ReceiptData) (Receipt, error) {
 			EventID: ConstUint248(log.EventID.Bytes()[0:6]),
 			IsTopic: ConstUint248(log.IsTopic),
 			Index:   ConstUint248(log.FieldIndex),
-			Value:   ConstBytes32(log.Value[:]),
+			Value:   ConstFromBigEndianBytes(log.Value[:]),
 		}
 	}
 	if len(r.Fields) == 0 {
@@ -50,7 +50,7 @@ func (q *BrevisApp) buildMockReceipt(r ReceiptData) (Receipt, error) {
 			EventID:  ConstUint248(0),
 			IsTopic:  ConstUint248(0),
 			Index:    ConstUint248(0),
-			Value:    ConstBytes32([]byte{}),
+			Value:    ConstFromBigEndianBytes([]byte{}),
 		}
 		fields[1] = fields[0]
 		fields[2] = fields[0]
@@ -102,8 +102,8 @@ func (q *BrevisApp) buildMockStorageSlot(s StorageData) (StorageSlot, error) {
 		BlockNum:     newU32(s.BlockNum),
 		BlockBaseFee: newU248(s.BlockBaseFee),
 		Contract:     ConstUint248(s.Address),
-		Slot:         ConstBytes32(s.Slot[:]),
-		Value:        ConstBytes32(s.Value[:]),
+		Slot:         ConstFromBigEndianBytes(s.Slot[:]),
+		Value:        ConstFromBigEndianBytes(s.Value[:]),
 	}, nil
 }
 
@@ -133,13 +133,4 @@ func (q *BrevisApp) assignMockTransactions(in *CircuitInput) (err error) {
 	}
 
 	return nil
-}
-
-func (q *BrevisApp) buildMockTx(t TransactionData) (Transaction, error) {
-	return Transaction{
-		BlockNum:     ConstUint32(t.BlockNum),
-		BlockBaseFee: newU248(t.BlockBaseFee),
-		MptKeyPath:   newU32(t.MptKeyPath),
-		LeafHash:     ConstBytes32(t.LeafHash.Bytes()),
-	}, nil
 }

@@ -197,7 +197,7 @@ func parseCircuitValue(value interface{}) (interface{}, error) {
 		return sdk.ConstInt248(b), nil
 	case sdk.Bytes32Type:
 		bytes := common.FromHex(data.(string))
-		return sdk.ConstBytes32(bytes), nil
+		return sdk.ConstFromBigEndianBytes(bytes), nil
 	default:
 		return nil, fmt.Errorf("unsupported circuit value type %s", typ)
 	}

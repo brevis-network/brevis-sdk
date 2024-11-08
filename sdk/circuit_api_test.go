@@ -39,10 +39,10 @@ func (c *TestCircuitAPICircuit) Define(g frontend.API) error {
 
 func (c *TestCircuitAPICircuit) testCasting() {
 	A := ConstUint248(1)
-	B := ConstBytes32([]byte{1})
+	B := ConstFromBigEndianBytes([]byte{1})
 	C := ConstUint521([]byte{1})
 	D := ConstInt248(big.NewInt(-2))
-	E := ConstBytes32(common.FromHex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE"))
+	E := ConstFromBigEndianBytes(common.FromHex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE"))
 	F := ConstInt248(big.NewInt(1))
 	G := ConstUint248(common.FromHex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE"))
 
@@ -79,7 +79,7 @@ func (c *TestCircuitAPICircuit) testOutput() {
 	api.OutputUint(64, ConstUint248(64))
 	api.OutputUint(248, ConstUint248(248))
 	api.OutputAddress(ConstUint248(addr))
-	api.OutputBytes32(ConstBytes32(b32))
+	api.OutputBytes32(ConstFromBigEndianBytes(b32))
 
 	var packed []byte
 	packed = append(packed, bool1...)
@@ -108,7 +108,7 @@ func (c *TestCircuitAPICircuit) testOutput() {
 func (c *TestCircuitAPICircuit) testMappingStorageSlot() {
 	api := c.api
 	slot := common.FromHex("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFCEE6A")
-	storageSlot := api.SlotOfStructFieldInMapping(6, 1, ConstBytes32(slot))
+	storageSlot := api.SlotOfStructFieldInMapping(6, 1, ConstFromBigEndianBytes(slot))
 	fmt.Printf("storage slot %s\n", storageSlot)
 
 	preimage := common.FromHex("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFCEE6A")
@@ -119,7 +119,7 @@ func (c *TestCircuitAPICircuit) testMappingStorageSlot() {
 	expectedSlot := expected.Bytes()
 	fmt.Printf("expected: %x\n", expectedSlot)
 
-	api.Bytes32.AssertIsEqual(storageSlot, ConstBytes32(expectedSlot))
+	api.Bytes32.AssertIsEqual(storageSlot, ConstFromBigEndianBytes(expectedSlot))
 }
 
 func (c *TestCircuitAPICircuit) testStorageSlotOfArrayElement() {
@@ -128,10 +128,10 @@ func (c *TestCircuitAPICircuit) testStorageSlotOfArrayElement() {
 	preimage := common.FromHex("0x0000000000000000000000000000000000000000000000000000000000000002")
 	arrSlot := crypto.Keccak256(preimage)
 
-	elSlot := api.SlotOfArrayElement(ConstBytes32(arrSlot), 2, ConstUint248(1175), ConstUint248(1))
+	elSlot := api.SlotOfArrayElement(ConstFromBigEndianBytes(arrSlot), 2, ConstUint248(1175), ConstUint248(1))
 
 	expected := new(big.Int).SetBytes(common.FromHex("0x405787fa12a823e0f2b7631cc41b3ba8828b3321ca811111fa75cd3aa3bb63fd"))
 	expectedSlot := expected.Bytes()
 
-	api.Bytes32.AssertIsEqual(elSlot, ConstBytes32(expectedSlot))
+	api.Bytes32.AssertIsEqual(elSlot, ConstFromBigEndianBytes(expectedSlot))
 }

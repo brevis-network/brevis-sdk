@@ -23,8 +23,8 @@ github.com/brevis-network/gnark v0.1.0 h1:c16PFBs0W5RHxP3nRUuTRjyBjc3RkFMUtzOmb1
 github.com/brevis-network/gnark v0.1.0/go.mod h1:2pxSqtFhSLeN7OdA9nQXPj4Gp4Tovzk+r/7eiIA/Qeg=
 github.com/brevis-network/poseidon-goldilocks-go v0.0.0-20240826082508-8017eb90f413 h1:Q1+JagFYZ/atuJejVOfxBSeYGqeVkRVWXqaGu03HmUQ=
 github.com/brevis-network/poseidon-goldilocks-go v0.0.0-20240826082508-8017eb90f413/go.mod h1:sGddb8GeVcQErqlTrfUIP/2SmIzpG7DmPsFy3tBY9KQ=
-github.com/brevis-network/zk-hash v0.0.0-20240903111749-fedffbe8a45c h1:+tXzO1P9S0FT4uQ7kw3xSe0BpxnOH+VazNxQstX0qXI=
-github.com/brevis-network/zk-hash v0.0.0-20240903111749-fedffbe8a45c/go.mod h1:fMfTUW6bGRcOk8Vm0c82Ob8uEWysWsev9d4mn609skg=
+github.com/brevis-network/zk-hash v0.0.0-20241108052253-b7ab3c6a195b h1:5BRwAPIzME7+MMtUKglhRo9JHYSIB+ls7U0v0cU+Tus=
+github.com/brevis-network/zk-hash v0.0.0-20241108052253-b7ab3c6a195b/go.mod h1:fMfTUW6bGRcOk8Vm0c82Ob8uEWysWsev9d4mn609skg=
 github.com/btcsuite/btcd/btcec/v2 v2.3.4 h1:3EJjcN70HCu/mwqlUsGK8GcNVyLVxFDlWurTXGPFfiQ=
 github.com/btcsuite/btcd/btcec/v2 v2.3.4/go.mod h1:zYzJ8etWJQIv1Ogk7OzpWjowwOdXY1W/17j2MW85J04=
 github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1 h1:q0rUy8C/TYNBQS1+CGKw68tLOFYSNEs0TFnxxnS9+4U=
