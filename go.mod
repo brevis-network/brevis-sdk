@@ -56,7 +56,7 @@ require (
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/bits-and-blooms/bitset v1.10.0 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
-	github.com/brevis-network/zk-hash v0.0.0-20240903111749-fedffbe8a45c
+	github.com/brevis-network/zk-hash v0.0.0-20241108052253-b7ab3c6a195b
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
 	github.com/consensys/bavard v0.1.13 // indirect
 	github.com/crate-crypto/go-kzg-4844 v1.0.0 // indirect
