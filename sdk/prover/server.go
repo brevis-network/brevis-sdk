@@ -167,7 +167,7 @@ func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkpro
 
 	return &sdkproto.ProveResponse{
 		Proof:       proof,
-		CircuitInfo: buildAppCircuitInfo(*input, s.vkString, s.vkHash, witness),
+		CircuitInfo: buildAppCircuitInfo(s.appCircuit, *input, s.vkString, s.vkHash, witness),
 	}, nil
 }
 
@@ -201,7 +201,7 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (re
 	return &sdkproto.ProveAsyncResponse{
 		Err:         nil,
 		ProofId:     uid,
-		CircuitInfo: buildAppCircuitInfo(*input, s.vkString, s.vkHash, witness),
+		CircuitInfo: buildAppCircuitInfo(s.appCircuit, *input, s.vkString, s.vkHash, witness),
 	}, nil
 }
 
