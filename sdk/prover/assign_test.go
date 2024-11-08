@@ -2,11 +2,12 @@ package prover
 
 import (
 	"fmt"
+	"math/big"
+	"testing"
+
 	"github.com/brevis-network/brevis-sdk/sdk"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto"
 	"github.com/stretchr/testify/assert"
-	"math/big"
-	"testing"
 )
 
 func TestAssignCustomInput(t *testing.T) {
@@ -21,10 +22,12 @@ func TestAssignCustomInput(t *testing.T) {
 	if !ok {
 		t.Fatal("failed to cast back to AppCircuit")
 	}
+	assert.Equal(t, big.NewInt(27), c.U32Var.Val)
 	assert.Equal(t, big.NewInt(0), c.U248Var.Val)
 	assert.Equal(t, big.NewInt(1), c.U521Var.Limbs[0])
 	assert.Equal(t, "-2", c.I248Var.String())
 	assert.Equal(t, "3333333333333333333333333333333333333333333333333333333333333333", c.B32Var.String())
+	assert.Equal(t, big.NewInt(0), c.U32Arr[0].Val)
 	assert.Equal(t, big.NewInt(1), c.U248Arr[0].Val)
 	assert.Equal(t, big.NewInt(2), c.U248Arr[1].Val)
 	assert.Equal(t, big.NewInt(3), c.U248Arr[2].Val)
@@ -60,10 +63,12 @@ func (d dummyImpl) Define(api *sdk.CircuitAPI, in sdk.DataInput) error       { r
 type AppCircuit struct {
 	dummyImpl
 
+	U32Var  sdk.Uint32
 	U248Var sdk.Uint248
 	U521Var sdk.Uint521
 	I248Var sdk.Int248
 	B32Var  sdk.Bytes32
+	U32Arr  []sdk.Uint32
 	U248Arr [3]sdk.Uint248
 	U521Arr []sdk.Uint521
 	I248Arr [3]sdk.Int248
@@ -100,11 +105,15 @@ const testJsonNonExistent = `{
 }`
 
 const testJson = `{
+    "u32Var": { "type": "Uint32", "data": "27" },
     "u248Var": { "type": "Uint248", "data": "0" },
     "u521Var": { "type": "Uint521", "data": "1" },
     "i248Var": { "type": "Int248", "data": "-2" },
     "b32Var": { "type": "Bytes32", "data": "0x3333333333333333333333333333333333333333333333333333333333333333" },
-    "u248Arr": [
+    "u32Arr": [
+        { "type": "Uint32", "data": "0" }
+    ],
+	"u248Arr": [
         { "type": "Uint248", "data": "1" },
         { "type": "Uint248", "data": "2" },
         { "type": "Uint248", "data": "3" }
