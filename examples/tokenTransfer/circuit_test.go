@@ -1,4 +1,4 @@
-package age
+package tokenTransfer
 
 import (
 	"context"
@@ -18,13 +18,23 @@ func TestCircuit(t *testing.T) {
 	check(err)
 
 	txHash := common.HexToHash(
-		"0x6dc75e61220cc775aafa17796c20e49ac08030020fce710e3e546aa4e003454c")
+		"0x8a7fc50330533cd0adbf71e1cfb51b1b6bbe2170b4ce65c02678cf08c8b17737")
 
-	txData := sdk.TransactionData{
-		Hash: txHash,
-	}
-	fmt.Printf("%+v\n", txData)
-	app.AddTransaction(txData)
+	app.AddReceipt(sdk.ReceiptData{
+		TxHash: txHash,
+		Fields: []sdk.LogFieldData{
+			{
+				IsTopic:    true,
+				LogPos:     0,
+				FieldIndex: 1,
+			},
+			{
+				IsTopic:    false,
+				LogPos:     0,
+				FieldIndex: 0,
+			},
+		},
+	})
 
 	appCircuit := &AppCircuit{}
 	appCircuitAssignment := &AppCircuit{}
@@ -36,7 +46,6 @@ func TestCircuit(t *testing.T) {
 	// Testing
 	///////////////////////////////////////////////////////////////////////////////
 
-	//test.IsSolved(t, appCircuit, appCircuitAssignment, circuitInput)
 	test.ProverSucceeded(t, appCircuit, appCircuitAssignment, circuitInput)
 }
 
@@ -47,10 +56,22 @@ func TestE2E(t *testing.T) {
 	check(err)
 
 	txHash := common.HexToHash(
-		"0x6dc75e61220cc775aafa17796c20e49ac08030020fce710e3e546aa4e003454c")
+		"0xcee7b1bb4ebf73429faf9fa131b4710859c80a306ca7a6b141880aca477065b0")
 
-	app.AddTransaction(sdk.TransactionData{
-		Hash: txHash,
+	app.AddReceipt(sdk.ReceiptData{
+		TxHash: txHash,
+		Fields: []sdk.LogFieldData{
+			{
+				IsTopic:    true,
+				LogPos:     0,
+				FieldIndex: 1,
+			},
+			{
+				IsTopic:    false,
+				LogPos:     0,
+				FieldIndex: 0,
+			},
+		},
 	})
 
 	appCircuit := &AppCircuit{}
