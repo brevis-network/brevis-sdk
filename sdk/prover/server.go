@@ -231,6 +231,8 @@ func (s *server) buildInput(req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.
 		return nil, nil, "", newErr(code, format, args...)
 	}
 
+	s.brevisApp.ResetInput()
+
 	for _, receipt := range req.Receipts {
 		sdkReceipt, err := convertProtoReceiptToSdkReceipt(receipt.Data)
 		if err != nil {
