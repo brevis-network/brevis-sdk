@@ -1118,3 +1118,10 @@ func allocationIndexErr(name string, pinnedIndex, maxCount int) error {
 	return fmt.Errorf("# of pinned entry index (%d) must not exceed the allocated max %s (%d), check your AppCircuit.Allocate() method",
 		pinnedIndex, name, maxCount)
 }
+
+// Reset app input, used for prover server
+func (q *BrevisApp) ResetInput() {
+	q.receipts = rawData[ReceiptData]{}
+	q.storageVals = rawData[StorageData]{}
+	q.txs = rawData[TransactionData]{}
+}
