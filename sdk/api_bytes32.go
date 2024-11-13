@@ -54,9 +54,9 @@ func (v Bytes32) String() string {
 	return fmt.Sprintf("%x%x", left, right)
 }
 
-// ConstBytes32 initializes a constant Bytes32 circuit variable. Panics if the
+// ConstFromBigEndianBytes initializes a constant Bytes32 circuit variable. Panics if the
 // length of the supplied data bytes is larger than 32.
-func ConstBytes32(data []byte) Bytes32 {
+func ConstFromBigEndianBytes(data []byte) Bytes32 {
 	if len(data) > 32 {
 		panic(fmt.Errorf("ConstBytes32 called with data of length %d", len(data)))
 	}
@@ -89,6 +89,10 @@ func (api *Bytes32API) ToBinary(v Bytes32) List[Uint248] {
 // and recomposes it to a Bytes32. Input size can be less than 256 bits, the
 // input is padded on the MSB end with 0s.
 func (api *Bytes32API) FromBinary(vs ...Uint248) Bytes32 {
+	if len(vs) > 256 {
+		panic(fmt.Sprintf("cannot construct Bytes32 from binary of size %d bits", len(vs)))
+	}
+
 	var list List[Uint248] = vs
 	values := list.Values()
 	for i := len(vs); i < 256; i++ {

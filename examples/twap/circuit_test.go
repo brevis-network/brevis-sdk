@@ -10,7 +10,14 @@ import (
 )
 
 func TestCircuit(t *testing.T) {
-	app, err := sdk.NewBrevisApp(1)
+	// The compiled circuit, proving key, and verifying key are saved to outDir,,
+	// query data will be stored in outDir/input/data.json and
+	// the downloaded SRS in the process is saved to srsDir
+	outDir := "$HOME/circuitOut/myBrevisApp"
+	rpc := "RPC_URL"
+	app, err := sdk.NewBrevisApp(1, rpc, outDir)
+	check(err)
+
 	check(err)
 
 	EthUsdcPair := common.HexToAddress("0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc")
@@ -19,38 +26,32 @@ func TestCircuit(t *testing.T) {
 		BlockNum: big.NewInt(19526368),
 		Address:  EthUsdcPair,
 		Slot:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000008"),
-		Value:    common.HexToHash("0x660432e30000000002c4161b6fe645e05c7300000000000000002a22f3e2696a"),
 	})
 	app.AddStorage(sdk.StorageData{
 		BlockNum: big.NewInt(19526368),
 		Address:  EthUsdcPair,
 		Slot:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000009"),
-		Value:    common.HexToHash("0x00000000000000000000019b6ca7cb3f482e755f0ae619a871a9063e714e0228"),
 	})
 	app.AddStorage(sdk.StorageData{
 		BlockNum: big.NewInt(19526368),
 		Address:  EthUsdcPair,
 		Slot:     common.HexToHash("0x000000000000000000000000000000000000000000000000000000000000000a"),
-		Value:    common.HexToHash("0x0000000000000000000000000000000000003c6758abe60870a58346dc922d52"),
 	})
 
 	app.AddStorage(sdk.StorageData{
 		BlockNum: big.NewInt(19526488),
 		Address:  EthUsdcPair,
 		Slot:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000008"),
-		Value:    common.HexToHash("0x660438fb0000000002c6557cb610af1b5a9a00000000000000002a01003339d6"),
 	})
 	app.AddStorage(sdk.StorageData{
 		BlockNum: big.NewInt(19526488),
 		Address:  EthUsdcPair,
 		Slot:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000009"),
-		Value:    common.HexToHash("0x00000000000000000000019b6d0e62545015c41043d402698c29cd0e2ff08de8"),
 	})
 	app.AddStorage(sdk.StorageData{
 		BlockNum: big.NewInt(19526488),
 		Address:  EthUsdcPair,
 		Slot:     common.HexToHash("0x000000000000000000000000000000000000000000000000000000000000000a"),
-		Value:    common.HexToHash("0x0000000000000000000000000000000000003c67b555a558e4d4d6ed040d547a"),
 	})
 
 	appCircuit := &AppCircuit{}

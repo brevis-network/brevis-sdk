@@ -2,8 +2,9 @@ package sdk
 
 import (
 	"fmt"
-	"github.com/consensys/gnark/frontend"
 	"math/big"
+
+	"github.com/consensys/gnark/frontend"
 )
 
 type Int248 struct {
@@ -15,7 +16,12 @@ type Int248 struct {
 	signBitSet bool `gnark:"-"`
 }
 
+// newI248 constructs a new Int248 instance.
+// It is important that the input value `v` is at most 248 bits wide.
 func newI248(v ...frontend.Variable) Int248 {
+	if len(v) > 2 {
+		panic(fmt.Sprintf("newI248 expects 1 or 2 variables, got %d", len(v)))
+	}
 	ret := Int248{Val: v[0]}
 	if len(v) > 1 {
 		ret.SignBit = v[1]
@@ -28,12 +34,12 @@ func newI248(v ...frontend.Variable) Int248 {
 // circuit wires and should only be used outside of circuit. The input big int
 // can be negative
 func ConstInt248(v *big.Int) Int248 {
-	if v.BitLen() > 248 {
+	if v.BitLen() >= 248 {
 		panic("cannot initialize Int248 with bit length > 248")
 	}
 
 	abs := new(big.Int).Abs(v)
-	absBits := decomposeBitsExact(abs)
+	absBits := decomposeBitsExactOfAbs(abs)
 
 	if v.Sign() < 0 {
 		bits := twosComplement(absBits, 248)
@@ -55,6 +61,7 @@ func (v Int248) FromValues(vs ...frontend.Variable) CircuitVariable {
 		panic("Int248.FromValues only takes 1 param")
 	}
 	v.Val = vs[0]
+	v.signBitSet = false
 	return v
 }
 
@@ -142,21 +149,7 @@ func (api *Int248API) IsLessThan(a, b Int248) Uint248 {
 
 // IsGreaterThan returns 1 if a > b, and 0 otherwise
 func (api *Int248API) IsGreaterThan(a, b Int248) Uint248 {
-	a = api.ensureSignBit(a)
-	b = api.ensureSignBit(b)
-
-	cmp := api.g.Cmp(a.Val, b.Val)
-	isGtAsUint := api.g.IsZero(api.g.Sub(cmp, 1))
-
-	isLt := api.g.Lookup2(
-		a.SignBit, b.SignBit,
-		isGtAsUint, // a, b both pos
-		0,          // a neg, b pos
-		1,          // a pos, b neg
-		isGtAsUint, // a, b both neg
-	)
-
-	return newU248(isLt)
+	return api.IsLessThan(b, a)
 }
 
 // IsZero returns 1 if a == 0, and 0 otherwise
@@ -166,16 +159,25 @@ func (api *Int248API) IsZero(a Int248) Uint248 {
 }
 
 // ABS returns the absolute value of a
+// func (api *Int248API) ABS(a Int248) Uint248 {
+// 	bs := api.ToBinary(a)
+// 	signBit := bs[247] // ToBinary returns little-endian bits, the last bit is sign
+// 	flipped := make([]frontend.Variable, len(bs))
+// 	for i, v := range bs {
+// 		flipped[i] = api.g.IsZero(v.Val)
+// 	}
+// 	absWhenOrigIsNeg := api.g.Add(1, api.g.FromBinary(flipped...))
+// 	abs := api.g.Select(signBit.Val, absWhenOrigIsNeg, a.Val)
+// 	return newU248(abs)
+// }
+
+// ABS returns the absolute value of a
 func (api *Int248API) ABS(a Int248) Uint248 {
-	bs := api.ToBinary(a)
-	signBit := bs[247] // ToBinary returns little-endian bits, the last bit is sign
-	flipped := make([]frontend.Variable, len(bs))
-	for i, v := range bs {
-		flipped[i] = api.g.IsZero(v.Val)
-	}
-	absWhenOrigIsNeg := api.g.Add(1, api.g.FromBinary(flipped...))
-	abs := api.g.Select(signBit.Val, absWhenOrigIsNeg, a.Val)
-	return newU248(abs)
+	a = api.ensureSignBit(a)
+	resultIfNonNeg := a.Val
+	resultIfNeg := api.g.Sub(new(big.Int).Lsh(big.NewInt(1), 248), a.Val)
+	result := api.g.Select(a.SignBit, resultIfNeg, resultIfNonNeg)
+	return newU248(result)
 }
 
 //func (api *Int248API) Add(a, b Int248) Int248 {
@@ -204,6 +206,7 @@ func (api *Int248API) Select(s Uint248, a, b Int248) Int248 {
 	v.Val = api.g.Select(s.Val, a.Val, b.Val)
 	if a.signBitSet && b.signBitSet {
 		v.SignBit = api.g.Select(s.Val, a.SignBit, b.SignBit)
+		v.signBitSet = true
 	}
 	return v
 }

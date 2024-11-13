@@ -2,9 +2,10 @@ package sdk
 
 import (
 	"fmt"
+	"math/big"
+
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/math/emulated"
-	"math/big"
 )
 
 var u521Field *emulated.Field[Uint521Field]
@@ -27,14 +28,17 @@ type Uint521 struct {
 var _ CircuitVariable = Uint521{}
 
 func (v Uint521) Values() []frontend.Variable {
-	u521Field.Reduce(v.Element)
-	return v.Limbs
+	return u521Field.Reduce(v.Element).Limbs
 }
 
 func (v Uint521) FromValues(vs ...frontend.Variable) CircuitVariable {
+	if len(vs) != int(v.NumVars()) {
+		panic(fmt.Sprintf("Uint521.FromValues takes %d params", v.NumVars()))
+	}
 	n := emulated.ValueOf[Uint521Field](0)
 	n.Limbs = vs
-	return newU521(&n)
+	v = newU521(&n)
+	return v
 }
 
 func (v Uint521) NumVars() uint32 { return 6 }
@@ -61,6 +65,12 @@ func newU521(el *emulated.Element[Uint521Field]) Uint521 {
 func ConstUint521(i interface{}) Uint521 {
 	ensureNotCircuitVariable(i)
 	v := fromInterface(i)
+	if v.Sign() < 0 {
+		panic("cannot initialize Uint521 with negative number")
+	}
+	if v.BitLen() > 521 {
+		panic("cannot initialize Uint521 with bit length > 521")
+	}
 	el := emulated.ValueOf[Uint521Field](v)
 	return newU521(&el)
 }
@@ -82,6 +92,9 @@ func newUint521API(api frontend.API) *Uint521API {
 // FromBinary interprets the input vs as a list of little-endian binary digits
 // and recomposes it to a Uint521
 func (api *Uint521API) FromBinary(vs ...Uint248) Uint521 {
+	if len(vs) > 521 {
+		panic(fmt.Sprintf("cannot construct Uint521 from binary of size %d bits", len(vs)))
+	}
 	vars := make([]frontend.Variable, len(vs))
 	for i, v := range vs {
 		vars[i] = v
@@ -93,6 +106,9 @@ func (api *Uint521API) FromBinary(vs ...Uint248) Uint521 {
 func (api *Uint521API) ToBinary(v Uint521, n int) List[Uint248] {
 	reduced := api.f.Reduce(v.Element)
 	bits := api.f.ToBits(reduced)
+	if len(bits) < n {
+		panic(fmt.Sprintf("v has bits size %d less than %d", len(bits), n))
+	}
 	ret := make([]Uint248, n)
 	for i := 0; i < n; i++ {
 		ret[i] = newU248(bits[i])
@@ -100,7 +116,7 @@ func (api *Uint521API) ToBinary(v Uint521, n int) List[Uint248] {
 	return ret
 }
 
-// Add returns a + b. Overflow can happen if a + b > 2^521
+// Add returns a + b. The result is reduced by modulo 2^521 - 1.
 func (api *Uint521API) Add(a, b Uint521) Uint521 {
 	return newU521(api.f.Add(a.Element, b.Element))
 }
@@ -110,7 +126,7 @@ func (api *Uint521API) Sub(a, b Uint521) Uint521 {
 	return newU521(api.f.Sub(a.Element, b.Element))
 }
 
-// Mul returns a * b. Overflow can happen if a * b > 2^521
+// Mul returns a * b. The result is reduced by modulo 2^521 - 1.
 func (api *Uint521API) Mul(a, b Uint521) Uint521 {
 	return newU521(api.f.Mul(a.Element, b.Element))
 }
@@ -131,6 +147,7 @@ func (api *Uint521API) Div(a, b Uint521) (quotient, remainder Uint521) {
 	num = api.f.Add(num, r)
 
 	api.f.AssertIsEqual(num, a.Element)
+	api.f.IsZero(api.f.Sub(q, api.f.Div(aEl, bEl)))
 
 	return newU521(q), newU521(r)
 }

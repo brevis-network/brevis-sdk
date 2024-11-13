@@ -1,11 +1,12 @@
 package sdk
 
 import (
+	"math/big"
+	"testing"
+
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/test"
-	"math/big"
-	"testing"
 )
 
 func TestInt248API(t *testing.T) {

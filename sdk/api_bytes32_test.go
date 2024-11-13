@@ -38,7 +38,7 @@ var testBytes2 = common.HexToHash("75ad6deeb12705855d1d6232650400730e14e78ad5d3c
 var testBits = "0110010110101101011011011110111010110001001001110000010110000101010111010001110101100010001100100110010100000100000000000111001100001110000101001110011110001010110101011101001111001000111100010110000010000111100111110011001111011010110011110000011111110100"
 
 func (c *TestBytes32APICircuit) testBinary() {
-	a := ConstBytes32(testBytes[:])
+	a := ConstFromBigEndianBytes(testBytes[:])
 	bin := c.b32.ToBinary(a)
 	for i, b := range flipByGroups(parseBitStr(testBits), 1) {
 		c.g.AssertIsEqual(b, bin[i].Val)
@@ -50,9 +50,9 @@ func (c *TestBytes32APICircuit) testBinary() {
 }
 
 func (c *TestBytes32APICircuit) testEqual() {
-	data := ConstBytes32(testBytes[:])
-	data1 := ConstBytes32(testBytes[:])
-	data2 := ConstBytes32(testBytes2[:])
+	data := ConstFromBigEndianBytes(testBytes[:])
+	data1 := ConstFromBigEndianBytes(testBytes[:])
+	data2 := ConstFromBigEndianBytes(testBytes2[:])
 
 	eq := c.b32.IsEqual(data, data1)
 	c.g.AssertIsEqual(eq.Val, 1)
@@ -65,8 +65,8 @@ func (c *TestBytes32APICircuit) testEqual() {
 }
 
 func (c *TestBytes32APICircuit) testSelect() {
-	data1 := ConstBytes32(testBytes[:])
-	data2 := ConstBytes32(testBytes2[:])
+	data1 := ConstFromBigEndianBytes(testBytes[:])
+	data2 := ConstFromBigEndianBytes(testBytes2[:])
 
 	selected := c.b32.Select(newU248(1), data1, data2)
 	c.b32.AssertIsEqual(selected, data1)
@@ -76,8 +76,8 @@ func (c *TestBytes32APICircuit) testSelect() {
 }
 
 func (c *TestBytes32APICircuit) testIsZero() {
-	data1 := ConstBytes32(testBytes[:])
-	data2 := ConstBytes32([]byte{0})
+	data1 := ConstFromBigEndianBytes(testBytes[:])
+	data2 := ConstFromBigEndianBytes([]byte{0})
 
 	z := c.b32.IsZero(data1)
 	c.g.AssertIsEqual(z.Val, 0)
@@ -89,7 +89,7 @@ func (c *TestBytes32APICircuit) testIsZero() {
 func (c *TestBytes32APICircuit) testConvertFV() {
 	var data = common.HexToHash("10dfb8b21ed74d6e66cb67031efc7a2df88a7214b32138f9e030253b2f4b3abc")
 
-	data1 := ConstBytes32(data[:])
+	data1 := ConstFromBigEndianBytes(data[:])
 	b, _ := new(big.Int).SetString("7632287196224097183264877413309925498355733551937573486638448198370579921596", 10)
 	data2 := c.b32.FromFV(b)
 	c.g.AssertIsEqual(data1.Val[0], data2.Val[0])

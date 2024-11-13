@@ -2,8 +2,9 @@ package sdk
 
 import (
 	"fmt"
-	"github.com/consensys/gnark/frontend"
 	"math/big"
+
+	"github.com/consensys/gnark/frontend"
 )
 
 type Uint248 struct {
@@ -12,6 +13,8 @@ type Uint248 struct {
 
 var _ CircuitVariable = Uint248{}
 
+// newU248 constructs a new Uint248 instance.
+// It is important that the input value `v` is at most 248 bits wide.
 func newU248(v frontend.Variable) Uint248 {
 	return Uint248{Val: v}
 }
@@ -31,7 +34,14 @@ func newU248s(vs ...frontend.Variable) List[Uint248] {
 // the string
 func ConstUint248(i interface{}) Uint248 {
 	ensureNotCircuitVariable(i)
-	return newU248(fromInterface(i))
+	v := fromInterface(i)
+	if v.Sign() < 0 {
+		panic("cannot initialize Uint248 with negative number")
+	}
+	if v.BitLen() > 248 {
+		panic("cannot initialize Uint248 with bit length > 248")
+	}
+	return newU248(v)
 }
 
 // ParseEventID initializes a circuit Uint248 from bytes. Only the first 6 bytes
@@ -68,6 +78,9 @@ func newUint248API(api frontend.API) *Uint248API {
 // FromBinary interprets the input vs as a list of little-endian binary digits
 // and recomposes it to a Uint248
 func (api *Uint248API) FromBinary(vs ...Uint248) Uint248 {
+	if len(vs) > 248 {
+		panic(fmt.Sprintf("cannot construct Uint248 from binary of size %d bits", len(vs)))
+	}
 	vars := make([]frontend.Variable, len(vs))
 	for i, v := range vs {
 		vars[i] = v.Val
@@ -115,6 +128,7 @@ func (api *Uint248API) Div(a, b Uint248) (quotient, remainder Uint248) {
 	q, r := out[0], out[1]
 	orig := api.g.Add(api.g.Mul(q, b.Val), r)
 	api.g.AssertIsEqual(orig, a.Val)
+	api.g.IsZero(api.g.Sub(q, api.g.Div(a.Val, b.Val)))
 	return newU248(q), newU248(r)
 }
 
@@ -124,7 +138,12 @@ func (api *Uint248API) Sqrt(a Uint248) Uint248 {
 	if err != nil {
 		panic(fmt.Errorf("failed to initialize SqrtHint instance: %s", err.Error()))
 	}
-	return newU248(out[0])
+	s := out[0]
+	api.g.AssertIsLessOrEqual(api.g.Mul(s, s), a.Val) // s**2 <= a
+	incS := api.g.Add(s, 1)
+	next := api.g.Mul(incS, incS)
+	api.g.IsZero(api.g.Add(api.g.Cmp(a.Val, next), 1)) // a < (s+1)**2
+	return newU248(s)
 }
 
 // IsZero returns 1 if a == 0, and 0 otherwise
@@ -148,7 +167,7 @@ func (api *Uint248API) IsLessThan(a, b Uint248) Uint248 {
 
 // IsGreaterThan returns 1 if a > b, and 0 otherwise
 func (api *Uint248API) IsGreaterThan(a, b Uint248) Uint248 {
-	return api.IsZero(api.Sub(api.cmp(a, b), newU248(1)))
+	return api.IsLessThan(b, a)
 }
 
 // And returns 1 if a && b [&& other[0] [&& other[1]...]] is true, and 0 otherwise

@@ -2,6 +2,7 @@ package sdk
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/brevis-network/zk-hash/keccak"
@@ -64,8 +65,8 @@ func (api *CircuitAPI) OutputBool(v Uint248) {
 // Panics if a bitSize of non-multiple of 8 is used.
 // Panics if the bitSize exceeds 248. For outputting uint256, use OutputBytes32 instead
 func (api *CircuitAPI) OutputUint(bitSize int, v Uint248) {
-	if bitSize%8 != 0 {
-		panic("bitSize must be multiple of 8")
+	if bitSize%8 != 0 || bitSize > 248 {
+		panic("bitSize must be multiple of 8 and should not exceed 248")
 	}
 	b := api.g.ToBinary(v.Val, bitSize)
 	api.addOutput(b)
@@ -73,13 +74,13 @@ func (api *CircuitAPI) OutputUint(bitSize int, v Uint248) {
 	dbgPrint(ok, "added uint%d output: %d\n", bitSize, v.Val)
 }
 
-// OutputUint adds an output of solidity uint_bitSize type where N is in range [8, 248]
-// with a step size 8. e.g. uint8, uint16, ..., uint248.
+// OutputUint32 adds an output of solidity uint_bitSize type where N is in range [8, 32]
+// with a step size 8. e.g. uint8, uint16, ..., uint32.
 // Panics if a bitSize of non-multiple of 8 is used.
-// Panics if the bitSize exceeds 248. For outputting uint256, use OutputBytes32 instead
+// Panics if the bitSize exceeds 32.
 func (api *CircuitAPI) OutputUint32(bitSize int, v Uint32) {
 	if bitSize%8 != 0 || bitSize > 32 {
-		panic("bitSize must be multiple of 8")
+		panic("bitSize must be multiple of 8 and should not exceed 32")
 	}
 	b := api.g.ToBinary(v.Val, bitSize)
 	api.addOutput(b)
@@ -87,13 +88,13 @@ func (api *CircuitAPI) OutputUint32(bitSize int, v Uint32) {
 	dbgPrint(ok, "added uint%d output: %d\n", bitSize, v.Val)
 }
 
-// OutputUint adds an output of solidity uint_bitSize type where N is in range [8, 248]
-// with a step size 8. e.g. uint8, uint16, ..., uint248.
+// OutputUint adds an output of solidity uint_bitSize type where N is in range [8, 64]
+// with a step size 8. e.g. uint8, uint16, ..., uint64.
 // Panics if a bitSize of non-multiple of 8 is used.
-// Panics if the bitSize exceeds 248. For outputting uint256, use OutputBytes32 instead
+// Panics if the bitSize exceeds 64.
 func (api *CircuitAPI) OutputUint64(bitSize int, v Uint64) {
 	if bitSize%8 != 0 || bitSize > 64 {
-		panic("bitSize must be multiple of 8")
+		panic("bitSize must be multiple of 8  and should not exceed 64")
 	}
 	b := api.g.ToBinary(v.Val, bitSize)
 	api.addOutput(b)
@@ -109,11 +110,16 @@ func (api *CircuitAPI) OutputAddress(v Uint248) {
 }
 
 func (api *CircuitAPI) addOutput(bits []variable) {
+	if len(bits)%8 != 0 {
+		panic("bits size must be multiple of 8")
+	}
 	// the decomposed v bits are little-endian bits. The way evm uses Keccak expects
 	// the input to be big-endian bytes, but the bits in each byte are little endian
 	b := flipByGroups(bits, 8)
 	api.output = append(api.output, b...)
-	dryRunOutput = append(dryRunOutput, bits2Bytes(b)...)
+	if len(b) > 0 && !frontend.IsCanonical(b[0]) /*only set dryRunOutput when dryRun*/ {
+		dryRunOutput = append(dryRunOutput, bits2Bytes(b)...)
+	}
 }
 
 // AssertInputsAreUnique Asserts that all input data (Transaction, Receipt,
@@ -123,9 +129,11 @@ func (api *CircuitAPI) AssertInputsAreUnique() {
 }
 
 // SlotOfArrayElement computes the storage slot for an element in a solidity
-// array state variable. arrSlot is the plain slot of the array variable.
-// index determines the array index. offset determines the
-// offset (in terms of bytes32) within each array element.
+// array state variable.
+// `arrSlot` is the plain slot of the array variable, it is the slot where the first element of the array starts,
+// so that for dynamic arrays, taking the keccak hash of the slot address at which the array itself is located should be handled.
+// `elementSize` is the number of storage slots each element uses, it is not size in bytes.
+// `index` determines the array index. `offset` determines the offset (in terms of bytes32) within each array element.
 func (api *CircuitAPI) SlotOfArrayElement(arrSlot Bytes32, elementSize int, index, offset Uint248) Bytes32 {
 	//api.Uint248.AssertIsLessOrEqual(offset, ConstUint248(elementSize))
 	o := api.g.Mul(index.Val, elementSize)
@@ -137,10 +145,10 @@ func (api *CircuitAPI) SlotOfArrayElement(arrSlot Bytes32, elementSize int, inde
 
 // SlotOfStructFieldInMapping computes the slot for a struct field
 // stored in a solidity mapping. Implements keccak256(h(k) | p) for computing
-// mapping or nested mapping's slot where the value is a struct The
+// mapping or nested mapping's slot where the value is a struct. The
 // mapping slots are of the order which you would access the solidity mapping. For
 // example, to access nested mapping at slot 1 value with m[a][b] and
-// subsequently the 4th index of the struct value, use
+// subsequently the 4th index of the struct value counted in slots, use
 // SlotOfStructFieldInMapping(1, 4, a, b). If your a and b are not of
 // Bytes32 type, cast them to Bytes32 first using api.ToBytes32.
 //
@@ -167,7 +175,10 @@ func (api *CircuitAPI) SlotOfStructFieldInMapping(
 }
 
 func (api *CircuitAPI) offsetSlot(slotBits [256]variable, offset int) [256]variable {
-	if offset <= 0 {
+	if offset < 0 {
+		panic("offset should not be negative")
+	}
+	if offset == 0 {
 		return slotBits
 	}
 	// Hack: directly doing integer arithmetic on the low limb of the bytes32 because
@@ -181,6 +192,36 @@ func (api *CircuitAPI) offsetSlot(slotBits [256]variable, offset int) [256]varia
 	var ret [256]variable
 	copy(ret[:], flipByGroups(api.Bytes32.ToBinary(slot).Values(), 8))
 	return ret
+}
+
+// Keccak256 computes keccak256(concatenated inputs) where each element of `inputs“ can have a length up to
+// 32 bytes (256 bits). The actual size of each element needs to be specified in `inputBitSize`.
+// Eg. To compute the keccak256 hash of the concatenation of two 20 byte (160 bit) addresses, use
+// Keccak256([]Bytes32{api.ToBytes32(address0), api.ToBytes32(address1)}, []int32{160, 160}).
+func (api *CircuitAPI) Keccak256(inputs []Bytes32, inputBitSize []int32) Bytes32 {
+	if len(inputs) != len(inputBitSize) {
+		panic("you must specify the bit size for each input.")
+	}
+	var preimage []frontend.Variable
+	for idx, in := range inputs {
+		preimageByte32Bits := api.Bytes32.ToBinary(in).Values()
+		bitSize := inputBitSize[idx]
+		preimageBits := preimageByte32Bits[0:bitSize]
+		preimage = append(preimage, flipByGroups(preimageBits, 8)...)
+	}
+	maxRoundIndex := int(math.Ceil(float64(256*len(inputs)) / 1088))
+	preimagePadded := keccak.PadBits101(api.g, preimage, maxRoundIndex)
+
+	roundIndex := 0
+	preimageBitSize := len(preimage)
+	if preimageBitSize%1088 == 0 {
+		roundIndex = preimageBitSize/1088 - 1
+	} else {
+		roundIndex = preimageBitSize / 1088
+	}
+	res := keccak.Keccak256Bits(api.g, maxRoundIndex, roundIndex, preimagePadded)
+	hashByteWiseLE := newU248s(flipByGroups(res[:], 8)...)
+	return api.Bytes32.FromBinary(hashByteWiseLE...)
 }
 
 func Select[T CircuitVariable](api *CircuitAPI, s Uint248, a, b T) T {
@@ -215,9 +256,7 @@ func (api *CircuitAPI) ToBytes32(i interface{}) Bytes32 {
 	case Uint521:
 		api.Uint521.AssertIsLessOrEqual(v, MaxBytes32)
 		bits := api.Uint521.ToBinary(v, 32*8)
-		lo := api.Uint248.FromBinary(bits[:numBitsPerVar]...)
-		hi := api.Uint248.FromBinary(bits[numBitsPerVar:256]...)
-		return Bytes32{Val: [2]variable{lo.Val, hi.Val}}
+		return api.Bytes32.FromBinary(bits...)
 	case Uint248:
 		return Bytes32{Val: [2]variable{v.Val, 0}}
 	}
@@ -239,18 +278,20 @@ func (api *CircuitAPI) ToUint521(i interface{}) Uint521 {
 		limbs[0] = api.g.FromBinary(bits[:b]...)
 		limbs[1] = api.g.FromBinary(bits[b : 2*b]...)
 		limbs[2] = api.g.FromBinary(bits[2*b:]...)
-		limbs[3], limbs[4], limbs[5] = 0, 0, 0
+		for i := 3; i < int(f.NbLimbs()); i++ {
+			limbs[i] = 0
+		}
 		el := api.Uint521.f.NewElement(limbs)
 		return newU521(el)
 	case Uint248:
-		el := api.Uint521.f.NewElement([]variable{v.Val, 0, 0, 0, 0, 0})
-		return newU521(el)
+		return api.ToUint521(api.ToBytes32(v))
 	}
 	panic(fmt.Errorf("unsupported casting from %T to Uint521", i))
 }
 
 // ToUint248 casts the input to a Uint248 type. Supports Uint32, Uint64, Uint248, Int248,
 // Bytes32, and Uint521
+// Note that using ToUint248 with negative Int248 results in a wraparound modulo 2^248
 func (api *CircuitAPI) ToUint248(i interface{}) Uint248 {
 	switch v := i.(type) {
 	case Uint248:
@@ -275,6 +316,7 @@ func (api *CircuitAPI) ToUint248(i interface{}) Uint248 {
 
 // ToInt248 casts the input to a Int248 type. Supports Int248, Uint248,
 // and Bytes32
+// Note that Uint248 values with the top bit set will be interpreted as negative values
 func (api *CircuitAPI) ToInt248(i interface{}) Int248 {
 	switch v := i.(type) {
 	case Int248:

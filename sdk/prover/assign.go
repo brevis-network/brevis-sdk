@@ -24,8 +24,10 @@ func assignCustomInput(app sdk.AppCircuit, input *sdkproto.CustomInput) (sdk.App
 
 	// Support empty customInput
 	jsonBytes := ""
-	if input == nil {
+	if input == nil || len(input.JsonBytes) == 0 {
 		jsonBytes = "{}"
+	} else {
+		jsonBytes = input.JsonBytes
 	}
 
 	// every custom input must be either at the top level or in a list that's at the top level of the struct
@@ -195,7 +197,7 @@ func parseCircuitValue(value interface{}) (interface{}, error) {
 		return sdk.ConstInt248(b), nil
 	case sdk.Bytes32Type:
 		bytes := common.FromHex(data.(string))
-		return sdk.ConstBytes32(bytes), nil
+		return sdk.ConstFromBigEndianBytes(bytes), nil
 	default:
 		return nil, fmt.Errorf("unsupported circuit value type %s", typ)
 	}

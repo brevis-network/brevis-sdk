@@ -23,13 +23,13 @@ func DefaultAppCircuit() *AppCircuit {
 		U248Var: sdk.ConstUint248(0),
 		U521Var: sdk.ConstUint521(1),
 		I248Var: sdk.ConstInt248(big.NewInt(-2)),
-		B32Var:  sdk.ConstBytes32(common.FromHex("0x3333333333333333333333333333333333333333333333333333333333333333")),
+		B32Var:  sdk.ConstFromBigEndianBytes(common.FromHex("0x3333333333333333333333333333333333333333333333333333333333333333")),
 		U248Arr: [3]sdk.Uint248{sdk.ConstUint248(1), sdk.ConstUint248(2), sdk.ConstUint248(3)},
 		U521Arr: []sdk.Uint521{sdk.ConstUint521(11), sdk.ConstUint521(22), sdk.ConstUint521(33)},
 		I248Arr: [3]sdk.Int248{sdk.ConstInt248(big.NewInt(111)), sdk.ConstInt248(big.NewInt(-222)), sdk.ConstInt248(big.NewInt(333))},
 		B32Arr: [2]sdk.Bytes32{
-			sdk.ConstBytes32(common.FromHex("0x1111111111111111111111111111111111111111111111111111111111111111")),
-			sdk.ConstBytes32(common.FromHex("0x2222222222222222222222222222222222222222222222222222222222222222")),
+			sdk.ConstFromBigEndianBytes(common.FromHex("0x1111111111111111111111111111111111111111111111111111111111111111")),
+			sdk.ConstFromBigEndianBytes(common.FromHex("0x2222222222222222222222222222222222222222222222222222222222222222")),
 		},
 	}
 }

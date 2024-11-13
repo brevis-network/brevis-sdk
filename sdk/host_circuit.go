@@ -27,12 +27,9 @@ type HostCircuit struct {
 
 func DefaultHostCircuit(app AppCircuit) *HostCircuit {
 	maxReceipts, maxStorage, maxTxs := app.Allocate()
-	var inputCommits = make([]frontend.Variable, NumMaxDataPoints)
-	for i := 0; i < NumMaxDataPoints; i++ {
-		inputCommits[i] = 0
-	}
+	dataPoints := DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
 	h := &HostCircuit{
-		Input: defaultCircuitInput(maxReceipts, maxStorage, maxTxs),
+		Input: defaultCircuitInput(maxReceipts, maxStorage, maxTxs, dataPoints),
 		Guest: app,
 	}
 	return h
@@ -57,7 +54,17 @@ func (c *HostCircuit) Define(gapi frontend.API) error {
 		return fmt.Errorf("error building user-defined circuit %s", err.Error())
 	}
 
-	//assertInputUniqueness(gapi, c.Input.InputCommitments, api.checkInputUniqueness)
+	toggles := c.Input.Toggles()
+	if len(c.Input.InputCommitments) != len(toggles) {
+		return fmt.Errorf("invalid input commitment toggle pair")
+	}
+
+	inputCommitmentsWithToggle := make([]frontend.Variable, len(c.Input.InputCommitments))
+	for i := range inputCommitmentsWithToggle {
+		inputCommitmentsWithToggle[i] = gapi.Mul(c.Input.InputCommitments[i], toggles[i])
+	}
+
+	assertInputUniqueness(gapi, inputCommitmentsWithToggle, api.checkInputUniqueness)
 	inputCommitmentRoot, err := CalMerkleRoot(gapi, c.Input.InputCommitments)
 	if err != nil {
 		return fmt.Errorf("error building user-defined circuit calMerkleRoot fail, %s", err.Error())
@@ -67,6 +74,12 @@ func (c *HostCircuit) Define(gapi frontend.API) error {
 	dryRunOutputCommit = outputCommit
 	gapi.AssertIsEqual(outputCommit[0], c.Input.OutputCommitment[0])
 	gapi.AssertIsEqual(outputCommit[1], c.Input.OutputCommitment[1])
+
+	// add commitment, then the proof will have same size without use assertUniq or not.
+	multicommit.WithCommitment(gapi, func(api frontend.API, gamma frontend.Variable) error {
+		api.AssertIsEqual(inputCommitmentRoot, c.Input.InputCommitmentsRoot)
+		return nil
+	}, c.Input.InputCommitmentsRoot)
 	return nil
 }
 
@@ -80,7 +93,10 @@ func (c *HostCircuit) commitInput() error {
 		return fmt.Errorf("error creating poseidon hasher instance: %s", err.Error())
 	}
 
-	var inputCommits [NumMaxDataPoints]frontend.Variable
+	maxReceipts, maxStorage, maxTxs := c.Guest.Allocate()
+	dataPoints := DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
+
+	inputCommits := make([]frontend.Variable, dataPoints)
 	receipts := c.Input.Receipts
 	j := 0
 	for i, receipt := range receipts.Raw {
@@ -136,8 +152,8 @@ func (c *HostCircuit) commitInput() error {
 	toggles := c.Input.Toggles()
 
 	// sanity check, this shouldn't happen
-	if len(toggles) != NumMaxDataPoints {
-		panic(fmt.Errorf("toggles len %d != NumMaxDataPoints %d", len(toggles), NumMaxDataPoints))
+	if len(toggles) != dataPoints {
+		panic(fmt.Errorf("toggles len %d != DataPoints %d", len(toggles), dataPoints))
 	}
 
 	if len(toggles)%32 != 0 {
@@ -169,8 +185,11 @@ func assertInputUniqueness(api frontend.API, in []frontend.Variable, shouldCheck
 		if err != nil {
 			panic(err)
 		}
+		for i := 0; i < len(sorted)-1; i++ {
+			api.AssertIsLessOrEqual(sorted[i+1], sorted[i])
+		}
 		// Grand product check. Asserts the following equation holds:
-		// Σ_{a \in in} a+ɣ = Σ_{b \in sorted} b+ɣ
+		// Π_{a \in in} a+ɣ = Σ_{b \in sorted} b+ɣ
 		var lhs, rhs frontend.Variable = 0, 0
 		for i := 0; i < len(sorted); i++ {
 			lhs = api.Mul(lhs, api.Add(in[i], gamma))
@@ -197,23 +216,25 @@ func (c *HostCircuit) dataLen() int {
 }
 
 func (c *HostCircuit) validateInput() error {
+	maxReceipts, maxStorage, maxTxs := c.Guest.Allocate()
+	dataPoints := DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
 	d := c.Input
 	inputLen := len(d.Receipts.Raw) + len(d.StorageSlots.Raw) + len(d.Transactions.Raw)
-	if inputLen > NumMaxDataPoints {
-		return fmt.Errorf("input len must be less than %d", NumMaxDataPoints)
+	if inputLen > dataPoints {
+		return fmt.Errorf("input len must be less than %d", dataPoints)
 	}
 	maxReceipts, maxSlots, maxTransactions := c.Guest.Allocate()
 	if len(d.Receipts.Raw) != len(d.Receipts.Toggles) || len(d.Receipts.Raw) != maxReceipts {
-		return fmt.Errorf("receipt input/toggle len mismatch: %d vs %d",
-			len(d.Receipts.Raw), len(d.Receipts.Toggles))
+		return fmt.Errorf("receipt input/toggle len mismatch: len(d.Receipts.Raw) %d vs len(d.Receipts.Toggles) %d vs maxReceipts %d",
+			len(d.Receipts.Raw), len(d.Receipts.Toggles), maxReceipts)
 	}
 	if len(d.StorageSlots.Raw) != len(d.StorageSlots.Toggles) || len(d.StorageSlots.Raw) != maxSlots {
-		return fmt.Errorf("storageSlots input/toggle len mismatch: %d vs %d",
-			len(d.StorageSlots.Raw), len(d.StorageSlots.Toggles))
+		return fmt.Errorf("storageSlots input/toggle len mismatch: len(d.StorageSlots.Raw) %d vs len(d.StorageSlots.Toggles) %d vs maxSlots %d",
+			len(d.StorageSlots.Raw), len(d.StorageSlots.Toggles), maxSlots)
 	}
 	if len(d.Transactions.Raw) != len(d.Transactions.Toggles) || len(d.Transactions.Raw) != maxTransactions {
-		return fmt.Errorf("transaction input/toggle len mismatch: %d vs %d",
-			len(d.Transactions.Raw), len(d.Transactions.Toggles))
+		return fmt.Errorf("transaction input/toggle len mismatch: len(d.Transactions.Raw) %d vs len(d.Transactions.Toggles) %d vs maxTransactions %d",
+			len(d.Transactions.Raw), len(d.Transactions.Toggles), maxTransactions)
 	}
 	return nil
 }
@@ -225,7 +246,7 @@ func (c *HostCircuit) commitOutput(bits []frontend.Variable) OutputCommitment {
 		panic(fmt.Errorf("len bits (%d) must be multiple of 8", len(bits)))
 	}
 
-	rounds := len(bits)/1088 + 1
+	rounds := (len(bits)+1)/1088 + 1
 	paddedLen := rounds * 1088
 	padded := make([]frontend.Variable, paddedLen)
 	copy(padded, bits)
@@ -253,6 +274,10 @@ func (c *HostCircuit) commitOutput(bits []frontend.Variable) OutputCommitment {
 }
 
 func bits2Bytes(data []frontend.Variable) []byte {
+	if len(data)%8 != 0 {
+		panic("data size must be multiple of 8")
+	}
+
 	var bits []uint
 	for _, b := range data {
 		bits = append(bits, uint(fromInterface(b).Int64()))
