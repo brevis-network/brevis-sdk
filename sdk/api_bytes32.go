@@ -123,6 +123,7 @@ func (api *Bytes32API) IsEqual(a, b Bytes32) Uint248 {
 
 // Select returns a if s == 1, and b if s == 0
 func (api *Bytes32API) Select(s Uint248, a, b Bytes32) Bytes32 {
+	api.g.AssertIsBoolean(s.Val)
 	res := Bytes32{}
 	res.Val[0] = api.g.Select(s.Val, a.Val[0], b.Val[0])
 	res.Val[1] = api.g.Select(s.Val, a.Val[1], b.Val[1])
