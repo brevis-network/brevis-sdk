@@ -3,9 +3,10 @@ package utils
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/consensys/gnark/frontend"
 	"math/big"
 	"strconv"
+
+	"github.com/consensys/gnark/frontend"
 
 	"github.com/ethereum/go-ethereum/common"
 	ec "github.com/ethereum/go-ethereum/common"
@@ -198,7 +199,10 @@ func Reverse[S ~[]E, E any](s S) S {
 func GetHexArray(hexStr string, maxLen int) (res []frontend.Variable) {
 	for i := 0; i < maxLen; i++ {
 		if i < len(hexStr) {
-			intValue, _ := strconv.ParseInt(string(hexStr[i]), 16, 64)
+			intValue, err := strconv.ParseInt(string(hexStr[i]), 16, 64)
+			if err != nil {
+				panic("invalid hexadecimal character: " + string(hexStr[i]))
+			}
 			res = append(res, intValue)
 		} else {
 			res = append(res, 0)

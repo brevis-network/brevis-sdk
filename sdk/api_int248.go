@@ -202,6 +202,7 @@ func (api *Int248API) ABS(a Int248) Uint248 {
 
 // Select returns a if s == 1, and b if s == 0
 func (api *Int248API) Select(s Uint248, a, b Int248) Int248 {
+	api.g.AssertIsBoolean(s.Val)
 	v := Int248{}
 	v.Val = api.g.Select(s.Val, a.Val, b.Val)
 	if a.signBitSet && b.signBitSet {
