@@ -16,6 +16,12 @@ import (
 	"github.com/consensys/gnark/test"
 )
 
+var testBrevisApp = &BrevisApp{
+	receiptCircuitDigestHash: &pgoldilocks.HashOut256{17996561756193319820, 8980630437335591722, 9122961916495130738, 10142517542627101229},
+	storageCircuitDigestHash: &pgoldilocks.HashOut256{3568882391461234058, 14936808234931181849, 15089276379577470236, 10371820311878429064},
+	txCircuitDigestHash:      &pgoldilocks.HashOut256{15153155867950515743, 11132023200088999656, 10234366714538403336, 10983752963612260249},
+}
+
 func TestHash2HashCircuitDigest(t *testing.T) {
 	assert := test.NewAssert(t)
 	digest, err := GetHash2HashCircuitDigest(32, 32, 64)
@@ -27,14 +33,14 @@ func TestHash2HashCircuitDigest(t *testing.T) {
 func TestGlPoseidonOnDigest(t *testing.T) {
 	assert := test.NewAssert(t)
 	var left, right, middle1, middle2, middle3 []uint64
-	left = append(left, ReceiptCircuitDigestHash[:]...)
-	left = append(left, StorageCircuitDigestHash[:]...)
+	left = append(left, testBrevisApp.receiptCircuitDigestHash[:]...)
+	left = append(left, testBrevisApp.storageCircuitDigestHash[:]...)
 	hashLeft, err := pgoldilocks.HashNoPadU64Array(left)
 	assert.NoError(err)
 	log.Infof("hash digest of receipt + storage: %d %d %d %d", hashLeft[0], hashLeft[1], hashLeft[2], hashLeft[3])
 
-	right = append(right, TxCircuitDigestHash[:]...)
-	right = append(right, TxCircuitDigestHash[:]...)
+	right = append(right, testBrevisApp.txCircuitDigestHash[:]...)
+	right = append(right, testBrevisApp.txCircuitDigestHash[:]...)
 	hashRight, err := pgoldilocks.HashNoPadU64Array(right)
 	assert.NoError(err)
 	log.Infof("hash digest of transaction + transaction : %d %d %d %d", hashRight[0], hashRight[1], hashRight[2], hashRight[3])
@@ -61,7 +67,7 @@ func TestGlPoseidonOnDigest(t *testing.T) {
 
 func TestPlonky2RootDigest(t *testing.T) {
 	assert := test.NewAssert(t)
-	digest, _, _, err := GetPlonky2CircuitDigestFromRootNodeSelf(32, 32, 64)
+	digest, _, _, err := GetPlonky2CircuitDigestFromRootNodeSelf(32, 32, 64, testBrevisApp)
 	assert.NoError(err)
 	log.Infof("plonky2RootNode digest after wrapbn128: %d %d %d %d", digest[0], digest[1], digest[2], digest[3])
 }
@@ -84,7 +90,7 @@ func TestHashAllDigest(t *testing.T) {
 	hash2HashDigest, err := GetHash2HashCircuitDigest(32, 32, 64)
 	assert.NoError(err)
 
-	plonky2RootFromBn128Digest, _, _, err := GetPlonky2CircuitDigestFromRootNodeSelf(32, 32, 64)
+	plonky2RootFromBn128Digest, _, _, err := GetPlonky2CircuitDigestFromRootNodeSelf(32, 32, 64, testBrevisApp)
 	assert.NoError(err)
 
 	hasher := utils2.NewPoseidonBn254()
@@ -105,7 +111,7 @@ func TestHashAllDigest(t *testing.T) {
 
 	log.Infof("finalDigest: %x", finalDigest)
 
-	toolDigest, err := CalBrevisCircuitDigest(32, 32, 0, vk)
+	toolDigest, err := CalBrevisCircuitDigest(32, 32, 0, vk, testBrevisApp)
 	assert.NoError(err)
 
 	log.Infof("toolDigest: %x", toolDigest)
