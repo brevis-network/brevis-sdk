@@ -150,6 +150,7 @@ func (api *Uint32API) IsGreaterThan(a, b Uint32) Uint32 {
 }
 
 // And returns 1 if a && b [&& other[0] [&& other[1]...]] is true, and 0 otherwise
+// a, b and other... must be 0 or 1
 func (api *Uint32API) And(a, b Uint32, other ...Uint32) Uint32 {
 	res := api.g.And(a.Val, b.Val)
 	for _, v := range other {
@@ -159,6 +160,7 @@ func (api *Uint32API) And(a, b Uint32, other ...Uint32) Uint32 {
 }
 
 // Or returns 1 if a || b [|| other[0] [|| other[1]...]] is true, and 0 otherwise
+// a, b and other... must be 0 or 1
 func (api *Uint32API) Or(a, b Uint32, other ...Uint32) Uint32 {
 	res := api.g.Or(a.Val, b.Val)
 	for _, v := range other {
@@ -175,6 +177,7 @@ func (api *Uint32API) Not(a Uint32) Uint32 {
 
 // Select returns a if s == 1, and b if s == 0
 func (api *Uint32API) Select(s Uint32, a, b Uint32) Uint32 {
+	api.g.AssertIsBoolean(s.Val)
 	return newU32(api.g.Select(s.Val, a.Val, b.Val))
 }
 
