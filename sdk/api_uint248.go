@@ -171,6 +171,7 @@ func (api *Uint248API) IsGreaterThan(a, b Uint248) Uint248 {
 }
 
 // And returns 1 if a && b [&& other[0] [&& other[1]...]] is true, and 0 otherwise
+// a, b and other... must be 0 or 1
 func (api *Uint248API) And(a, b Uint248, other ...Uint248) Uint248 {
 	res := api.g.And(a.Val, b.Val)
 	for _, v := range other {
@@ -180,6 +181,7 @@ func (api *Uint248API) And(a, b Uint248, other ...Uint248) Uint248 {
 }
 
 // Or returns 1 if a || b [|| other[0] [|| other[1]...]] is true, and 0 otherwise
+// a, b and other... must be 0 or 1
 func (api *Uint248API) Or(a, b Uint248, other ...Uint248) Uint248 {
 	res := api.g.Or(a.Val, b.Val)
 	for _, v := range other {
@@ -196,6 +198,7 @@ func (api *Uint248API) Not(a Uint248) Uint248 {
 
 // Select returns a if s == 1, and b if s == 0
 func (api *Uint248API) Select(s Uint248, a, b Uint248) Uint248 {
+	api.g.AssertIsBoolean(s.Val)
 	return newU248(api.g.Select(s.Val, a.Val, b.Val))
 }
 
