@@ -2,11 +2,12 @@ package sdk
 
 import (
 	"fmt"
-	"github.com/consensys/gnark/constraint/solver"
-	"github.com/consensys/gnark/std/math/emulated"
 	"math/big"
 	"sort"
 	"sync"
+
+	"github.com/consensys/gnark/constraint/solver"
+	"github.com/consensys/gnark/std/math/emulated"
 )
 
 var registerOnce sync.Once
@@ -20,7 +21,7 @@ func registerHints() {
 }
 
 func GetHints() []solver.Hint {
-	return []solver.Hint{QuoRemHint, SqrtHint, SortHint, GroupValuesHint, QuoRemBigHint}
+	return []solver.Hint{QuoRemHint, SqrtHint, SortHint, GroupValuesHint, QuoRemBigHint, CmpHint}
 }
 
 func QuoRemHint(_ *big.Int, in, out []*big.Int) error {
