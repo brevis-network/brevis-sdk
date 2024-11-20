@@ -196,6 +196,10 @@ func (q *BrevisApp) getReceiptInfos(txHash common.Hash) (receipt *types.Receipt,
 	return
 }
 
+func ConvertReceiptDataToReceipt(r *ReceiptData) Receipt {
+	return convertReceiptDataToReceipt(r)
+}
+
 func convertReceiptDataToReceipt(r *ReceiptData) Receipt {
 	var fields [NumMaxLogFields]LogField
 	for i, log := range r.Fields {
@@ -242,6 +246,10 @@ func (q *BrevisApp) getStorageValue(blkNum *big.Int, account common.Address, slo
 	return common.BytesToHash(value), nil
 }
 
+func ConvertStorageDataToStorage(data *StorageData) StorageSlot {
+	return convertStorageDataToStorage(data)
+}
+
 func convertStorageDataToStorage(data *StorageData) StorageSlot {
 	return StorageSlot{
 		BlockNum:     newU32(data.BlockNum),
@@ -274,6 +282,10 @@ func (q *BrevisApp) calculateTxLeafHashBlockBaseFeeAndMPTKey(txHash common.Hash)
 	leafHash = common.BytesToHash(crypto.Keccak256(proofs[len(proofs)-1]))
 
 	return
+}
+
+func ConvertTxDataToTransaction(data *TransactionData) Transaction {
+	return convertTxDataToTransaction(data)
 }
 
 func convertTxDataToTransaction(data *TransactionData) Transaction {
