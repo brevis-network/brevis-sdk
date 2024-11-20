@@ -109,6 +109,9 @@ func (api *Uint521API) ToBinary(v Uint521, n int) List[Uint248] {
 	if len(bits) < n {
 		panic(fmt.Sprintf("v has bits size %d less than %d", len(bits), n))
 	}
+	for i := n; i < len(bits); i++ {
+		api.g.AssertIsEqual(bits[i], 0)
+	}
 	ret := make([]Uint248, n)
 	for i := 0; i < n; i++ {
 		ret[i] = newU248(bits[i])
