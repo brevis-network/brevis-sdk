@@ -376,6 +376,7 @@ func getTransactionProof(bk *types.Block, index int) (nodes [][]byte, keyIndex, 
 	var indexBuf []byte
 	keyIndex = rlp.AppendUint64(indexBuf[:0], uint64(index))
 
+	// trie.NewDatabase()
 	db := triedb.NewDatabase(rawdb.NewMemoryDatabase(), nil)
 	tt := trie.NewEmpty(db)
 	txRootHash := types.DeriveSha(bk.Transactions(), tt)
