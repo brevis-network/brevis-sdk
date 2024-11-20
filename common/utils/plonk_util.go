@@ -114,14 +114,6 @@ func CalculateAppVkHashForBn254(vk replonk.VerifyingKey[sw_bn254.ScalarField, sw
 		for _, limb := range qcp.G1El.Y.Limbs {
 			hashData = append(hashData, limb.(*big.Int).FillBytes(data[:])...)
 		}
-
-		for _, limb := range qcp.G1El.X.Limbs {
-			hashData = append(hashData, limb.(*big.Int).FillBytes(data[:])...)
-		}
-
-		for _, limb := range qcp.G1El.Y.Limbs {
-			hashData = append(hashData, limb.(*big.Int).FillBytes(data[:])...)
-		}
 	}
 
 	for _, cci := range vk.CommitmentConstraintIndexes {
@@ -231,14 +223,6 @@ func CalculateAppVkHashForBn254InCircuit(api frontend.API, vk replonk.VerifyingK
 	}
 
 	for _, qcp := range vk.Qcp {
-		for _, limb := range qcp.G1El.X.Limbs {
-			hasher.Write(limb)
-		}
-
-		for _, limb := range qcp.G1El.Y.Limbs {
-			hasher.Write(limb)
-		}
-
 		for _, limb := range qcp.G1El.X.Limbs {
 			hasher.Write(limb)
 		}
