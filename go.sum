@@ -31,8 +31,8 @@ github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1 h1:q0rUy8C/TYNBQS1+CGKw68tLOF
 github.com/btcsuite/btcd/chaincfg/chainhash v1.0.1/go.mod h1:7SFka0XMvUgj3hfZtydOrQY2mwhPclbT2snogU7SQQc=
 github.com/cbergoon/merkletree v0.2.0 h1:Bttqr3OuoiZEo4ed1L7fTasHka9II+BF9fhBfbNEEoQ=
 github.com/cbergoon/merkletree v0.2.0/go.mod h1:5c15eckUgiucMGDOCanvalj/yJnD+KAZj1qyJtRW5aM=
-github.com/celer-network/go-ethereum v0.0.0-20241120082038-5cb61d2df3c4 h1:LrdymKLhaXv0+V62oVU3PrwpW01p5+rLuehvMZExgZA=
-github.com/celer-network/go-ethereum v0.0.0-20241120082038-5cb61d2df3c4/go.mod h1:TJhyuDq0JDppAkFXgqjwpdlQApywnu/m10kFPxh8vvs=
+github.com/celer-network/go-ethereum v0.0.0-20241120085028-de90e6264ada h1:ER/tOi8RAn5Bb8pu10dA1AovdDP23QCVxV8mpFOY9d4=
+github.com/celer-network/go-ethereum v0.0.0-20241120085028-de90e6264ada/go.mod h1:TJhyuDq0JDppAkFXgqjwpdlQApywnu/m10kFPxh8vvs=
 github.com/celer-network/goutils v0.2.0 h1:FIt4XLuHaHRviqycmJFywdbBCvTHJO6Yd/GGFXps/TY=
 github.com/celer-network/goutils v0.2.0/go.mod h1:1cyIPHvkF//E0Ok6H3roaJkZuy56sPyRycq7MPTkS6U=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
