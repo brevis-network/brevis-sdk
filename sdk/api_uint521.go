@@ -28,6 +28,9 @@ type Uint521 struct {
 var _ CircuitVariable = Uint521{}
 
 func (v Uint521) Values() []frontend.Variable {
+	if len(v.Limbs) != int(v.NumVars()) {
+		panic(fmt.Sprintf("v.Limbs does not have the right length %d", v.NumVars()))
+	}
 	return u521Field.Reduce(v.Element).Limbs
 }
 
