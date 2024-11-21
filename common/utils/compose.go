@@ -23,6 +23,19 @@ func recompose[T uint | byte](data []T, bitSize int) *big.Int {
 }
 
 func decompose[T uint | byte](data *big.Int, bitSize uint, length int) []T {
+	var maxBitSize uint
+	switch any(*new(T)).(type) {
+	case uint:
+		maxBitSize = 64
+	case byte:
+		maxBitSize = 8
+	}
+	if bitSize > maxBitSize {
+		panic(fmt.Errorf("bitSize %d exceeds the bit capacity of type %T", bitSize, *new(T)))
+	}
+	if data.Sign() < 0 {
+		panic(fmt.Errorf("negative values are not supported: %s", data.String()))
+	}
 	if data.BitLen() > length*int(bitSize) {
 		panic(fmt.Errorf("decomposed integer (bit len %d) does not fit into output (bit len %d, length %d)",
 			data.BitLen(), bitSize, length))
