@@ -189,8 +189,6 @@ func buildLogFieldsData(fs []LogFieldData, receipt *types.Receipt) (fields []Log
 
 // Send rpc request to query receipt related information
 func (q *BrevisApp) getReceiptInfos(txHash common.Hash) (receipt *types.Receipt, mptKey *big.Int, blockNumber *big.Int, baseFee *big.Int, err error) {
-	fmt.Println("123456")
-
 	receipt, err = q.ec.TransactionReceipt(context.Background(), txHash)
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("cannot get mpt key with wrong tx hash %s: %s", txHash.Hex(), err.Error())
@@ -204,9 +202,14 @@ func (q *BrevisApp) getReceiptInfos(txHash common.Hash) (receipt *types.Receipt,
 	}
 
 	receipts, err := q.ec.BlockReceipts(context.Background(), rpc.BlockNumberOrHashWithNumber(rpc.BlockNumber(receipt.BlockNumber.Int64())))
-	GetReceiptProof(types.NewBlockWithHeader(header), receipts, int(receipt.TransactionIndex))
+	if err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("unsupported block for tx %s: %s", txHash.Hex(), err.Error())
+	}
+	_, _, _, err = GetReceiptProof(types.NewBlockWithHeader(header), receipts, int(receipt.TransactionIndex))
+	if err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("unsupported block for tx %s: %s", txHash.Hex(), err.Error())
+	}
 
-	panic(1234)
 	baseFee = header.BaseFee
 	return
 }
@@ -386,8 +389,6 @@ func GetReceiptProof(bk *types.Block, receipts types.Receipts, index int) (nodes
 	db := triedb.NewDatabase(rawdb.NewMemoryDatabase(), nil)
 	tt := trie.NewEmpty(db)
 	receiptRootHash := types.DeriveSha(receipts, tt)
-
-	fmt.Println("receiptRootHash: ", receiptRootHash, bk.ReceiptHash())
 
 	if receiptRootHash != bk.ReceiptHash() {
 		err = fmt.Errorf("tx root hash mismatch, blk: %d, index: %d, tx root hash: %x != %x", bk.NumberU64(), index, receiptRootHash, bk.ReceiptHash())
