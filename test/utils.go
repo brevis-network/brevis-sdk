@@ -6,18 +6,19 @@ import (
 	"github.com/brevis-network/brevis-sdk/sdk"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend"
+	"github.com/consensys/gnark/constraint/solver"
 	"github.com/consensys/gnark/test"
 )
 
 // ProverSucceeded checks:
 // - a proof can be generated with the application circuit/assignment and the sdk generated circuit inputs.
 // - the generated proof can be verified.
-func ProverSucceeded(t *testing.T, circuit, assign sdk.AppCircuit, in sdk.CircuitInput) {
+func ProverSucceeded(t *testing.T, circuit, assign sdk.AppCircuit, in sdk.CircuitInput, hints ...solver.Hint) {
 	host := sdk.DefaultHostCircuit(circuit)
 	assignment := sdk.NewHostCircuit(in.Clone(), assign)
 
 	assert := test.NewAssert(t)
-	assert.ProverSucceeded(host, assignment, test.WithBackends(backend.PLONK), test.WithCurves(ecc.BN254))
+	assert.ProverSucceeded(host, assignment, test.WithBackends(backend.PLONK), test.WithCurves(ecc.BN254), test.WithSolverOpts(solver.WithHints(hints...)))
 }
 
 // ProverFailed checks:
