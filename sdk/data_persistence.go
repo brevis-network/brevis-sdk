@@ -12,9 +12,14 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/trie"
+	"github.com/ethereum/go-ethereum/triedb"
 )
 
 // To reduce rpc requests for developers, save data into local storage for future reference
@@ -184,6 +189,8 @@ func buildLogFieldsData(fs []LogFieldData, receipt *types.Receipt) (fields []Log
 
 // Send rpc request to query receipt related information
 func (q *BrevisApp) getReceiptInfos(txHash common.Hash) (receipt *types.Receipt, mptKey *big.Int, blockNumber *big.Int, baseFee *big.Int, err error) {
+	fmt.Println("123456")
+
 	receipt, err = q.ec.TransactionReceipt(context.Background(), txHash)
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("cannot get mpt key with wrong tx hash %s: %s", txHash.Hex(), err.Error())
@@ -195,6 +202,11 @@ func (q *BrevisApp) getReceiptInfos(txHash common.Hash) (receipt *types.Receipt,
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("cannot get block with wrong tx hash %s: %s", txHash.Hex(), err.Error())
 	}
+
+	receipts, err := q.ec.BlockReceipts(context.Background(), rpc.BlockNumberOrHashWithNumber(rpc.BlockNumber(receipt.BlockNumber.Int64())))
+	GetReceiptProof(types.NewBlockWithHeader(header), receipts, int(receipt.TransactionIndex))
+
+	panic(1234)
 	baseFee = header.BaseFee
 	return
 }
@@ -365,4 +377,40 @@ func GetHeaderAndTxHashes(ec *ethclient.Client, ctx context.Context, blkNum *big
 		return nil, nil, err
 	}
 	return head, body.Transactions, nil
+}
+
+func GetReceiptProof(bk *types.Block, receipts types.Receipts, index int) (nodes [][]byte, keyIndex, leafRlpPrefix []byte, err error) {
+	var indexBuf []byte
+	keyIndex = rlp.AppendUint64(indexBuf[:0], uint64(index))
+
+	db := triedb.NewDatabase(rawdb.NewMemoryDatabase(), nil)
+	tt := trie.NewEmpty(db)
+	receiptRootHash := types.DeriveSha(receipts, tt)
+
+	fmt.Println("receiptRootHash: ", receiptRootHash, bk.ReceiptHash())
+
+	if receiptRootHash != bk.ReceiptHash() {
+		err = fmt.Errorf("tx root hash mismatch, blk: %d, index: %d, tx root hash: %x != %x", bk.NumberU64(), index, receiptRootHash, bk.ReceiptHash())
+		return
+	}
+
+	proofWriter := &ProofWriter{
+		Keys:   [][]byte{},
+		Values: [][]byte{},
+	}
+	err = tt.Prove(keyIndex, proofWriter)
+	if err != nil {
+		return
+	}
+	var leafRlp [][]byte
+	leafValue := proofWriter.Values[len(proofWriter.Values)-1]
+	err = rlp.DecodeBytes(leafValue, &leafRlp)
+	if err != nil {
+		return
+	}
+	if len(leafRlp) != 2 {
+		err = fmt.Errorf("invalid leaf rlp len:%d, index:%d, bk:%s", len(leafRlp), index, bk.Number().String())
+		return
+	}
+	return proofWriter.Values, keyIndex, leafValue[:len(leafValue)-len(leafRlp[1])], nil
 }
