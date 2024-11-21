@@ -391,7 +391,7 @@ func GetReceiptProof(bk *types.Block, receipts types.Receipts, index int) (nodes
 	receiptRootHash := types.DeriveSha(receipts, tt)
 
 	if receiptRootHash != bk.ReceiptHash() {
-		err = fmt.Errorf("tx root hash mismatch, blk: %d, index: %d, tx root hash: %x != %x", bk.NumberU64(), index, receiptRootHash, bk.ReceiptHash())
+		err = fmt.Errorf("receipts root hash mismatch, blk: %d, index: %d, receipt root hash: %x != %x", bk.NumberU64(), index, receiptRootHash, bk.ReceiptHash())
 		return
 	}
 
