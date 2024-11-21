@@ -378,6 +378,7 @@ func getTransactionProof(bk *types.Block, index int) (nodes [][]byte, keyIndex, 
 
 	db := triedb.NewDatabase(rawdb.NewMemoryDatabase(), nil)
 	tt := trie.NewEmpty(db)
+
 	txRootHash := types.DeriveSha(bk.Transactions(), tt)
 	if txRootHash != bk.TxHash() {
 		err = fmt.Errorf("tx root hash mismatch, blk: %d, index: %d, tx root hash: %x != %x", bk.NumberU64(), index, txRootHash, bk.TxHash())
