@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/consensys/gnark/frontend"
+	"github.com/consensys/gnark/std/rangecheck"
 )
 
 type Uint32 struct {
@@ -107,7 +108,11 @@ func (api *Uint32API) Div(a, b Uint32) (quotient, remainder Uint32) {
 	q, r := out[0], out[1]
 	orig := api.g.Add(api.g.Mul(q, b.Val), r)
 	api.g.AssertIsEqual(orig, a.Val)
-	api.g.IsZero(api.g.Sub(q, api.g.Div(a.Val, b.Val)))
+	api.g.AssertIsEqual(api.g.Cmp(r, b.Val), -1)
+	cApi := NewCircuitAPI(api.g)
+	mulResult := cApi.Uint248.Mul(newU248(q), cApi.ToUint248(b))
+	rangeChecker := rangecheck.New(api.g)
+	rangeChecker.Check(mulResult.Val, 32)
 	return newU32(q), newU32(r)
 }
 
@@ -118,10 +123,12 @@ func (api *Uint32API) Sqrt(a Uint32) Uint32 {
 		panic(fmt.Errorf("failed to initialize SqrtHint instance: %s", err.Error()))
 	}
 	s := out[0]
+	rangeChecker := rangecheck.New(api.g)
+	rangeChecker.Check(s, 16)                         // half of 32
 	api.g.AssertIsLessOrEqual(api.g.Mul(s, s), a.Val) // s**2 <= a
 	incS := api.g.Add(s, 1)
 	next := api.g.Mul(incS, incS)
-	api.g.IsZero(api.g.Add(api.g.Cmp(a.Val, next), 1)) // a < (s+1)**2
+	api.g.AssertIsEqual(api.g.Cmp(a.Val, next), -1) // a < (s+1)**2
 	return newU32(s)
 }
 

@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/consensys/gnark/frontend"
+	"github.com/consensys/gnark/std/rangecheck"
 )
 
 type Uint248 struct {
@@ -128,7 +129,11 @@ func (api *Uint248API) Div(a, b Uint248) (quotient, remainder Uint248) {
 	q, r := out[0], out[1]
 	orig := api.g.Add(api.g.Mul(q, b.Val), r)
 	api.g.AssertIsEqual(orig, a.Val)
-	api.g.IsZero(api.g.Sub(q, api.g.Div(a.Val, b.Val)))
+	api.g.AssertIsEqual(api.g.Cmp(r, b.Val), -1)
+	cApi := NewCircuitAPI(api.g)
+	mulResult := cApi.Uint521.Mul(cApi.ToUint521(newU248(q)), cApi.ToUint521(b))
+	max248 := ConstUint521(MaxUint248)
+	cApi.Uint521.AssertIsLessOrEqual(mulResult, max248)
 	return newU248(q), newU248(r)
 }
 
@@ -139,10 +144,12 @@ func (api *Uint248API) Sqrt(a Uint248) Uint248 {
 		panic(fmt.Errorf("failed to initialize SqrtHint instance: %s", err.Error()))
 	}
 	s := out[0]
+	rangeChecker := rangecheck.New(api.g)
+	rangeChecker.Check(s, 124)                        // half of 248
 	api.g.AssertIsLessOrEqual(api.g.Mul(s, s), a.Val) // s**2 <= a
 	incS := api.g.Add(s, 1)
 	next := api.g.Mul(incS, incS)
-	api.g.IsZero(api.g.Add(api.g.Cmp(a.Val, next), 1)) // a < (s+1)**2
+	api.g.AssertIsEqual(api.g.Cmp(a.Val, next), -1) // a < (s+1)**2
 	return newU248(s)
 }
 
