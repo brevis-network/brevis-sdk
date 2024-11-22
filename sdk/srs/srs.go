@@ -54,7 +54,7 @@ func NewSRS(ccs constraint.ConstraintSystem, fsCacheDir string) (canonical, lagr
 }
 
 func generateLagrange(srsIgnition kzg.SRS, sizeLagrange uint64) (kzg.SRS, kzg.SRS, error) {
-	fmt.Println("srs iginition ready")
+	fmt.Println("srs ignition ready")
 	var err error
 	bn254Srs := srsIgnition.(*kzg_bn254.SRS)
 	lagrangeSRS := &kzg_bn254.SRS{Vk: bn254Srs.Vk}
