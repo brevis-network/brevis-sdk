@@ -100,6 +100,7 @@ func (api *Uint32API) Mul(a, b Uint32) Uint32 {
 
 // Div computes the standard unsigned integer division (like Go) and returns the
 // quotient and remainder. Uses QuoRemHint
+// Note: The caller must ensure that a and b are in range (i.e. that a.Val and b.Val are at most 32 bits wide).
 func (api *Uint32API) Div(a, b Uint32) (quotient, remainder Uint32) {
 	out, err := api.g.Compiler().NewHint(QuoRemHint, 2, a.Val, b.Val)
 	if err != nil {

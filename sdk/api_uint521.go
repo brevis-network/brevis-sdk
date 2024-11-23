@@ -137,26 +137,6 @@ func (api *Uint521API) Mul(a, b Uint521) Uint521 {
 	return newU521(api.f.Mul(a.Element, b.Element))
 }
 
-// Div computes the standard unsigned integer division (like Go) and returns the
-// quotient and remainder. Uses QuoRemHint
-func (api *Uint521API) Div(a, b Uint521) (quotient, remainder Uint521) {
-	aEl := api.f.Reduce(a.Element)
-	bEl := api.f.Reduce(b.Element)
-
-	out, err := api.f.NewHint(QuoRemBigHint, 2, aEl, bEl)
-	if err != nil {
-		panic(err)
-	}
-
-	q, r := out[0], out[1]
-	num := api.f.Mul(q, b.Element)
-	num = api.f.Add(num, r)
-	api.f.AssertIsEqual(num, a.Element)
-	api.f.AssertIsLessOrEqual(api.f.Reduce(r), api.f.Reduce(api.f.Sub(b.Element, ConstUint521(1).Element)))
-
-	return newU521(q), newU521(r)
-}
-
 // Select returns a if s == 1, and b if s == 0
 func (api *Uint521API) Select(s Uint248, a, b Uint521) Uint521 {
 	api.g.AssertIsBoolean(s.Val)

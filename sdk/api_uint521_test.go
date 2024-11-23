@@ -41,15 +41,6 @@ func (c *TestUint521APICircuit) Define(g frontend.API) error {
 	api.Uint521.AssertIsEqual(product, ConstUint521(_product.Bytes()))
 	//checkStrings(product, _product)
 
-	q, r := api.Uint521.Div(ConstUint521([]byte{4}), ConstUint521([]byte{3}))
-	api.Uint521.AssertIsEqual(q, one)
-	api.Uint521.AssertIsEqual(r, ConstUint521([]byte{1}))
-
-	q, r = api.Uint521.Div(u256Max, api.Uint521.Sub(u256Max, one))
-	api.Uint521.AssertIsEqual(q, one)
-	api.Uint521.AssertIsEqual(r, one)
-	//checkStrings(q, one)
-
 	const binaryTestBits = "100010101111010110010110011011110101100010110111111101000110110000110001010100011100000011111110100"
 	binaryTestNum, _ := new(big.Int).SetString("344046628720840585615695022068", 10)
 	binaryTestU521 := api.ToUint521(ConstUint248(binaryTestNum))
