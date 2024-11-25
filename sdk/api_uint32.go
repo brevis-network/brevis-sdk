@@ -110,10 +110,8 @@ func (api *Uint32API) Div(a, b Uint32) (quotient, remainder Uint32) {
 	orig := api.g.Add(api.g.Mul(q, b.Val), r)
 	api.g.AssertIsEqual(orig, a.Val)
 	api.g.AssertIsEqual(api.g.Cmp(r, b.Val), -1)
-	cApi := NewCircuitAPI(api.g)
-	mulResult := cApi.Uint248.Mul(newU248(q), cApi.ToUint248(b))
 	rangeChecker := rangecheck.New(api.g)
-	rangeChecker.Check(mulResult.Val, 32)
+	rangeChecker.Check(q, 32)
 	return newU32(q), newU32(r)
 }
 
