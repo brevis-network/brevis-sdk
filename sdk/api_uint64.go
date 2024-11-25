@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/consensys/gnark/frontend"
+	"github.com/consensys/gnark/std/rangecheck"
 )
 
 type Uint64 struct {
@@ -99,6 +100,7 @@ func (api *Uint64API) Mul(a, b Uint64) Uint64 {
 
 // Div computes the standard unsigned integer division (like Go) and returns the
 // quotient and remainder. Uses QuoRemHint
+// Note: The caller must ensure that a and b are in range (i.e. that a.Val and b.Val are at most 64 bits wide).
 func (api *Uint64API) Div(a, b Uint64) (quotient, remainder Uint64) {
 	out, err := api.g.Compiler().NewHint(QuoRemHint, 2, a.Val, b.Val)
 	if err != nil {
@@ -107,7 +109,11 @@ func (api *Uint64API) Div(a, b Uint64) (quotient, remainder Uint64) {
 	q, r := out[0], out[1]
 	orig := api.g.Add(api.g.Mul(q, b.Val), r)
 	api.g.AssertIsEqual(orig, a.Val)
-	api.g.IsZero(api.g.Sub(q, api.g.Div(a.Val, b.Val)))
+	api.g.AssertIsEqual(api.g.Cmp(r, b.Val), -1)
+	cApi := NewCircuitAPI(api.g)
+	mulResult := cApi.Uint248.Mul(newU248(q), cApi.ToUint248(b))
+	rangeChecker := rangecheck.New(api.g)
+	rangeChecker.Check(mulResult.Val, 64)
 	return newU64(q), newU64(r)
 }
 
@@ -118,10 +124,12 @@ func (api *Uint64API) Sqrt(a Uint64) Uint64 {
 		panic(fmt.Errorf("failed to initialize SqrtHint instance: %s", err.Error()))
 	}
 	s := out[0]
+	rangeChecker := rangecheck.New(api.g)
+	rangeChecker.Check(s, 32)                         // half of 64
 	api.g.AssertIsLessOrEqual(api.g.Mul(s, s), a.Val) // s**2 <= a
 	incS := api.g.Add(s, 1)
 	next := api.g.Mul(incS, incS)
-	api.g.IsZero(api.g.Add(api.g.Cmp(a.Val, next), 1)) // a < (s+1)**2
+	api.g.AssertIsEqual(api.g.Cmp(a.Val, next), -1) // a < (s+1)**2
 	return newU64(s)
 }
 
