@@ -469,15 +469,21 @@ func (q *BrevisApp) SubmitProof(proof plonk.Proof, options ...SubmitProofOption)
 		if opts.ctx != nil {
 			cancel = opts.ctx.Done()
 		}
+
+		errChan := make(chan error, 1)
+
 		go func() {
 			tx, err := q.waitFinalProofSubmitted(cancel)
 			if err != nil {
 				fmt.Println(err.Error())
 				opts.onError(err)
+				errChan <- err
 				return
 			}
 			opts.onSubmitted(tx)
+			errChan <- nil
 		}()
+		return <-errChan
 	}
 
 	return nil

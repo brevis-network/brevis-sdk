@@ -54,6 +54,10 @@ func decompose[T uint | byte](data *big.Int, bitSize uint, length uint) []T {
 		panic(fmt.Errorf("bitSize %d exceeds the bit capacity of type %T", bitSize, *new(T)))
 	}
 
+	if data.Sign() < 0 {
+		panic(fmt.Errorf("negative values are not supported: %s", data.String()))
+	}
+
 	res := decomposeBig(data, bitSize, length)
 	ret := make([]T, length)
 	for i, limb := range res {
