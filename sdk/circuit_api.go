@@ -346,7 +346,7 @@ func (api *CircuitAPI) isEqual(a, b variable) variable {
 }
 
 func (api *CircuitAPI) NewHint(f solver.Hint, nbOutputs int, inputs ...frontend.Variable) ([]frontend.Variable, error) {
-	return api.g.Compiler().NewHint(f, nbOutputs, inputs)
+	return api.g.Compiler().NewHint(f, nbOutputs, inputs...)
 }
 
 func (api *CircuitAPI) NewPoseidon() (poseidon.PoseidonCircuit, error) {

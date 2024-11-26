@@ -9,7 +9,6 @@ import (
 	"github.com/consensys/gnark/frontend"
 
 	"github.com/ethereum/go-ethereum/common"
-	ec "github.com/ethereum/go-ethereum/common"
 )
 
 var (
@@ -105,7 +104,7 @@ func ArrayBytes2Hex0x(in [][]byte) []string {
 
 // Hex2Addr accepts hex string with or without 0x prefix and return Address
 func Hex2Addr(s string) common.Address {
-	return ec.HexToAddress(s)
+	return common.HexToAddress(s)
 }
 
 // Addr2Hex returns hex without 0x
@@ -120,7 +119,7 @@ func Addr2Hex0x(a common.Address) string {
 // Bytes2Addr returns Address from b
 // Addr.Bytes() does the reverse
 func Bytes2Addr(b []byte) common.Address {
-	return ec.BytesToAddress(b)
+	return common.BytesToAddress(b)
 }
 
 // Bytes2AddrHex returns hex without 0x
@@ -141,12 +140,12 @@ func FormatAddrHex(s string) string {
 
 // Hex2Hash accepts hex string with or without 0x prefix and return Hash
 func Hex2Hash(s string) common.Hash {
-	return ec.HexToHash(s)
+	return common.HexToHash(s)
 }
 
 // Bytes2Hash converts bytes to Hash
 func Bytes2Hash(b []byte) common.Hash {
-	return ec.BytesToHash(b)
+	return common.BytesToHash(b)
 }
 
 func Strings2bytes(rs []string) (ret [][]byte) {
