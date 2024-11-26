@@ -33,7 +33,7 @@ func hex2Hash(s string) common.Hash {
 	return common.BytesToHash(hex2Bytes(s))
 }
 
-func buildAppCircuitInfo(app sdk.AppCircuit, in sdk.CircuitInput, vk, vkHash, witness string) *commonproto.AppCircuitInfo {
+func buildAppCircuitInfo(app sdk.AppCircuitV2, in sdk.CircuitInput, vk, vkHash, witness string) *commonproto.AppCircuitInfo {
 	inputCommitments := make([]string, len(in.InputCommitments))
 	for i, value := range in.InputCommitments {
 		inputCommitments[i] = fmt.Sprintf("0x%x", value)
@@ -44,8 +44,9 @@ func buildAppCircuitInfo(app sdk.AppCircuit, in sdk.CircuitInput, vk, vkHash, wi
 		toggles[i] = fmt.Sprintf("%x", value) == "1"
 	}
 
-	maxReceipts, maxStorage, maxTxs := app.Allocate()
-	dataPoints := sdk.DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
+	// maxReceipts, maxStorage, maxTxs := app.Allocate()
+	info := app.Allocate()
+	dataPoints := sdk.DataPointsNextPowerOf2(info.MaxReceipts + info.MaxSlots + info.MaxTxs + info.MaxBlockHeaders)
 
 	return &commonproto.AppCircuitInfo{
 		OutputCommitment:     hexutil.Encode(in.OutputCommitment.Hash().Bytes()),
@@ -57,9 +58,9 @@ func buildAppCircuitInfo(app sdk.AppCircuit, in sdk.CircuitInput, vk, vkHash, wi
 		VkHash:               vkHash,
 		InputCommitmentsRoot: fmt.Sprintf("0x%x", in.InputCommitmentsRoot),
 		Witness:              witness,
-		MaxReceipts:          uint32(maxReceipts),
-		MaxStorage:           uint32(maxStorage),
-		MaxTx:                uint32(maxTxs),
+		MaxReceipts:          uint32(info.MaxReceipts),
+		MaxStorage:           uint32(info.MaxSlots),
+		MaxTx:                uint32(info.MaxTxs),
 		MaxNumDataPoints:     uint32(dataPoints),
 	}
 }

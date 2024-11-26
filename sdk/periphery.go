@@ -25,17 +25,17 @@ import (
 )
 
 func Compile(app AppCircuit, compileOutDir, srsDir string) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, []byte, error) {
+	return CompileV2(&AppCircuitWrapper{V1: app}, compileOutDir, srsDir)
+}
+
+func CompileV2(app AppCircuitV2, compileOutDir, srsDir string) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, []byte, error) {
 	fmt.Println(">> compile")
-	ccs, err := CompileOnly(app)
+	ccs, err := CompileOnlyV2(app)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-
-	maxReceipts, maxStorage, maxTxs := app.Allocate()
-	dataPoints := DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
-
 	fmt.Println(">> setup")
-	pk, vk, vkHash, err := Setup(ccs, srsDir, maxReceipts, maxStorage, dataPoints)
+	pk, vk, vkHash, err := Setup(ccs, srsDir, app.Allocate())
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -52,7 +52,12 @@ func Compile(app AppCircuit, compileOutDir, srsDir string) (constraint.Constrain
 	return ccs, pk, vk, vkHash, err
 }
 
+// Deprecated, please use NewFullWitnessV2
 func NewFullWitness(assign AppCircuit, in CircuitInput) (w, wpub witness.Witness, err error) {
+	return NewFullWitnessV2(&AppCircuitWrapper{V1: assign}, in)
+}
+
+func NewFullWitnessV2(assign AppCircuitV2, in CircuitInput) (w, wpub witness.Witness, err error) {
 	fmt.Println(">> generate full witness")
 	host := NewHostCircuit(in.Clone(), assign)
 
@@ -67,8 +72,12 @@ func NewFullWitness(assign AppCircuit, in CircuitInput) (w, wpub witness.Witness
 	return
 }
 
-// CompileOnly is like Compile, but it does not automatically save the compilation output
+// Deprecated, please use CompileOnlyV2
 func CompileOnly(app AppCircuit) (constraint.ConstraintSystem, error) {
+	return CompileOnlyV2(&AppCircuitWrapper{V1: app})
+}
+
+func CompileOnlyV2(app AppCircuitV2) (constraint.ConstraintSystem, error) {
 	host := DefaultHostCircuit(app)
 	before := time.Now()
 	ccs, err := frontend.Compile(ecc.BN254.ScalarField(), scs.NewBuilder, host)
@@ -80,7 +89,7 @@ func CompileOnly(app AppCircuit) (constraint.ConstraintSystem, error) {
 	return ccs, nil
 }
 
-func Setup(ccs constraint.ConstraintSystem, cacheDir string, maxReceipt, maxStorage, dataPoints int) (pk plonk.ProvingKey, vk plonk.VerifyingKey, vkHash []byte, err error) {
+func Setup(ccs constraint.ConstraintSystem, cacheDir string, info AppCircuitAllocationInfo) (pk plonk.ProvingKey, vk plonk.VerifyingKey, vkHash []byte, err error) {
 	if len(cacheDir) == 0 {
 		return nil, nil, nil, fmt.Errorf("must provide a directory to save SRS")
 	}
@@ -99,20 +108,22 @@ func Setup(ccs constraint.ConstraintSystem, cacheDir string, maxReceipt, maxStor
 	}
 	fmt.Printf("setup done in %s\n", time.Since(before))
 
-	vkHash, err = printVkHash(vk, maxReceipt, maxStorage, dataPoints)
+	vkHash, err = printVkHash(vk, info)
 
 	return
 }
 
-func printVkHash(vk plonk.VerifyingKey, maxReceipt, maxStorage, dataPoints int) ([]byte, error) {
-	if maxReceipt%32 != 0 {
+func printVkHash(vk plonk.VerifyingKey, info AppCircuitAllocationInfo) ([]byte, error) {
+	if info.MaxReceipts%32 != 0 {
 		panic("invalid max receipts")
 	}
-	if maxStorage%32 != 0 {
+	if info.MaxSlots%32 != 0 {
 		panic("invalid max storage")
 	}
 
-	vkHashInBigInt, err := CalBrevisCircuitDigest(maxReceipt, maxStorage, dataPoints-maxReceipt-maxStorage, vk)
+	dataPoints := DataPointsNextPowerOf2(info.MaxReceipts + info.MaxSlots + info.MaxTxs + info.MaxBlockHeaders)
+
+	vkHashInBigInt, err := CalBrevisCircuitDigest(info.MaxReceipts, info.MaxSlots, dataPoints-info.MaxReceipts-info.MaxSlots-info.MaxBlockHeaders, info.MaxBlockHeaders, vk)
 	if err != nil {
 		fmt.Printf("error computing vk hash: %s", err.Error())
 		return nil, err
@@ -174,6 +185,10 @@ func WriteTo(w io.WriterTo, path string) error {
 }
 
 func ReadSetupFrom(app AppCircuit, compileOutDir string) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, []byte, error) {
+	return ReadSetupV2FromV2(&AppCircuitWrapper{V1: app}, compileOutDir)
+}
+
+func ReadSetupV2FromV2(app AppCircuitV2, compileOutDir string) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, []byte, error) {
 	ccs, err := ReadCircuitFrom(filepath.Join(compileOutDir, "compiledCircuit"))
 	if err != nil {
 		return nil, nil, nil, nil, err
@@ -183,10 +198,9 @@ func ReadSetupFrom(app AppCircuit, compileOutDir string) (constraint.ConstraintS
 		return nil, nil, nil, nil, err
 	}
 
-	maxReceipts, maxStorage, maxTxs := app.Allocate()
-	dataPoints := DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
+	info := app.Allocate()
 
-	vk, vkHash, err := ReadVkFrom(filepath.Join(compileOutDir, "vk"), maxReceipts, maxStorage, dataPoints)
+	vk, vkHash, err := ReadVkFrom(filepath.Join(compileOutDir, "vk"), info)
 	return ccs, pk, vk, vkHash, err
 }
 
@@ -220,7 +234,7 @@ func ReadPkFrom(path string) (plonk.ProvingKey, error) {
 	return pk, err
 }
 
-func ReadVkFrom(path string, maxReceipt, maxStorage, numMaxDataPoints int) (plonk.VerifyingKey, []byte, error) {
+func ReadVkFrom(path string, allocationInfo AppCircuitAllocationInfo) (plonk.VerifyingKey, []byte, error) {
 	f, err := os.Open(os.ExpandEnv(path))
 	if err != nil {
 		return nil, nil, err
@@ -233,7 +247,7 @@ func ReadVkFrom(path string, maxReceipt, maxStorage, numMaxDataPoints int) (plon
 	}
 	fmt.Printf("Verifying key: %d bytes read from %s\n", d, path)
 
-	vkHash, err := printVkHash(vk, maxReceipt, maxStorage, numMaxDataPoints)
+	vkHash, err := printVkHash(vk, allocationInfo)
 	return vk, vkHash, err
 }
 

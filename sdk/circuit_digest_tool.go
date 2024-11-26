@@ -71,7 +71,7 @@ var (
 	}
 )
 
-func CalBrevisCircuitDigest(receiptCount, storageCount, transactionCount int, appVk plonk.VerifyingKey) (*big.Int, error) {
+func CalBrevisCircuitDigest(receiptCount, storageCount, transactionCount, blockHeaderCount int, appVk plonk.VerifyingKey) (*big.Int, error) {
 	reVk, err := replonk.ValueOfVerifyingKey[sw_bn254.ScalarField, sw_bn254.G1Affine, sw_bn254.G2Affine](appVk)
 	if err != nil {
 		return nil, err

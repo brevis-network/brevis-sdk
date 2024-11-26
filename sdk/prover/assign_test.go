@@ -57,8 +57,15 @@ func TestAssignCustomInput_Incorrect(t *testing.T) {
 
 type dummyImpl struct{}
 
-func (d dummyImpl) Allocate() (maxReceipts, maxStorage, maxTransactions int) { return 1, 2, 3 }
-func (d dummyImpl) Define(api *sdk.CircuitAPI, in sdk.DataInput) error       { return nil }
+func (d dummyImpl) Allocate() (info sdk.AppCircuitAllocationInfo) {
+	return sdk.AppCircuitAllocationInfo{
+		MaxReceipts:     1,
+		MaxSlots:        2,
+		MaxTxs:          3,
+		MaxBlockHeaders: 0,
+	}
+}
+func (d dummyImpl) Define(api *sdk.CircuitAPI, in sdk.DataInput) error { return nil }
 
 type AppCircuit struct {
 	dummyImpl

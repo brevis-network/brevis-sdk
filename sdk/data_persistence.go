@@ -24,9 +24,10 @@ import (
 
 // To reduce rpc requests for developers, save data into local storage for future reference
 type DataPersistence struct {
-	Receipts map[string]*ReceiptData     `json:"receipts,omitempty"`
-	Storages map[string]*StorageData     `json:"storage_slots,omitempty"`
-	Txs      map[string]*TransactionData `json:"txs,omitempty"`
+	Receipts     map[string]*ReceiptData     `json:"receipts,omitempty"`
+	Storages     map[string]*StorageData     `json:"storage_slots,omitempty"`
+	Txs          map[string]*TransactionData `json:"txs,omitempty"`
+	BlockHeaders map[string]*BlockHeaderData `json:"headers,omitempty"`
 }
 
 type ReceiptPos struct {
@@ -56,6 +57,10 @@ type TransactionPos struct {
 	Hash common.Hash `json:"hash,omitempty"`
 }
 
+type BlockHeaderPos struct {
+	BlockNum *big.Int `json:"block_num,omitempty"`
+}
+
 func (q *ReceiptData) isReadyToSave() bool {
 	return q.BlockBaseFee != nil && q.BlockNum != nil && q.MptKeyPath != nil && q.BlockBaseFee.Sign() == 1 && q.BlockNum.Sign() == 1 && q.MptKeyPath.Sign() == 1
 }
@@ -66,6 +71,10 @@ func (q *StorageData) isReadyToSave() bool {
 
 func (q *TransactionData) isReadyToSave() bool {
 	return q.BlockBaseFee != nil && q.BlockNum != nil && q.MptKeyPath != nil && q.BlockBaseFee.Sign() == 1 && q.BlockNum.Sign() == 1 && q.MptKeyPath.Sign() == 1
+}
+
+func (q *BlockHeaderData) isReadyToSave() bool {
+	return q.Header != nil
 }
 
 func generateReceiptKey(receipt ReceiptData, srcChainId uint64) string {
@@ -88,6 +97,15 @@ func generateStorageKey(storage StorageData, srcChainId uint64) string {
 
 func generateTxKey(tx TransactionData, srcChainId uint64) string {
 	data, err := json.Marshal(convertTxDataToTxPos(tx))
+	data = append(data, new(big.Int).SetUint64(srcChainId).Bytes()...)
+	if err != nil {
+		panic("failed to generate tx data persistence key")
+	}
+	return crypto.Keccak256Hash(data).Hex()
+}
+
+func generateBlockHeaderKey(header BlockHeaderData, srcChainId uint64) string {
+	data, err := json.Marshal(convertBlockHeaderDataToPos(header))
 	data = append(data, new(big.Int).SetUint64(srcChainId).Bytes()...)
 	if err != nil {
 		panic("failed to generate tx data persistence key")
@@ -247,8 +265,13 @@ func convertFieldDataToField(f LogFieldData) LogField {
 	}
 }
 
+func (q *BrevisApp) getBlockHeader(blkNum *big.Int) (header *types.Header, err error) {
+	header, err = q.ec.HeaderByNumber(context.Background(), blkNum)
+	return
+}
+
 func (q *BrevisApp) getBlockBaseFee(blkNum *big.Int) (baseFee *big.Int, err error) {
-	header, _, err := GetHeaderAndTxHashes(q.ec, context.Background(), blkNum)
+	header, err := q.ec.HeaderByNumber(context.Background(), blkNum)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get blk base fee with wrong blkNum %d: %s", blkNum, err.Error())
 	}
@@ -307,6 +330,12 @@ func (q *BrevisApp) calculateTxLeafHashBlockBaseFeeAndMPTKey(txHash common.Hash)
 	return
 }
 
+func (q *BrevisApp) calculateMPTKeyWithIndex(index int) *big.Int {
+	var indexBuf []byte
+	keyIndex := rlp.AppendUint64(indexBuf[:0], uint64(index))
+	return new(big.Int).SetBytes(keyIndex)
+}
+
 func ConvertTxDataToTransaction(data *TransactionData) Transaction {
 	return convertTxDataToTransaction(data)
 }
@@ -317,6 +346,35 @@ func convertTxDataToTransaction(data *TransactionData) Transaction {
 		BlockBaseFee: newU248(data.BlockBaseFee),
 		MptKeyPath:   newU32(data.MptKeyPath),
 		LeafHash:     ConstFromBigEndianBytes(data.LeafHash.Bytes()),
+	}
+}
+
+func convertBlockHeaderDataToBlockHeader(data *BlockHeaderData) BlockHeader {
+	var logsBloom [8]Bytes32
+	for i := range logsBloom {
+		logsBloom[i] = ConstFromBigEndianBytes(data.Header.Bloom[32*i : 32*i+32])
+	}
+	return BlockHeader{
+		ParentHash:       ConstFromBigEndianBytes(data.Header.ParentHash[:]),
+		UncleHash:        ConstFromBigEndianBytes(data.Header.UncleHash[:]),
+		Coinbase:         newU248(data.Header.Coinbase),
+		StateRoot:        ConstFromBigEndianBytes(data.Header.Root[:]),
+		TransactionsRoot: ConstFromBigEndianBytes(data.Header.TxHash[:]),
+		ReceiptsRoot:     ConstFromBigEndianBytes(data.Header.ReceiptHash[:]),
+		LogsBloom:        logsBloom,
+		Difficulty:       newU248(data.Header.Difficulty),
+		BlockNumber:      newU32(data.Header.Number),
+		GasLimit:         newU64(data.Header.GasLimit),
+		GasUsed:          newU64(data.Header.GasUsed),
+		TimeStamp:        newU64(data.Header.Time),
+		ExtraData:        ConstFromBigEndianBytes(data.Header.Extra[0:32]), // Only 32-bytes extra data is supported
+		MixDigest:        ConstFromBigEndianBytes(data.Header.MixDigest[:]),
+		Nonce:            newU64(data.Header.Nonce),
+		BaseFee:          newU248(data.Header.BaseFee),
+		WithdrawalsHash:  ConstFromBigEndianBytes(data.Header.WithdrawalsHash[:]),
+		BlobGasUsed:      newU64(data.Header.BlobGasUsed),
+		ExcessBlobGas:    newU64(data.Header.ExcessBlobGas),
+		ParentBeaconRoot: ConstFromBigEndianBytes(data.Header.ParentBeaconRoot[:]),
 	}
 }
 
@@ -350,6 +408,12 @@ func convertStorageDataToStoragePos(data StorageData) StoragePos {
 func convertTxDataToTxPos(data TransactionData) TransactionPos {
 	return TransactionPos{
 		Hash: data.Hash,
+	}
+}
+
+func convertBlockHeaderDataToPos(data BlockHeaderData) BlockHeaderPos {
+	return BlockHeaderPos{
+		BlockNum: data.BlockNum,
 	}
 }
 

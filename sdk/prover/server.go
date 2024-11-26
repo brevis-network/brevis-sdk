@@ -29,11 +29,17 @@ type Service struct {
 	svr *server
 }
 
+// Deprecated, please use NewServiceV2
 // NewService creates a new prover server instance that automatically manages
 // compilation & setup, and serves as a GRPC server that interoperates with
 // brevis sdk in other languages.
 func NewService(
 	app sdk.AppCircuit, config ServiceConfig) (*Service, error) {
+	return NewServiceV2(&sdk.AppCircuitWrapper{V1: app}, config)
+}
+
+func NewServiceV2(
+	app sdk.AppCircuitV2, config ServiceConfig) (*Service, error) {
 	pk, vk, ccs, vkHash, err := readOrSetup(app, config.GetSetupDir(), config.GetSrsDir())
 	if err != nil {
 		return nil, err
@@ -96,7 +102,7 @@ type proofRes struct {
 type server struct {
 	sdkproto.UnimplementedProverServer
 
-	appCircuit sdk.AppCircuit
+	appCircuit sdk.AppCircuitV2
 	brevisApp  *sdk.BrevisApp
 
 	pk  plonk.ProvingKey
@@ -114,7 +120,7 @@ func newServer(
 	rpcUrl string,
 	localStoragePath string,
 	srcChainId int,
-	appCircuit sdk.AppCircuit,
+	appCircuit sdk.AppCircuitV2,
 	pk plonk.ProvingKey,
 	vk plonk.VerifyingKey,
 	ccs constraint.ConstraintSystem,
@@ -224,8 +230,8 @@ func (s *server) GetProof(ctx context.Context, req *sdkproto.GetProofRequest) (r
 	}, nil
 }
 
-func (s *server) buildInput(req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.AppCircuit, string, *sdkproto.Err) {
-	makeErr := func(code sdkproto.ErrCode, format string, args ...any) (*sdk.CircuitInput, sdk.AppCircuit, string, *sdkproto.Err) {
+func (s *server) buildInput(req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.AppCircuitV2, string, *sdkproto.Err) {
+	makeErr := func(code sdkproto.ErrCode, format string, args ...any) (*sdk.CircuitInput, sdk.AppCircuitV2, string, *sdkproto.Err) {
 		fmt.Printf(format, args...)
 		fmt.Println()
 		return nil, nil, "", newErr(code, format, args...)
@@ -263,12 +269,12 @@ func (s *server) buildInput(req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.
 		return makeErr(sdkproto.ErrCode_ERROR_INVALID_CUSTOM_INPUT, "invalid custom input %s\n", err.Error())
 	}
 
-	input, err := s.brevisApp.BuildCircuitInput(guest)
+	input, err := s.brevisApp.BuildCircuitInputV2(guest)
 	if err != nil {
 		return makeErr(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, "failed to build circuit input: %+v, %s", req, err.Error())
 	}
 
-	_, publicWitness, err := sdk.NewFullWitness(guest, input)
+	_, publicWitness, err := sdk.NewFullWitnessV2(guest, input)
 	if err != nil {
 		return makeErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to prepare witness %s\n", err.Error())
 	}
@@ -286,8 +292,8 @@ func (s *server) buildInput(req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.
 
 var ProveProcessorLock sync.Mutex
 
-func (s *server) prove(input *sdk.CircuitInput, guest sdk.AppCircuit) (string, error) {
-	witness, publicWitness, err := sdk.NewFullWitness(guest, *input)
+func (s *server) prove(input *sdk.CircuitInput, guest sdk.AppCircuitV2) (string, error) {
+	witness, publicWitness, err := sdk.NewFullWitnessV2(guest, *input)
 	if err != nil {
 		return "", fmt.Errorf("failed to get full witness: %s", err.Error())
 	}

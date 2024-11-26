@@ -13,13 +13,15 @@ type DataInput struct {
 	Receipts     DataPoints[Receipt]
 	StorageSlots DataPoints[StorageSlot]
 	Transactions DataPoints[Transaction]
+	BlockHeaders DataPoints[BlockHeader]
 }
 
-func defaultDataInput(maxReceipts, maxStorage, maxTxs int) DataInput {
+func defaultDataInput(maxReceipts, maxStorage, maxTxs, maxBlockHeaders int) DataInput {
 	return DataInput{
 		Receipts:     NewDataPoints(maxReceipts, defaultReceipt),
 		StorageSlots: NewDataPoints(maxStorage, defaultStorageSlot),
 		Transactions: NewDataPoints(maxTxs, defaultTransaction),
+		BlockHeaders: NewDataPoints(maxBlockHeaders, defaultBlockHeader),
 	}
 }
 
@@ -52,17 +54,18 @@ type CircuitInput struct {
 	DummyReceiptInputCommitment     frontend.Variable `gnark:",public"`
 	DummyStorageInputCommitment     frontend.Variable `gnark:",public"`
 	DummyTransactionInputCommitment frontend.Variable `gnark:",public"`
+	DummyBlockHeaderInputCommitment frontend.Variable `gnark:",public"`
 
 	dryRunOutput []byte `gnark:"-"`
 }
 
-func defaultCircuitInput(maxReceipts, maxStorage, maxTxs, dataPoints int) CircuitInput {
+func defaultCircuitInput(maxReceipts, maxStorage, maxTxs, maxBlockHeaders, dataPoints int) CircuitInput {
 	var inputCommits = make([]frontend.Variable, dataPoints)
 	for i := 0; i < dataPoints; i++ {
 		inputCommits[i] = 0
 	}
 	return CircuitInput{
-		DataInput:                       defaultDataInput(maxReceipts, maxStorage, maxTxs),
+		DataInput:                       defaultDataInput(maxReceipts, maxStorage, maxTxs, maxBlockHeaders),
 		InputCommitmentsRoot:            0,
 		InputCommitments:                inputCommits,
 		TogglesCommitment:               0,
@@ -85,10 +88,12 @@ func (in CircuitInput) Clone() CircuitInput {
 		DummyReceiptInputCommitment:     in.DummyReceiptInputCommitment,
 		DummyStorageInputCommitment:     in.DummyStorageInputCommitment,
 		DummyTransactionInputCommitment: in.DummyTransactionInputCommitment,
+		DummyBlockHeaderInputCommitment: in.DummyBlockHeaderInputCommitment,
 		DataInput: DataInput{
 			Receipts:     in.Receipts.Clone(),
 			StorageSlots: in.StorageSlots.Clone(),
 			Transactions: in.Transactions.Clone(),
+			BlockHeaders: in.BlockHeaders.Clone(),
 		},
 	}
 }
@@ -615,5 +620,233 @@ func (t Transaction) goPack() []*big.Int {
 	// bits = append(bits, decomposeBits(fromInterface(t.To.Val), 8*20)...)
 	// bits = append(bits, t.Value.toBinary()...)
 	bits = append(bits, t.LeafHash.toBinary()...)
+	return packBitsToInt(bits, bn254_fr.Bits-1)
+}
+
+type BlockHeader struct {
+	ParentHash       Bytes32
+	UncleHash        Bytes32
+	Coinbase         Uint248
+	StateRoot        Bytes32
+	TransactionsRoot Bytes32
+	ReceiptsRoot     Bytes32
+	LogsBloom        [8]Bytes32
+	Difficulty       Uint248
+	BlockNumber      Uint32
+	GasLimit         Uint64
+	GasUsed          Uint64
+	TimeStamp        Uint64
+	ExtraData        Bytes32 // Only 32-bytes extra data is supported
+	MixDigest        Bytes32
+	Nonce            Uint64
+	BaseFee          Uint248
+	WithdrawalsHash  Bytes32
+	BlobGasUsed      Uint64
+	ExcessBlobGas    Uint64
+	ParentBeaconRoot Bytes32
+}
+
+func defaultBlockHeader() BlockHeader {
+	var logsBloom [8]Bytes32
+	for i := range logsBloom {
+		logsBloom[i] = ConstFromBigEndianBytes([]byte{})
+	}
+	return BlockHeader{
+		ParentHash:       ConstFromBigEndianBytes([]byte{}),
+		UncleHash:        ConstFromBigEndianBytes([]byte{}),
+		Coinbase:         newU248(0),
+		StateRoot:        ConstFromBigEndianBytes([]byte{}),
+		TransactionsRoot: ConstFromBigEndianBytes([]byte{}),
+		ReceiptsRoot:     ConstFromBigEndianBytes([]byte{}),
+		LogsBloom:        logsBloom,
+		Difficulty:       newU248(0),
+		BlockNumber:      newU32(0),
+		GasLimit:         newU64(0),
+		GasUsed:          newU64(0),
+		TimeStamp:        newU64(0),
+		ExtraData:        ConstFromBigEndianBytes([]byte{}),
+		MixDigest:        ConstFromBigEndianBytes([]byte{}),
+		Nonce:            newU64(0),
+		BaseFee:          newU248(0),
+		WithdrawalsHash:  ConstFromBigEndianBytes([]byte{}),
+		BlobGasUsed:      newU64(0),
+		ExcessBlobGas:    newU64(0),
+		ParentBeaconRoot: ConstFromBigEndianBytes([]byte{}),
+	}
+}
+
+var _ CircuitVariable = BlockHeader{}
+
+func (h BlockHeader) Values() []frontend.Variable {
+	var ret []frontend.Variable
+	ret = append(ret, h.ParentHash.Values()...)
+	ret = append(ret, h.UncleHash.Values()...)
+	ret = append(ret, h.Coinbase.Values()...)
+	ret = append(ret, h.StateRoot.Values()...)
+	ret = append(ret, h.TransactionsRoot.Values()...)
+	ret = append(ret, h.ReceiptsRoot.Values()...)
+	for _, logBloom := range h.LogsBloom {
+		ret = append(ret, logBloom.Values()...)
+	}
+	ret = append(ret, h.Difficulty.Values()...)
+	ret = append(ret, h.BlockNumber.Values()...)
+	ret = append(ret, h.GasLimit.Values()...)
+	ret = append(ret, h.GasUsed.Values()...)
+	ret = append(ret, h.TimeStamp.Values()...)
+	ret = append(ret, h.ExtraData.Values()...)
+	ret = append(ret, h.MixDigest.Values()...)
+	ret = append(ret, h.Nonce.Values()...)
+	ret = append(ret, h.BaseFee.Values()...)
+	ret = append(ret, h.WithdrawalsHash.Values()...)
+	ret = append(ret, h.BlobGasUsed.Values()...)
+	ret = append(ret, h.ExcessBlobGas.Values()...)
+	ret = append(ret, h.ParentBeaconRoot.Values()...)
+	return ret
+}
+
+func (h BlockHeader) FromValues(vs ...frontend.Variable) CircuitVariable {
+	nh := BlockHeader{}
+
+	start, end := uint32(0), h.ParentHash.NumVars()
+	nh.ParentHash = h.ParentHash.FromValues(vs[start:end]...).(Bytes32)
+
+	start, end = end, end+h.UncleHash.NumVars()
+	nh.UncleHash = h.UncleHash.FromValues(vs[start:end]...).(Bytes32)
+
+	start, end = end, end+h.Coinbase.NumVars()
+	nh.Coinbase = h.Coinbase.FromValues(vs[start:end]...).(Uint248)
+
+	start, end = end, end+h.StateRoot.NumVars()
+	nh.StateRoot = h.StateRoot.FromValues(vs[start:end]...).(Bytes32)
+
+	start, end = end, end+h.TransactionsRoot.NumVars()
+	nh.TransactionsRoot = h.TransactionsRoot.FromValues(vs[start:end]...).(Bytes32)
+
+	start, end = end, end+h.ReceiptsRoot.NumVars()
+	nh.ReceiptsRoot = h.ReceiptsRoot.FromValues(vs[start:end]...).(Bytes32)
+
+	for i := 0; i < 8; i++ {
+		start, end = end, end+h.LogsBloom[i].NumVars()
+		nh.LogsBloom[i] = h.LogsBloom[i].FromValues(vs[start:end]...).(Bytes32)
+	}
+
+	start, end = end, end+h.Difficulty.NumVars()
+	nh.Difficulty = h.Difficulty.FromValues(vs[start:end]...).(Uint248)
+
+	start, end = end, end+h.BlockNumber.NumVars()
+	nh.BlockNumber = h.BlockNumber.FromValues(vs[start:end]...).(Uint32)
+
+	start, end = end, end+h.GasLimit.NumVars()
+	nh.GasLimit = h.GasLimit.FromValues(vs[start:end]...).(Uint64)
+
+	start, end = end, end+h.GasUsed.NumVars()
+	nh.GasUsed = h.GasUsed.FromValues(vs[start:end]...).(Uint64)
+
+	start, end = end, end+h.TimeStamp.NumVars()
+	nh.TimeStamp = h.TimeStamp.FromValues(vs[start:end]...).(Uint64)
+
+	start, end = end, end+h.ExtraData.NumVars()
+	nh.ExtraData = h.ExtraData.FromValues(vs[start:end]...).(Bytes32)
+
+	start, end = end, end+h.MixDigest.NumVars()
+	nh.MixDigest = h.MixDigest.FromValues(vs[start:end]...).(Bytes32)
+
+	start, end = end, end+h.Nonce.NumVars()
+	nh.Nonce = h.Nonce.FromValues(vs[start:end]...).(Uint64)
+
+	start, end = end, end+h.BaseFee.NumVars()
+	nh.BaseFee = h.BaseFee.FromValues(vs[start:end]...).(Uint248)
+
+	start, end = end, end+h.WithdrawalsHash.NumVars()
+	nh.WithdrawalsHash = h.WithdrawalsHash.FromValues(vs[start:end]...).(Bytes32)
+
+	start, end = end, end+h.BlobGasUsed.NumVars()
+	nh.BlobGasUsed = h.BlobGasUsed.FromValues(vs[start:end]...).(Uint64)
+
+	start, end = end, end+h.ExcessBlobGas.NumVars()
+	nh.ExcessBlobGas = h.ExcessBlobGas.FromValues(vs[start:end]...).(Uint64)
+
+	start, end = end, end+h.ParentBeaconRoot.NumVars()
+	nh.ParentBeaconRoot = h.ParentBeaconRoot.FromValues(vs[start:end]...).(Bytes32)
+
+	return nh
+}
+
+func (h BlockHeader) NumVars() uint32 {
+	logsBloomNumVars := uint32(0)
+	for _, logBloom := range h.LogsBloom {
+		logsBloomNumVars += logBloom.NumVars()
+	}
+
+	return h.ParentHash.NumVars() + h.UncleHash.NumVars() + h.Coinbase.NumVars() +
+		h.StateRoot.NumVars() + h.TransactionsRoot.NumVars() + h.ReceiptsRoot.NumVars() +
+		logsBloomNumVars + h.Difficulty.NumVars() + h.BlockNumber.NumVars() +
+		h.GasLimit.NumVars() + h.GasUsed.NumVars() + h.TimeStamp.NumVars() + h.ExtraData.NumVars() +
+		h.MixDigest.NumVars() + h.Nonce.NumVars() + h.BaseFee.NumVars() + h.WithdrawalsHash.NumVars() +
+		h.BlobGasUsed.NumVars() + h.ExcessBlobGas.NumVars() + h.ParentBeaconRoot.NumVars()
+}
+
+func (s BlockHeader) String() string { return "BlockHeader" }
+
+func (s BlockHeader) Pack(api frontend.API) []frontend.Variable {
+	return s.pack(api)
+}
+
+func (h BlockHeader) pack(api frontend.API) []frontend.Variable {
+	var bits []frontend.Variable
+	bits = append(bits, h.ParentHash.toBinaryVars(api)...)
+	bits = append(bits, h.UncleHash.toBinaryVars(api)...)
+	bits = append(bits, api.ToBinary(h.Coinbase.Val, 8*31)...)
+	bits = append(bits, h.StateRoot.toBinaryVars(api)...)
+	bits = append(bits, h.TransactionsRoot.toBinaryVars(api)...)
+	bits = append(bits, h.ReceiptsRoot.toBinaryVars(api)...)
+	for _, logBloom := range h.LogsBloom {
+		bits = append(bits, logBloom.toBinaryVars(api)...)
+	}
+	bits = append(bits, api.ToBinary(h.Difficulty.Val, 8*31)...)
+	bits = append(bits, api.ToBinary(h.BlockNumber.Val, 8*4)...)
+	bits = append(bits, api.ToBinary(h.GasLimit.Val, 8*8)...)
+	bits = append(bits, api.ToBinary(h.GasUsed.Val, 8*8)...)
+	bits = append(bits, api.ToBinary(h.TimeStamp.Val, 8*8)...)
+	bits = append(bits, h.ExtraData.toBinaryVars(api)...)
+	bits = append(bits, h.MixDigest.toBinaryVars(api)...)
+	bits = append(bits, api.ToBinary(h.Nonce.Val, 8*8)...)
+	bits = append(bits, api.ToBinary(h.BaseFee.Val, 8*16)...)
+	bits = append(bits, h.WithdrawalsHash.toBinaryVars(api)...)
+	bits = append(bits, api.ToBinary(h.BlobGasUsed.Val, 8*8)...)
+	bits = append(bits, api.ToBinary(h.ExcessBlobGas.Val, 8*8)...)
+	bits = append(bits, h.ParentBeaconRoot.toBinaryVars(api)...)
+
+	return packBitsToFr(api, bits)
+}
+
+func (s BlockHeader) GoPack() []*big.Int {
+	return s.goPack()
+}
+
+func (h BlockHeader) goPack() []*big.Int {
+	var bits []uint
+	bits = append(bits, h.ParentHash.toBinary()...)
+	bits = append(bits, h.UncleHash.toBinary()...)
+	bits = append(bits, decomposeBits(fromInterface(h.Coinbase.Val), 8*31)...)
+	bits = append(bits, h.StateRoot.toBinary()...)
+	bits = append(bits, h.TransactionsRoot.toBinary()...)
+	bits = append(bits, h.ReceiptsRoot.toBinary()...)
+	for _, logBloom := range h.LogsBloom {
+		bits = append(bits, logBloom.toBinary()...)
+	}
+	bits = append(bits, decomposeBits(fromInterface(h.Difficulty.Val), 8*31)...)
+	bits = append(bits, decomposeBits(fromInterface(h.BlockNumber.Val), 8*4)...)
+	bits = append(bits, decomposeBits(fromInterface(h.BlockNumber.Val), 8*8)...)
+	bits = append(bits, decomposeBits(fromInterface(h.BlockNumber.Val), 8*8)...)
+	bits = append(bits, decomposeBits(fromInterface(h.BlockNumber.Val), 8*8)...)
+	bits = append(bits, h.ExtraData.toBinary()...)
+	bits = append(bits, h.MixDigest.toBinary()...)
+	bits = append(bits, decomposeBits(fromInterface(h.Nonce.Val), 8*8)...)
+	bits = append(bits, decomposeBits(fromInterface(h.BaseFee.Val), 8*16)...)
+	bits = append(bits, h.WithdrawalsHash.toBinary()...)
+	bits = append(bits, decomposeBits(fromInterface(h.BlobGasUsed.Val), 8*8)...)
+	bits = append(bits, decomposeBits(fromInterface(h.ExcessBlobGas.Val), 8*8)...)
+	bits = append(bits, h.ParentBeaconRoot.toBinary()...)
 	return packBitsToInt(bits, bn254_fr.Bits-1)
 }

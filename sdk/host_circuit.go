@@ -13,29 +13,69 @@ import (
 	"github.com/consensys/gnark/test"
 )
 
+type AppCircuitAllocationInfo struct {
+	MaxReceipts, MaxSlots, MaxTxs, MaxBlockHeaders int
+}
+
+// Deprecated
 type AppCircuit interface {
 	Define(api *CircuitAPI, in DataInput) error
 	Allocate() (maxReceipts, maxStorage, maxTransactions int)
+}
+
+// Make AppCircuit backward compatible
+type AppCircuitWrapper struct {
+	V1 AppCircuit
+}
+
+// // Allocate implements AppCircuitV2.
+// func (c AppCircuitWrapper) Allocate() (info AppCircuitAllocationInfo) {
+// 	panic("unimplemented")
+// }
+
+// // Define implements AppCircuitV2.
+// func (c AppCircuitWrapper) Define(api *CircuitAPI, in DataInput) error {
+// 	panic("unimplemented")
+// }
+
+func (c *AppCircuitWrapper) Allocate() (info AppCircuitAllocationInfo) {
+	maxReceipts, maxSlots, maxTransactions := c.V1.Allocate()
+	return AppCircuitAllocationInfo{
+		MaxReceipts:     maxReceipts,
+		MaxSlots:        maxSlots,
+		MaxTxs:          maxTransactions,
+		MaxBlockHeaders: 0,
+	}
+}
+
+func (c *AppCircuitWrapper) Define(api *CircuitAPI, in DataInput) error {
+	return c.V1.Define(api, in)
+}
+
+type AppCircuitV2 interface {
+	Define(api *CircuitAPI, in DataInput) error
+	Allocate() (info AppCircuitAllocationInfo)
 }
 
 type HostCircuit struct {
 	api frontend.API
 
 	Input CircuitInput
-	Guest AppCircuit
+	Guest AppCircuitV2
 }
 
-func DefaultHostCircuit(app AppCircuit) *HostCircuit {
-	maxReceipts, maxStorage, maxTxs := app.Allocate()
-	dataPoints := DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
+func DefaultHostCircuit(app AppCircuitV2) *HostCircuit {
+	info := app.Allocate()
+	dataPoints := DataPointsNextPowerOf2(info.MaxReceipts + info.MaxSlots + info.MaxTxs + info.MaxBlockHeaders)
 	h := &HostCircuit{
-		Input: defaultCircuitInput(maxReceipts, maxStorage, maxTxs, dataPoints),
+		Input: defaultCircuitInput(info.MaxReceipts, info.MaxSlots, info.MaxTxs, info.MaxBlockHeaders, dataPoints),
 		Guest: app,
 	}
+
 	return h
 }
 
-func NewHostCircuit(in CircuitInput, guest AppCircuit) *HostCircuit {
+func NewHostCircuit(in CircuitInput, guest AppCircuitV2) *HostCircuit {
 	return &HostCircuit{
 		Input: in,
 		Guest: guest,
@@ -93,8 +133,8 @@ func (c *HostCircuit) commitInput() error {
 		return fmt.Errorf("error creating poseidon hasher instance: %s", err.Error())
 	}
 
-	maxReceipts, maxStorage, maxTxs := c.Guest.Allocate()
-	dataPoints := DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
+	info := c.Guest.Allocate()
+	dataPoints := DataPointsNextPowerOf2(info.MaxReceipts + info.MaxSlots + info.MaxTxs + info.MaxBlockHeaders)
 
 	inputCommits := make([]frontend.Variable, dataPoints)
 	receipts := c.Input.Receipts
@@ -216,14 +256,17 @@ func (c *HostCircuit) dataLen() int {
 }
 
 func (c *HostCircuit) validateInput() error {
-	maxReceipts, maxStorage, maxTxs := c.Guest.Allocate()
-	dataPoints := DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
+	info := c.Guest.Allocate()
+	maxReceipts := info.MaxReceipts
+	maxSlots := info.MaxSlots
+	maxTxs := info.MaxTxs
+	maxBlockHeaders := info.MaxBlockHeaders
+	dataPoints := DataPointsNextPowerOf2(maxReceipts + maxSlots + maxTxs + maxBlockHeaders)
 	d := c.Input
 	inputLen := len(d.Receipts.Raw) + len(d.StorageSlots.Raw) + len(d.Transactions.Raw)
 	if inputLen > dataPoints {
 		return fmt.Errorf("input len must be less than %d", dataPoints)
 	}
-	maxReceipts, maxSlots, maxTransactions := c.Guest.Allocate()
 	if len(d.Receipts.Raw) != len(d.Receipts.Toggles) || len(d.Receipts.Raw) != maxReceipts {
 		return fmt.Errorf("receipt input/toggle len mismatch: len(d.Receipts.Raw) %d vs len(d.Receipts.Toggles) %d vs maxReceipts %d",
 			len(d.Receipts.Raw), len(d.Receipts.Toggles), maxReceipts)
@@ -232,9 +275,13 @@ func (c *HostCircuit) validateInput() error {
 		return fmt.Errorf("storageSlots input/toggle len mismatch: len(d.StorageSlots.Raw) %d vs len(d.StorageSlots.Toggles) %d vs maxSlots %d",
 			len(d.StorageSlots.Raw), len(d.StorageSlots.Toggles), maxSlots)
 	}
-	if len(d.Transactions.Raw) != len(d.Transactions.Toggles) || len(d.Transactions.Raw) != maxTransactions {
+	if len(d.Transactions.Raw) != len(d.Transactions.Toggles) || len(d.Transactions.Raw) != maxTxs {
 		return fmt.Errorf("transaction input/toggle len mismatch: len(d.Transactions.Raw) %d vs len(d.Transactions.Toggles) %d vs maxTransactions %d",
-			len(d.Transactions.Raw), len(d.Transactions.Toggles), maxTransactions)
+			len(d.Transactions.Raw), len(d.Transactions.Toggles), maxTxs)
+	}
+	if len(d.BlockHeaders.Raw) != len(d.BlockHeaders.Toggles) || len(d.BlockHeaders.Raw) != maxBlockHeaders {
+		return fmt.Errorf("Headers input/toggle len mismatch: len(d.Headers.Raw) %d vs len(d.Headers.Toggles) %d vs maxBlockHeaders %d",
+			len(d.BlockHeaders.Raw), len(d.BlockHeaders.Toggles), maxBlockHeaders)
 	}
 	return nil
 }
@@ -299,7 +346,7 @@ var dryRunOutput []byte
 var dryRunOutputCommit OutputCommitment
 var dryRunLock sync.Mutex
 
-func dryRun(in CircuitInput, guest AppCircuit) (OutputCommitment, []byte, error) {
+func dryRun(in CircuitInput, guest AppCircuitV2) (OutputCommitment, []byte, error) {
 	dryRunLock.Lock()
 	defer dryRunLock.Unlock()
 	// resetting state

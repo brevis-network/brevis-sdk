@@ -13,8 +13,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-func assignCustomInput(app sdk.AppCircuit, input *sdkproto.CustomInput) (sdk.AppCircuit, error) {
-	makeErr := func(msg string, err ...error) (sdk.AppCircuit, error) {
+func assignCustomInput(app sdk.AppCircuitV2, input *sdkproto.CustomInput) (sdk.AppCircuitV2, error) {
+	makeErr := func(msg string, err ...error) (sdk.AppCircuitV2, error) {
 		format := "cannot assign custom input: %s"
 		if len(err) == 1 {
 			return nil, fmt.Errorf(format+": %v", msg, err[0])
@@ -92,7 +92,7 @@ func assignCustomInput(app sdk.AppCircuit, input *sdkproto.CustomInput) (sdk.App
 		}
 	}
 
-	return appStructRef.Interface().(sdk.AppCircuit), nil
+	return appStructRef.Interface().(sdk.AppCircuitV2), nil
 }
 
 func setListItemsWithCheck(field reflect.Value, values reflect.Value, name string) error {

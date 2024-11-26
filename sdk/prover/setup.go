@@ -12,9 +12,9 @@ import (
 	"github.com/consensys/gnark/constraint"
 )
 
-func readOrSetup(circuit sdk.AppCircuit, setupDir, srsDir string) (pk plonk.ProvingKey, vk plonk.VerifyingKey, ccs constraint.ConstraintSystem, vkHash []byte, err error) {
+func readOrSetup(circuit sdk.AppCircuitV2, setupDir, srsDir string) (pk plonk.ProvingKey, vk plonk.VerifyingKey, ccs constraint.ConstraintSystem, vkHash []byte, err error) {
 	fmt.Println(">> compiling circuit")
-	ccs, err = sdk.CompileOnly(circuit)
+	ccs, err = sdk.CompileOnlyV2(circuit)
 	if err != nil {
 		return
 	}
@@ -28,15 +28,12 @@ func readOrSetup(circuit sdk.AppCircuit, setupDir, srsDir string) (pk plonk.Prov
 	ccsDigest := crypto.Keccak256(ccsBytes.Bytes())
 	fmt.Printf("circuit digest 0x%x\n", ccsDigest)
 
-	maxReceipts, maxStorage, maxTxs := circuit.Allocate()
-	dataPoints := sdk.DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
-
 	pkFilepath := filepath.Join(setupDir, fmt.Sprintf("0x%x", ccsDigest), "pk")
 	vkFilepath := filepath.Join(setupDir, fmt.Sprintf("0x%x", ccsDigest), "vk")
 
 	fmt.Println("trying to read setup from cache...")
 	var found bool
-	pk, vk, vkHash, found = readSetup(pkFilepath, vkFilepath, maxReceipts, maxStorage, dataPoints)
+	pk, vk, vkHash, found = readSetup(pkFilepath, vkFilepath, circuit.Allocate())
 	if found {
 		return
 	}
@@ -44,7 +41,7 @@ func readOrSetup(circuit sdk.AppCircuit, setupDir, srsDir string) (pk plonk.Prov
 	fmt.Printf("no setup matching circuit digest 0x%x is found in %s\n", ccsDigest, setupDir)
 	fmt.Println(">> setup")
 
-	pk, vk, vkHash, err = sdk.Setup(ccs, srsDir, maxReceipts, maxStorage, dataPoints)
+	pk, vk, vkHash, err = sdk.Setup(ccs, srsDir, circuit.Allocate())
 	if err != nil {
 		return
 	}
@@ -61,13 +58,13 @@ func readOrSetup(circuit sdk.AppCircuit, setupDir, srsDir string) (pk plonk.Prov
 	return
 }
 
-func readSetup(pkFilepath, vkFilepath string, maxReceipt, maxStorage, numMaxDataPoints int) (pk plonk.ProvingKey, vk plonk.VerifyingKey, vkHash []byte, ok bool) {
+func readSetup(pkFilepath, vkFilepath string, info sdk.AppCircuitAllocationInfo) (pk plonk.ProvingKey, vk plonk.VerifyingKey, vkHash []byte, ok bool) {
 	var err error
 	pk, err = sdk.ReadPkFrom(pkFilepath)
 	if err != nil {
 		return
 	}
-	vk, vkHash, err = sdk.ReadVkFrom(vkFilepath, maxReceipt, maxStorage, numMaxDataPoints)
+	vk, vkHash, err = sdk.ReadVkFrom(vkFilepath, info)
 	if err != nil {
 		return
 	}

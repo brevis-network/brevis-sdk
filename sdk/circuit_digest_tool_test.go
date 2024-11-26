@@ -105,7 +105,7 @@ func TestHashAllDigest(t *testing.T) {
 
 	log.Infof("finalDigest: %x", finalDigest)
 
-	toolDigest, err := CalBrevisCircuitDigest(32, 32, 0, vk)
+	toolDigest, err := CalBrevisCircuitDigest(32, 32, 0, 0, vk)
 	assert.NoError(err)
 
 	log.Infof("toolDigest: %x", toolDigest)

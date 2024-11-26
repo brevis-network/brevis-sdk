@@ -17,3 +17,8 @@ var DummyTransactionInputCommitment = map[uint64]string{
 	11155111: "0x260aeaed3bc908862d4a07909019735656df7d6cedd66bde5d0dba6d02f115bc",
 	84532:    "0x04ED77F050D018E84A3B2578EB50D8D845A7D4AB6D3DE25A9D50023F76D1D93E",
 }
+
+var DummyBlockHeaderInputCommitment = map[uint64]string{
+	1:        "0xe4dda4409fbd8fd88485c70167bc1cfe55753b147aeb1725a2dee8aa59ba92",
+	11155111: "0x260aeaed3bc908862d4a07909019735656df7d6cedd66bde5d0dba6d02f115bc",
+}
