@@ -7,13 +7,13 @@ import (
 
 type AppCircuit struct{}
 
-var _ sdk.AppCircuit = &AppCircuit{}
+var _ sdk.AppCircuitV2 = &AppCircuit{}
 
-func (c *AppCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions int) {
+func (c *AppCircuit) Allocate() sdk.AppCircuitAllocationInfo {
 	// This demo app is only going to use two storage data at a time so
 	// we can simply limit the max number of data for storage to 1 and
 	// 0 for all others
-	return 0, 32, 0
+	return sdk.AppCircuitAllocationInfo{MaxSlots: 32, MaxBlockHeaders: 32}
 }
 
 var USDTAddress = sdk.ConstUint248(

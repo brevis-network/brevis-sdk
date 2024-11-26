@@ -29,10 +29,14 @@ func TestCircuit(t *testing.T) {
 		Slot:     common.HexToHash("0x568f97cb8c4c4a5582f76b76203c3168e6b403a6cad2536bcda6c6a37564ab52"),
 	})
 
+	app.AddBlockHeader(sdk.BlockHeaderData{
+		BlockNum: big.NewInt(19525436),
+	})
+
 	appCircuit := &AppCircuit{}
 	appCircuitAssignment := &AppCircuit{}
 
-	in, err := app.BuildCircuitInput(appCircuitAssignment)
+	in, err := app.BuildCircuitInputV2(appCircuitAssignment)
 	check(err)
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -41,7 +45,7 @@ func TestCircuit(t *testing.T) {
 
 	// Use the test package to check if the circuit can be solved using the given
 	// assignment
-	test.ProverSucceeded(t, appCircuit, appCircuitAssignment, in)
+	test.ProverSucceededV2(t, appCircuit, appCircuitAssignment, in)
 }
 
 func check(err error) {

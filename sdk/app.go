@@ -91,6 +91,19 @@ func NewBrevisApp(
 			Txs:          map[string]*TransactionData{},
 			BlockHeaders: map[string]*BlockHeaderData{},
 		}
+	} else {
+		if localInputData.Receipts == nil {
+			localInputData.Receipts = map[string]*ReceiptData{}
+		}
+		if localInputData.Storages == nil {
+			localInputData.Storages = map[string]*StorageData{}
+		}
+		if localInputData.Txs == nil {
+			localInputData.Txs = map[string]*TransactionData{}
+		}
+		if localInputData.BlockHeaders == nil {
+			localInputData.BlockHeaders = map[string]*BlockHeaderData{}
+		}
 	}
 
 	return &BrevisApp{

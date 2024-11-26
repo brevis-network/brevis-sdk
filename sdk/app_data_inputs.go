@@ -150,6 +150,21 @@ func (q *BrevisApp) AddMockTransaction(data TransactionData, index ...int) {
 	q.mockTxs.add(data, index...)
 }
 
+// AddBlockHeader adds the BlockHeaderData to be queried. If an index is
+// specified, the data will be assigned to the specified index of
+// DataInput.BlockHeaders.
+func (q *BrevisApp) AddBlockHeader(data BlockHeaderData, index ...int) {
+	q.blockHeaders.add(data, index...)
+}
+
+// AddBlockHeader adds the BlockHeaderData to be queried. If an index is
+// specified, the data will be assigned to the specified index of
+// DataInput.BlockHeaders.
+// It should be used ONLY for circuit implementation and testing.
+func (q *BrevisApp) AddMockBlockHeader(data BlockHeaderData, index ...int) {
+	q.mockBlockHeaders.add(data, index...)
+}
+
 func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
 	// assigning user appointed receipts at specific indices
 	for i, r := range q.receipts.special {

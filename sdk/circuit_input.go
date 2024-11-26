@@ -73,6 +73,7 @@ func defaultCircuitInput(maxReceipts, maxStorage, maxTxs, maxBlockHeaders, dataP
 		DummyReceiptInputCommitment:     0,
 		DummyStorageInputCommitment:     0,
 		DummyTransactionInputCommitment: 0,
+		DummyBlockHeaderInputCommitment: 0,
 	}
 }
 
