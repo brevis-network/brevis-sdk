@@ -205,7 +205,7 @@ func (q *BrevisApp) getReceiptInfos(txHash common.Hash) (receipt *types.Receipt,
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("unsupported block for tx %s: %s", txHash.Hex(), err.Error())
 	}
-	_, _, _, err = GetReceiptProof(types.NewBlockWithHeader(header), receipts, int(receipt.TransactionIndex))
+	_, _, _, err = GetReceiptProof(q.srcChainId, types.NewBlockWithHeader(header), receipts, int(receipt.TransactionIndex))
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("unsupported block for tx %s: %s", txHash.Hex(), err.Error())
 	}
@@ -382,9 +382,25 @@ func GetHeaderAndTxHashes(ec *ethclient.Client, ctx context.Context, blkNum *big
 	return head, body.Transactions, nil
 }
 
-func GetReceiptProof(bk *types.Block, receipts types.Receipts, index int) (nodes [][]byte, keyIndex, leafRlpPrefix []byte, err error) {
+func GetReceiptProof(srcChainId uint64, bk *types.Block, receipts types.Receipts, index int) (nodes [][]byte, keyIndex, leafRlpPrefix []byte, err error) {
 	var indexBuf []byte
 	keyIndex = rlp.AppendUint64(indexBuf[:0], uint64(index))
+
+	// // if receipts.
+
+	// if srcChainId == 196 {
+
+	// }
+	// m := []*Receipt{}
+	for i := range receipts {
+		fmt.Println("receipt ", i, receipts[i].Bloom.Bytes())
+		a := receipts[i]
+		a.Bloom = [256]byte{}
+		// a.Bloom.SetBytes([]byte{})
+		receipts[i] = a
+		fmt.Println("receipt ", i, receipts[i].Bloom.Bytes())
+		// m = append(m)
+	}
 
 	db := triedb.NewDatabase(rawdb.NewMemoryDatabase(), nil)
 	tt := trie.NewEmpty(db)
