@@ -37,7 +37,7 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 
 func main() {
 	outDir := "$HOME/circuitOut/circuitDemo"
-	srsDir := "$HOME/kzgsrs"
+	// srsDir := "$HOME/kzgsrs"
 	rpcUrl := "https://xlayer.drpc.org"
 	app, err := sdk.NewBrevisApp(196, rpcUrl, outDir)
 	check(err)
@@ -86,7 +86,7 @@ func main() {
 		fmt.Println(a)
 	}
 
-	compiledCircuit, pk, vk, _, err := sdk.Compile(&AppCircuit{}, outDir, srsDir)
+	compiledCircuit, pk, vk, _, err := sdk.ReadSetupFrom(&AppCircuit{}, outDir)
 	check(err)
 
 	witness, publicWitness, err := sdk.NewFullWitness(appCircuitAssignment, circuitInput)
