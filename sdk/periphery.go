@@ -24,7 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-func Compile(app AppCircuit, compileOutDir, srsDir string) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, []byte, error) {
+func Compile(app AppCircuit, compileOutDir, srsDir string, brevisApp *BrevisApp) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, []byte, error) {
 	fmt.Println(">> compile")
 	ccs, err := CompileOnly(app)
 	if err != nil {
@@ -35,7 +35,7 @@ func Compile(app AppCircuit, compileOutDir, srsDir string) (constraint.Constrain
 	dataPoints := DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
 
 	fmt.Println(">> setup")
-	pk, vk, vkHash, err := Setup(ccs, srsDir, maxReceipts, maxStorage, dataPoints)
+	pk, vk, vkHash, err := Setup(ccs, srsDir, maxReceipts, maxStorage, dataPoints, brevisApp)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -80,7 +80,7 @@ func CompileOnly(app AppCircuit) (constraint.ConstraintSystem, error) {
 	return ccs, nil
 }
 
-func Setup(ccs constraint.ConstraintSystem, cacheDir string, maxReceipt, maxStorage, dataPoints int) (pk plonk.ProvingKey, vk plonk.VerifyingKey, vkHash []byte, err error) {
+func Setup(ccs constraint.ConstraintSystem, cacheDir string, maxReceipt, maxStorage, dataPoints int, brevisApp *BrevisApp) (pk plonk.ProvingKey, vk plonk.VerifyingKey, vkHash []byte, err error) {
 	if len(cacheDir) == 0 {
 		return nil, nil, nil, fmt.Errorf("must provide a directory to save SRS")
 	}
@@ -99,12 +99,12 @@ func Setup(ccs constraint.ConstraintSystem, cacheDir string, maxReceipt, maxStor
 	}
 	fmt.Printf("setup done in %s\n", time.Since(before))
 
-	vkHash, err = printVkHash(vk, maxReceipt, maxStorage, dataPoints)
+	vkHash, err = printVkHash(vk, maxReceipt, maxStorage, dataPoints, brevisApp)
 
 	return
 }
 
-func printVkHash(vk plonk.VerifyingKey, maxReceipt, maxStorage, dataPoints int) ([]byte, error) {
+func printVkHash(vk plonk.VerifyingKey, maxReceipt, maxStorage, dataPoints int, brevisApp *BrevisApp) ([]byte, error) {
 	if maxReceipt%32 != 0 {
 		panic("invalid max receipts")
 	}
@@ -112,7 +112,7 @@ func printVkHash(vk plonk.VerifyingKey, maxReceipt, maxStorage, dataPoints int) 
 		panic("invalid max storage")
 	}
 
-	vkHashInBigInt, err := CalBrevisCircuitDigest(maxReceipt, maxStorage, dataPoints-maxReceipt-maxStorage, vk)
+	vkHashInBigInt, err := CalBrevisCircuitDigest(maxReceipt, maxStorage, dataPoints-maxReceipt-maxStorage, vk, brevisApp)
 	if err != nil {
 		fmt.Printf("error computing vk hash: %s", err.Error())
 		return nil, err
@@ -173,7 +173,7 @@ func WriteTo(w io.WriterTo, path string) error {
 	return nil
 }
 
-func ReadSetupFrom(app AppCircuit, compileOutDir string) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, []byte, error) {
+func ReadSetupFrom(app AppCircuit, compileOutDir string, brevisApp *BrevisApp) (constraint.ConstraintSystem, plonk.ProvingKey, plonk.VerifyingKey, []byte, error) {
 	ccs, err := ReadCircuitFrom(filepath.Join(compileOutDir, "compiledCircuit"))
 	if err != nil {
 		return nil, nil, nil, nil, err
@@ -186,7 +186,7 @@ func ReadSetupFrom(app AppCircuit, compileOutDir string) (constraint.ConstraintS
 	maxReceipts, maxStorage, maxTxs := app.Allocate()
 	dataPoints := DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
 
-	vk, vkHash, err := ReadVkFrom(filepath.Join(compileOutDir, "vk"), maxReceipts, maxStorage, dataPoints)
+	vk, vkHash, err := ReadVkFrom(filepath.Join(compileOutDir, "vk"), maxReceipts, maxStorage, dataPoints, brevisApp)
 	return ccs, pk, vk, vkHash, err
 }
 
@@ -220,7 +220,7 @@ func ReadPkFrom(path string) (plonk.ProvingKey, error) {
 	return pk, err
 }
 
-func ReadVkFrom(path string, maxReceipt, maxStorage, numMaxDataPoints int) (plonk.VerifyingKey, []byte, error) {
+func ReadVkFrom(path string, maxReceipt, maxStorage, numMaxDataPoints int, brevisApp *BrevisApp) (plonk.VerifyingKey, []byte, error) {
 	f, err := os.Open(os.ExpandEnv(path))
 	if err != nil {
 		return nil, nil, err
@@ -233,7 +233,7 @@ func ReadVkFrom(path string, maxReceipt, maxStorage, numMaxDataPoints int) (plon
 	}
 	fmt.Printf("Verifying key: %d bytes read from %s\n", d, path)
 
-	vkHash, err := printVkHash(vk, maxReceipt, maxStorage, numMaxDataPoints)
+	vkHash, err := printVkHash(vk, maxReceipt, maxStorage, numMaxDataPoints, brevisApp)
 	return vk, vkHash, err
 }
 

@@ -34,12 +34,17 @@ type Service struct {
 // brevis sdk in other languages.
 func NewService(
 	app sdk.AppCircuit, config ServiceConfig) (*Service, error) {
-	pk, vk, ccs, vkHash, err := readOrSetup(app, config.GetSetupDir(), config.GetSrsDir())
+	brevisApp, err := sdk.NewBrevisApp(uint64(config.ChainId), config.RpcURL, config.GetLocalStoragePath())
+	if err != nil {
+		fmt.Printf("failed to initiate brevis app %s", err.Error())
+		os.Exit(1)
+	}
+	pk, vk, ccs, vkHash, err := readOrSetup(app, config.GetSetupDir(), config.GetSrsDir(), brevisApp)
 	if err != nil {
 		return nil, err
 	}
 	return &Service{
-		svr: newServer(config.RpcURL, config.GetLocalStoragePath(), config.ChainId, app, pk, vk, ccs, vkHash),
+		svr: newServer(brevisApp, app, pk, vk, ccs, vkHash),
 	}, nil
 }
 
@@ -111,9 +116,7 @@ type server struct {
 }
 
 func newServer(
-	rpcUrl string,
-	localStoragePath string,
-	srcChainId int,
+	brevisApp *sdk.BrevisApp,
 	appCircuit sdk.AppCircuit,
 	pk plonk.ProvingKey,
 	vk plonk.VerifyingKey,
@@ -131,11 +134,6 @@ func newServer(
 		os.Exit(1)
 	}
 
-	brevisApp, err := sdk.NewBrevisApp(uint64(srcChainId), rpcUrl, localStoragePath)
-	if err != nil {
-		fmt.Printf("failed to initiate brevis app %s", err.Error())
-		os.Exit(1)
-	}
 	return &server{
 		appCircuit: appCircuit,
 		brevisApp:  brevisApp,
