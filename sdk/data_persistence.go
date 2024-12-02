@@ -17,7 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/ethereum/go-ethereum/triedb"
 )
@@ -201,15 +200,6 @@ func (q *BrevisApp) getReceiptInfos(txHash common.Hash) (receipt *types.Receipt,
 		return nil, nil, nil, nil, fmt.Errorf("cannot get block with wrong tx hash %s: %s", txHash.Hex(), err.Error())
 	}
 
-	receipts, err := q.ec.BlockReceipts(context.Background(), rpc.BlockNumberOrHashWithNumber(rpc.BlockNumber(receipt.BlockNumber.Int64())))
-	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("unsupported block for tx %s: %s", txHash.Hex(), err.Error())
-	}
-	_, _, _, err = GetReceiptProof(q.srcChainId, types.NewBlockWithHeader(header), receipts, int(receipt.TransactionIndex))
-	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("unsupported block for tx %s: %s", txHash.Hex(), err.Error())
-	}
-
 	baseFee = header.BaseFee
 	return
 }
@@ -226,9 +216,13 @@ func convertReceiptDataToReceipt(r *ReceiptData) Receipt {
 	for i := len(r.Fields); i < NumMaxLogFields; i++ {
 		fields[i] = fields[len(r.Fields)-1]
 	}
+	baseFee := big.NewInt(0)
+	if r.BlockBaseFee != nil {
+		baseFee = r.BlockBaseFee
+	}
 	return Receipt{
 		BlockNum:     newU32(r.BlockNum),
-		BlockBaseFee: newU248(r.BlockBaseFee),
+		BlockBaseFee: newU248(baseFee),
 		MptKeyPath:   newU32(r.MptKeyPath),
 		Fields:       fields,
 	}
@@ -269,9 +263,13 @@ func ConvertStorageDataToStorage(data *StorageData) StorageSlot {
 }
 
 func convertStorageDataToStorage(data *StorageData) StorageSlot {
+	baseFee := big.NewInt(0)
+	if data.BlockBaseFee != nil {
+		baseFee = data.BlockBaseFee
+	}
 	return StorageSlot{
 		BlockNum:     newU32(data.BlockNum),
-		BlockBaseFee: newU248(data.BlockBaseFee),
+		BlockBaseFee: newU248(baseFee),
 		Contract:     ConstUint248(data.Address),
 		Slot:         ConstFromBigEndianBytes(data.Slot[:]),
 		Value:        ConstFromBigEndianBytes(data.Value[:]),
@@ -312,9 +310,13 @@ func ConvertTxDataToTransaction(data *TransactionData) Transaction {
 }
 
 func convertTxDataToTransaction(data *TransactionData) Transaction {
+	baseFee := big.NewInt(0)
+	if data.BlockBaseFee != nil {
+		baseFee = data.BlockBaseFee
+	}
 	return Transaction{
 		BlockNum:     ConstUint32(data.BlockNum),
-		BlockBaseFee: newU248(data.BlockBaseFee),
+		BlockBaseFee: newU248(baseFee),
 		MptKeyPath:   newU32(data.MptKeyPath),
 		LeafHash:     ConstFromBigEndianBytes(data.LeafHash.Bytes()),
 	}
@@ -382,34 +384,13 @@ func GetHeaderAndTxHashes(ec *ethclient.Client, ctx context.Context, blkNum *big
 	return head, body.Transactions, nil
 }
 
-func GetReceiptProof(srcChainId uint64, bk *types.Block, receipts types.Receipts, index int) (nodes [][]byte, keyIndex, leafRlpPrefix []byte, err error) {
+func GetReceiptProof(bk *types.Block, receipts types.Receipts, index int) (nodes [][]byte, keyIndex, leafRlpPrefix []byte, err error) {
 	var indexBuf []byte
 	keyIndex = rlp.AppendUint64(indexBuf[:0], uint64(index))
 
-	// // if receipts.
-
-	// if srcChainId == 196 {
-
-	// }
-	// m := []*Receipt{}
-	for i := range receipts {
-		fmt.Println("receipt ", i, receipts[i].Bloom.Bytes())
-		a := receipts[i]
-		a.Bloom = [256]byte{}
-		// a.Bloom.SetBytes([]byte{})
-		receipts[i] = a
-		fmt.Println("receipt ", i, receipts[i].Bloom.Bytes())
-		// m = append(m)
-	}
-
 	db := triedb.NewDatabase(rawdb.NewMemoryDatabase(), nil)
 	tt := trie.NewEmpty(db)
-	receiptRootHash := types.DeriveSha(receipts, tt)
-
-	if receiptRootHash != bk.ReceiptHash() {
-		err = fmt.Errorf("receipts root hash mismatch, blk: %d, index: %d, receipt root hash: %x != %x", bk.NumberU64(), index, receiptRootHash, bk.ReceiptHash())
-		return
-	}
+	types.DeriveSha(receipts, tt)
 
 	proofWriter := &ProofWriter{
 		Keys:   [][]byte{},

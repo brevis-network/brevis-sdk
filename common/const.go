@@ -5,6 +5,7 @@ var DummyReceiptInputCommitment = map[uint64]string{
 	11155111: "0x247798fb66851e5debc66ef1e5971749cfcf539104bc7510641672a4fdc90a90",
 	84532:    "0x06C735A7C48D4504EAD05E546AEABD76029F2ECE3EF44A3B3912A1F4C07346BB",
 	97:       "0x1ebe651585a988166a484613b62369d5e4618e7adbc55deabed5b55a8b40e47e",
+	196:      "0x1382cd52071970e0e3de3701bd5966bd21e6f9189541d4da7d4976809585dfbb",
 }
 
 var DummyStorageInputCommitment = map[uint64]string{
@@ -12,6 +13,7 @@ var DummyStorageInputCommitment = map[uint64]string{
 	11155111: "0x2336cce9e3b665975faa856aede7417b3f79918e8cdbd5cb965dad2cd338588c",
 	84532:    "0x1046102C783B98EFADEAEE4240584F1B458F53A183D54672F96065C8196970E9",
 	97:       "0x0eed34c175ec54047e5971de0e269146c4b8dee8777ceed3e06f08e912a6b5d0",
+	196:      "0x0284c742f33b2070eedb2c077c00636dc7cc3d063c92f3fa6ea430925bcc5f1d",
 }
 
 var DummyTransactionInputCommitment = map[uint64]string{
@@ -19,4 +21,5 @@ var DummyTransactionInputCommitment = map[uint64]string{
 	11155111: "0x260aeaed3bc908862d4a07909019735656df7d6cedd66bde5d0dba6d02f115bc",
 	84532:    "0x04ED77F050D018E84A3B2578EB50D8D845A7D4AB6D3DE25A9D50023F76D1D93E",
 	97:       "0x0f6f8b43c56f767d9cede1320a741acf00cfd73b7e8fdeba2df65418a483c290",
+	196:      "0x02d0c214f098057e0ec8a173e9af83b973aaf39ebec0acf1a1e585a5a1923bb2",
 }

@@ -31,7 +31,7 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, in sdk.DataInput) error {
 	api.OutputUint32(32, receipt.BlockNum)
 	api.OutputAddress(receipt.Fields[0].Contract)
 
-	// api.AssertInputsAreUnique()
+	api.AssertInputsAreUnique()
 	return nil
 }
 
@@ -54,7 +54,7 @@ func main() {
 		},
 	}
 
-	for i := 0; i < 32; i++ {
+	for i := 0; i < 1; i++ {
 		app.AddReceipt(receipt)
 	}
 
@@ -63,7 +63,7 @@ func main() {
 	bk, err := ec.BlockNumber(context.Background())
 	// gc := gethclient.New(rpcc)
 
-	for i := 0; i < 32; i++ {
+	for i := 0; i < 1; i++ {
 		app.AddStorage(sdk.StorageData{
 			BlockNum: new(big.Int).SetUint64(bk),
 			Address:  utils.Hex2Addr("0x17e3F630D07cd78def09020D3F8dc0198A07fe1A"),
@@ -71,7 +71,7 @@ func main() {
 		})
 	}
 
-	for i := 0; i < 64; i++ {
+	for i := 0; i < 1; i++ {
 		app.AddTransaction(sdk.TransactionData{
 			Hash: utils.Hex2Hash("0x302b1d5e3cbd699961330bfbcce50dae38aa33ee1012c173fd360952cbfca8f9"),
 		}, i)
