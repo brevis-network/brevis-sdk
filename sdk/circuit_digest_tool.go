@@ -79,37 +79,7 @@ func CalBrevisCircuitDigest(receiptCount, storageCount, transactionCount int, ap
 
 	appVkHashBytes := utils.CalculateAppVkHashForBn254(reVk)
 	appVkHashBigInt := new(big.Int).SetBytes(appVkHashBytes)
-
-	hash2HashDigest, err := GetHash2HashCircuitDigest(receiptCount, storageCount, transactionCount)
-	if err != nil {
-		return nil, err
-	}
-
-	plonky2RootFromBn128Digest, isRecursionOnLeaf, isRecursionRecursionOfLeaf, err := GetPlonky2CircuitDigestFromRootNodeSelf(receiptCount, storageCount, transactionCount)
-	if err != nil {
-		return nil, err
-	}
-
-	hasher := zkhashutils.NewPoseidonBn254()
-	hasher.Write(new(big.Int).SetUint64(plonky2RootFromBn128Digest[0]))
-	hasher.Write(new(big.Int).SetUint64(plonky2RootFromBn128Digest[1]))
-	hasher.Write(new(big.Int).SetUint64(plonky2RootFromBn128Digest[2]))
-	hasher.Write(new(big.Int).SetUint64(plonky2RootFromBn128Digest[3]))
-
-	if isRecursionOnLeaf {
-		hasher.Write(P2Bn128WrapCircuitDigestHashForOnly2Leaf)
-	} else if isRecursionRecursionOfLeaf {
-		hasher.Write(P2Bn128WrapCircuitDigestHashForOnlyFromLeafRecursion)
-	} else {
-		hasher.Write(P2Bn128WrapCircuitDigestHash)
-	}
-
-	hasher.Write(hash2HashDigest)
-	hasher.Write(utils.Hex2BigInt(MiddleNodeVkHashHex))
-
-	hasher.Write(appVkHashBigInt)
-
-	return hasher.Sum()
+	return appVkHashBigInt, nil
 }
 
 type Hash2HashDigestNode struct {
