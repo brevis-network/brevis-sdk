@@ -79,3 +79,14 @@ func (c *GatewayClient) SendBatchQueries(req *gwproto.SendBatchQueriesRequest) (
 	}
 	return
 }
+
+func (c *GatewayClient) GetCircuitDummyInput(req *gwproto.CircuitDummyInputRequest) (resp *gwproto.CircuitDummyInputResponse, err error) {
+	resp, err = c.c.GetCircuitDummyInputRequest(context.Background(), req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.Err != nil {
+		return nil, fmt.Errorf("invalid resp, err: %v", resp.Err)
+	}
+	return
+}
