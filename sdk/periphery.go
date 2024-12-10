@@ -11,10 +11,12 @@ import (
 	"github.com/brevis-network/brevis-sdk/common/utils"
 	"github.com/brevis-network/brevis-sdk/sdk/srs"
 	"github.com/consensys/gnark-crypto/ecc"
+	"github.com/consensys/gnark/backend"
 	"github.com/consensys/gnark/backend/plonk"
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/consensys/gnark/constraint"
 	cs_bn254 "github.com/consensys/gnark/constraint/bn254"
+	"github.com/consensys/gnark/constraint/solver"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/scs"
 	"github.com/consensys/gnark/std/algebra/emulated/sw_bn254"
@@ -135,12 +137,12 @@ func ComputeVkHash(vk plonk.VerifyingKey) (common.Hash, error) {
 	return common.BytesToHash(appVkHash), nil
 }
 
-func Prove(ccs constraint.ConstraintSystem, pk plonk.ProvingKey, w witness.Witness) (plonk.Proof, error) {
+func Prove(ccs constraint.ConstraintSystem, pk plonk.ProvingKey, w witness.Witness, hints ...solver.Hint) (plonk.Proof, error) {
 	fmt.Println(">> prove")
 
 	opts := replonk.GetNativeProverOptions(ecc.BN254.ScalarField(), ecc.BN254.ScalarField())
 
-	return plonk.Prove(ccs, pk, w, opts)
+	return plonk.Prove(ccs, pk, w, opts, backend.WithSolverOptions(solver.WithHints(hints...)))
 }
 
 func Verify(vk plonk.VerifyingKey, publicWitness witness.Witness, proof plonk.Proof) error {

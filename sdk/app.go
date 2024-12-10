@@ -12,8 +12,6 @@ import (
 	pgoldilocks "github.com/OpenAssetStandards/poseidon-goldilocks-go"
 	"github.com/consensys/gnark/frontend"
 
-	brevisCommon "github.com/brevis-network/brevis-sdk/common"
-
 	"github.com/brevis-network/brevis-sdk/sdk/proto/commonproto"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
 
@@ -327,8 +325,19 @@ func (q *BrevisApp) BuildCircuitInput(app AppCircuit) (CircuitInput, error) {
 		return buildCircuitInputErr("failed to assign in from transaction queries", err)
 	}
 
+	dummyResponse, err := q.gc.GetCircuitDummyInput(&gwproto.CircuitDummyInputRequest{
+		ChainId: q.srcChainId,
+	})
+	if err != nil || dummyResponse == nil {
+		return buildCircuitInputErr("failed to get dummy information from brevis gateway", err)
+	}
+	if dummyResponse.Err != nil || len(dummyResponse.Receipt) == 0 ||
+		len(dummyResponse.Storage) == 0 || len(dummyResponse.Tx) == 0 {
+		return CircuitInput{}, fmt.Errorf("failed to get dummy information from brevis gateway: %s", dummyResponse.Err.Msg)
+	}
+
 	// commitment
-	q.assignInputCommitment(&in)
+	q.assignInputCommitment(&in, dummyResponse)
 	q.assignToggleCommitment(&in)
 
 	// dry run without assigning the output commitment first to compute the output commitment using the user circuit
@@ -496,15 +505,21 @@ func (q *BrevisApp) SubmitProof(proof plonk.Proof, options ...SubmitProofOption)
 		if opts.ctx != nil {
 			cancel = opts.ctx.Done()
 		}
+
+		errChan := make(chan error, 1)
+
 		go func() {
 			tx, err := q.waitFinalProofSubmitted(cancel)
 			if err != nil {
 				fmt.Println(err.Error())
 				opts.onError(err)
+				errChan <- err
 				return
 			}
 			opts.onSubmitted(tx)
+			errChan <- nil
 		}()
+		return <-errChan
 	}
 
 	return nil
@@ -739,12 +754,12 @@ func (q *BrevisApp) checkAllocations(cb AppCircuit) error {
 	return nil
 }
 
-func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
+func (q *BrevisApp) assignInputCommitment(w *CircuitInput, dummyInputCommitment *gwproto.CircuitDummyInputResponse) {
 	leafs := make([]*big.Int, q.dataPoints)
 	hasher := utils.NewPoseidonBn254()
 
 	j := 0
-	ric := brevisCommon.DummyReceiptInputCommitment[q.srcChainId]
+	ric := dummyInputCommitment.Receipt
 	if len(ric) == 0 {
 		panic(fmt.Sprintf("cannot find dummy receipt info for chain %d", q.srcChainId))
 	}
@@ -772,7 +787,7 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 		j++
 	}
 
-	sic := brevisCommon.DummyStorageInputCommitment[q.srcChainId]
+	sic := dummyInputCommitment.Storage
 	if len(sic) == 0 {
 		panic(fmt.Sprintf("cannot find dummy receipt info for chain %d", q.srcChainId))
 	}
@@ -800,7 +815,7 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput) {
 		j++
 	}
 
-	tic := brevisCommon.DummyTransactionInputCommitment[q.srcChainId]
+	tic := dummyInputCommitment.Tx
 	if len(tic) == 0 {
 		panic(fmt.Sprintf("cannot find dummy receipt info for chain %d", q.srcChainId))
 	}

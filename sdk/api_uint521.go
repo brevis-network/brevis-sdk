@@ -28,6 +28,9 @@ type Uint521 struct {
 var _ CircuitVariable = Uint521{}
 
 func (v Uint521) Values() []frontend.Variable {
+	if len(v.Limbs) != int(v.NumVars()) {
+		panic(fmt.Sprintf("v.Limbs does not have the right length %d", v.NumVars()))
+	}
 	return u521Field.Reduce(v.Element).Limbs
 }
 
@@ -109,6 +112,9 @@ func (api *Uint521API) ToBinary(v Uint521, n int) List[Uint248] {
 	if len(bits) < n {
 		panic(fmt.Sprintf("v has bits size %d less than %d", len(bits), n))
 	}
+	for i := n; i < len(bits); i++ {
+		api.g.AssertIsEqual(bits[i], 0)
+	}
 	ret := make([]Uint248, n)
 	for i := 0; i < n; i++ {
 		ret[i] = newU248(bits[i])
@@ -131,29 +137,9 @@ func (api *Uint521API) Mul(a, b Uint521) Uint521 {
 	return newU521(api.f.Mul(a.Element, b.Element))
 }
 
-// Div computes the standard unsigned integer division (like Go) and returns the
-// quotient and remainder. Uses QuoRemHint
-func (api *Uint521API) Div(a, b Uint521) (quotient, remainder Uint521) {
-	aEl := api.f.Reduce(a.Element)
-	bEl := api.f.Reduce(b.Element)
-
-	out, err := api.f.NewHint(QuoRemBigHint, 2, aEl, bEl)
-	if err != nil {
-		panic(err)
-	}
-
-	q, r := out[0], out[1]
-	num := api.f.Mul(q, b.Element)
-	num = api.f.Add(num, r)
-
-	api.f.AssertIsEqual(num, a.Element)
-	api.f.IsZero(api.f.Sub(q, api.f.Div(aEl, bEl)))
-
-	return newU521(q), newU521(r)
-}
-
 // Select returns a if s == 1, and b if s == 0
 func (api *Uint521API) Select(s Uint248, a, b Uint521) Uint521 {
+	api.g.AssertIsBoolean(s.Val)
 	el := api.f.Select(s.Val, a.Element, b.Element)
 	return newU521(el)
 }

@@ -34,8 +34,8 @@ func newI248(v ...frontend.Variable) Int248 {
 // circuit wires and should only be used outside of circuit. The input big int
 // can be negative
 func ConstInt248(v *big.Int) Int248 {
-	if v.BitLen() >= 248 {
-		panic("cannot initialize Int248 with bit length > 248")
+	if (v.BitLen() >= 248) && (v.Cmp(new(big.Int).Neg(new(big.Int).Lsh(big.NewInt(1), 247))) != 0) {
+		panic("cannot initialize Int248 with bit length >= 248")
 	}
 
 	abs := new(big.Int).Abs(v)
@@ -202,6 +202,7 @@ func (api *Int248API) ABS(a Int248) Uint248 {
 
 // Select returns a if s == 1, and b if s == 0
 func (api *Int248API) Select(s Uint248, a, b Int248) Int248 {
+	api.g.AssertIsBoolean(s.Val)
 	v := Int248{}
 	v.Val = api.g.Select(s.Val, a.Val, b.Val)
 	if a.signBitSet && b.signBitSet {

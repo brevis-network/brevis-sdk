@@ -9,9 +9,17 @@ import (
 	"math/big"
 	"os"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/trie"
+	"github.com/ethereum/go-ethereum/triedb"
 )
 
 // To reduce rpc requests for developers, save data into local storage for future reference
@@ -188,12 +196,26 @@ func (q *BrevisApp) getReceiptInfos(txHash common.Hash) (receipt *types.Receipt,
 	mptKey = q.calculateMPTKeyWithIndex(int(receipt.TransactionIndex))
 	blockNumber = receipt.BlockNumber
 
-	block, err := q.ec.BlockByNumber(context.Background(), receipt.BlockNumber)
+	header, _, err := GetHeaderAndTxHashes(q.ec, context.Background(), receipt.BlockNumber)
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("cannot calculate tx leaf hash with wrong tx hash %s: %s", txHash.Hex(), err.Error())
+		return nil, nil, nil, nil, fmt.Errorf("cannot get block with wrong tx hash %s: %s", txHash.Hex(), err.Error())
 	}
-	baseFee = block.BaseFee()
+
+	receipts, err := q.ec.BlockReceipts(context.Background(), rpc.BlockNumberOrHashWithNumber(rpc.BlockNumber(receipt.BlockNumber.Int64())))
+	if err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("unsupported block for tx %s: %s", txHash.Hex(), err.Error())
+	}
+	_, _, _, err = GetReceiptProof(types.NewBlockWithHeader(header), receipts, int(receipt.TransactionIndex))
+	if err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("unsupported block for tx %s: %s", txHash.Hex(), err.Error())
+	}
+
+	baseFee = header.BaseFee
 	return
+}
+
+func ConvertReceiptDataToReceipt(r *ReceiptData) Receipt {
+	return convertReceiptDataToReceipt(r)
 }
 
 func convertReceiptDataToReceipt(r *ReceiptData) Receipt {
@@ -226,11 +248,11 @@ func convertFieldDataToField(f LogFieldData) LogField {
 }
 
 func (q *BrevisApp) getBlockBaseFee(blkNum *big.Int) (baseFee *big.Int, err error) {
-	block, err := q.ec.BlockByNumber(context.Background(), blkNum)
+	header, _, err := GetHeaderAndTxHashes(q.ec, context.Background(), blkNum)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get blk base fee with wrong blkNum %d: %s", blkNum, err.Error())
 	}
-	baseFee = block.BaseFee()
+	baseFee = header.BaseFee
 	return
 }
 
@@ -240,6 +262,10 @@ func (q *BrevisApp) getStorageValue(blkNum *big.Int, account common.Address, slo
 		return common.Hash{}, fmt.Errorf("cannot get storage value for account 0x%x with slot 0x%x blkNum %d: %s", account.Bytes(), slot, blkNum, err.Error())
 	}
 	return common.BytesToHash(value), nil
+}
+
+func ConvertStorageDataToStorage(data *StorageData) StorageSlot {
+	return convertStorageDataToStorage(data)
 }
 
 func convertStorageDataToStorage(data *StorageData) StorageSlot {
@@ -260,13 +286,18 @@ func (q *BrevisApp) calculateTxLeafHashBlockBaseFeeAndMPTKey(txHash common.Hash)
 	mptKey = q.calculateMPTKeyWithIndex(int(receipt.TransactionIndex))
 	blockNumber = receipt.BlockNumber
 
-	block, err := q.ec.BlockByNumber(context.Background(), receipt.BlockNumber)
+	header, _, err := GetHeaderAndTxHashes(q.ec, context.Background(), receipt.BlockNumber)
+
 	if err != nil {
 		return common.Hash{}, nil, nil, nil, fmt.Errorf("cannot calculate tx leaf hash with wrong tx hash %s: %s", txHash.Hex(), err.Error())
 	}
-	baseFee = block.BaseFee()
+	baseFee = header.BaseFee
 
-	proofs, _, _, err := getTransactionProof(block, int(receipt.TransactionIndex))
+	bk, err := q.ec.BlockByNumber(context.Background(), receipt.BlockNumber)
+	if err != nil {
+		return common.Hash{}, nil, nil, nil, fmt.Errorf("cannot calculate tx leaf hash with wrong tx hash %s: %s", txHash.Hex(), err.Error())
+	}
+	proofs, _, _, err := getTransactionProof(bk, int(receipt.TransactionIndex))
 	if err != nil {
 		return common.Hash{}, nil, nil, nil, fmt.Errorf("cannot calculate tx leaf hash with wrong tx hash %s: %s", txHash.Hex(), err.Error())
 	}
@@ -274,6 +305,10 @@ func (q *BrevisApp) calculateTxLeafHashBlockBaseFeeAndMPTKey(txHash common.Hash)
 	leafHash = common.BytesToHash(crypto.Keccak256(proofs[len(proofs)-1]))
 
 	return
+}
+
+func ConvertTxDataToTransaction(data *TransactionData) Transaction {
+	return convertTxDataToTransaction(data)
 }
 
 func convertTxDataToTransaction(data *TransactionData) Transaction {
@@ -316,4 +351,67 @@ func convertTxDataToTxPos(data TransactionData) TransactionPos {
 	return TransactionPos{
 		Hash: data.Hash,
 	}
+}
+
+type rpcBlockWithoutTxDetails struct {
+	Hash         common.Hash   `json:"hash"`
+	Transactions []common.Hash `json:"transactions"`
+}
+
+func GetHeaderAndTxHashes(ec *ethclient.Client, ctx context.Context, blkNum *big.Int) (*types.Header, []common.Hash, error) {
+	var raw json.RawMessage
+	err := ec.Client().CallContext(ctx, &raw, "eth_getBlockByNumber", hexutil.EncodeBig(blkNum), false)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Decode header and transactions.
+	var head *types.Header
+	if err := json.Unmarshal(raw, &head); err != nil {
+		return nil, nil, err
+	}
+	// When the block is not found, the API returns JSON null.
+	if head == nil {
+		return nil, nil, ethereum.NotFound
+	}
+
+	var body rpcBlockWithoutTxDetails
+	if err := json.Unmarshal(raw, &body); err != nil {
+		return nil, nil, err
+	}
+	return head, body.Transactions, nil
+}
+
+func GetReceiptProof(bk *types.Block, receipts types.Receipts, index int) (nodes [][]byte, keyIndex, leafRlpPrefix []byte, err error) {
+	var indexBuf []byte
+	keyIndex = rlp.AppendUint64(indexBuf[:0], uint64(index))
+
+	db := triedb.NewDatabase(rawdb.NewMemoryDatabase(), nil)
+	tt := trie.NewEmpty(db)
+	receiptRootHash := types.DeriveSha(receipts, tt)
+
+	if receiptRootHash != bk.ReceiptHash() {
+		err = fmt.Errorf("receipts root hash mismatch, blk: %d, index: %d, receipt root hash: %x != %x", bk.NumberU64(), index, receiptRootHash, bk.ReceiptHash())
+		return
+	}
+
+	proofWriter := &ProofWriter{
+		Keys:   [][]byte{},
+		Values: [][]byte{},
+	}
+	err = tt.Prove(keyIndex, proofWriter)
+	if err != nil {
+		return
+	}
+	var leafRlp [][]byte
+	leafValue := proofWriter.Values[len(proofWriter.Values)-1]
+	err = rlp.DecodeBytes(leafValue, &leafRlp)
+	if err != nil {
+		return
+	}
+	if len(leafRlp) != 2 {
+		err = fmt.Errorf("invalid leaf rlp len:%d, index:%d, bk:%s", len(leafRlp), index, bk.Number().String())
+		return
+	}
+	return proofWriter.Values, keyIndex, leafValue[:len(leafValue)-len(leafRlp[1])], nil
 }

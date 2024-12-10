@@ -54,6 +54,10 @@ func decompose[T uint | byte](data *big.Int, bitSize uint, length uint) []T {
 		panic(fmt.Errorf("bitSize %d exceeds the bit capacity of type %T", bitSize, *new(T)))
 	}
 
+	if data.Sign() < 0 {
+		panic(fmt.Errorf("negative values are not supported: %s", data.String()))
+	}
+
 	res := decomposeBig(data, bitSize, length)
 	ret := make([]T, length)
 	for i, limb := range res {
@@ -378,6 +382,7 @@ func getTransactionProof(bk *types.Block, index int) (nodes [][]byte, keyIndex, 
 
 	db := triedb.NewDatabase(rawdb.NewMemoryDatabase(), nil)
 	tt := trie.NewEmpty(db)
+
 	txRootHash := types.DeriveSha(bk.Transactions(), tt)
 	if txRootHash != bk.TxHash() {
 		err = fmt.Errorf("tx root hash mismatch, blk: %d, index: %d, tx root hash: %x != %x", bk.NumberU64(), index, txRootHash, bk.TxHash())
