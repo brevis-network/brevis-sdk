@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	pgoldilocks "github.com/OpenAssetStandards/poseidon-goldilocks-go"
 	"github.com/consensys/gnark/frontend"
 
 	"github.com/brevis-network/brevis-sdk/sdk/proto/commonproto"
@@ -134,6 +135,10 @@ type BrevisApp struct {
 	srcChainId, dstChainId          uint64
 	maxReceipts, maxStorage, maxTxs int
 	dataPoints                      int
+
+	receiptCircuitDigestHash *pgoldilocks.HashOut256
+	storageCircuitDigestHash *pgoldilocks.HashOut256
+	txCircuitDigestHash      *pgoldilocks.HashOut256
 }
 
 func NewBrevisApp(
@@ -176,17 +181,39 @@ func NewBrevisApp(
 		}
 	}
 
+	resp, err := gc.c.GetCircuitDigest(context.Background(), &gwproto.CircuitDigestRequest{})
+	if err != nil {
+		panic(err)
+	}
+	if resp.Err != nil {
+		panic(resp.Err)
+	}
+	if len(resp.HashesLimbs) != 12 {
+		panic("invalid circuit digest hashes limbs")
+	}
+
 	return &BrevisApp{
-		gc:                 gc,
-		ec:                 ec,
-		brevisRequest:      br,
-		srcChainId:         srcChainId,
-		receipts:           rawData[ReceiptData]{},
-		storageVals:        rawData[StorageData]{},
-		txs:                rawData[TransactionData]{},
-		localInputData:     localInputData,
-		localInputDataPath: localInputDataPath,
+		gc:                       gc,
+		ec:                       ec,
+		brevisRequest:            br,
+		srcChainId:               srcChainId,
+		receipts:                 rawData[ReceiptData]{},
+		storageVals:              rawData[StorageData]{},
+		txs:                      rawData[TransactionData]{},
+		localInputData:           localInputData,
+		localInputDataPath:       localInputDataPath,
+		receiptCircuitDigestHash: &pgoldilocks.HashOut256{resp.HashesLimbs[0], resp.HashesLimbs[1], resp.HashesLimbs[2], resp.HashesLimbs[3]},
+		storageCircuitDigestHash: &pgoldilocks.HashOut256{resp.HashesLimbs[4], resp.HashesLimbs[5], resp.HashesLimbs[6], resp.HashesLimbs[7]},
+		txCircuitDigestHash:      &pgoldilocks.HashOut256{resp.HashesLimbs[8], resp.HashesLimbs[9], resp.HashesLimbs[10], resp.HashesLimbs[11]},
 	}, nil
+}
+
+func NewBrevisAppWithDigestsSetOnly(receiptCircuitDigestHash, storageCircuitDigestHash, txCircuitDigestHash *pgoldilocks.HashOut256) *BrevisApp {
+	return &BrevisApp{
+		receiptCircuitDigestHash: receiptCircuitDigestHash,
+		storageCircuitDigestHash: storageCircuitDigestHash,
+		txCircuitDigestHash:      txCircuitDigestHash,
+	}
 }
 
 // AddReceipt adds the ReceiptData to be queried. If an index is specified, the
@@ -552,7 +579,7 @@ func (q *BrevisApp) prepareQueryForBrevisPartnerFlow(
 		return
 	}
 
-	vkHashInBigInt, err := CalBrevisCircuitDigest(q.maxReceipts, q.maxStorage, q.dataPoints-q.maxReceipts-q.maxStorage, vk)
+	vkHashInBigInt, err := CalBrevisCircuitDigest(q.maxReceipts, q.maxStorage, q.dataPoints-q.maxReceipts-q.maxStorage, vk, q)
 	if err != nil {
 		fmt.Printf("error computing vk hash: %s", err.Error())
 		return
@@ -632,7 +659,7 @@ func (q *BrevisApp) GenerateProtoQuery(
 		return nil, err
 	}
 
-	vkHashInBigInt, err := CalBrevisCircuitDigest(q.maxReceipts, q.maxStorage, q.dataPoints-q.maxReceipts-q.maxStorage, vk)
+	vkHashInBigInt, err := CalBrevisCircuitDigest(q.maxReceipts, q.maxStorage, q.dataPoints-q.maxReceipts-q.maxStorage, vk, q)
 	if err != nil {
 		fmt.Printf("error computing vk hash: %s", err.Error())
 		return nil, err
