@@ -208,11 +208,38 @@ func NewBrevisApp(
 	}, nil
 }
 
+// set digests directly
 func NewBrevisAppWithDigestsSetOnly(receiptCircuitDigestHash, storageCircuitDigestHash, txCircuitDigestHash *pgoldilocks.HashOut256) *BrevisApp {
 	return &BrevisApp{
 		receiptCircuitDigestHash: receiptCircuitDigestHash,
 		storageCircuitDigestHash: storageCircuitDigestHash,
 		txCircuitDigestHash:      txCircuitDigestHash,
+	}
+}
+
+// retrieve digests from gateway
+func NewBrevisAppWithDigestsSetOnlyFromRemote(gatewayUrlOverride ...string) *BrevisApp {
+	gc, err := NewGatewayClient(gatewayUrlOverride...)
+	if err != nil {
+		panic(err)
+	}
+
+	resp, err := gc.c.GetCircuitDigest(context.Background(), &gwproto.CircuitDigestRequest{})
+	if err != nil {
+		panic(err)
+	}
+	if resp.Err != nil {
+		panic(resp.Err)
+	}
+	if len(resp.HashesLimbs) != 12 {
+		panic("invalid circuit digest hashes limbs")
+	}
+
+	return &BrevisApp{
+		gc:                       gc,
+		receiptCircuitDigestHash: &pgoldilocks.HashOut256{resp.HashesLimbs[0], resp.HashesLimbs[1], resp.HashesLimbs[2], resp.HashesLimbs[3]},
+		storageCircuitDigestHash: &pgoldilocks.HashOut256{resp.HashesLimbs[4], resp.HashesLimbs[5], resp.HashesLimbs[6], resp.HashesLimbs[7]},
+		txCircuitDigestHash:      &pgoldilocks.HashOut256{resp.HashesLimbs[8], resp.HashesLimbs[9], resp.HashesLimbs[10], resp.HashesLimbs[11]},
 	}
 }
 
