@@ -9,6 +9,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type GatewayClient struct {
@@ -24,9 +25,9 @@ func NewGatewayClient(url ...string) (*GatewayClient, error) {
 	if len(url) > 0 {
 		gatewayUrl = url[0]
 		// if ovveride, if rpc use http, not https, use WithInsecure
-		opts = []grpc.DialOption{grpc.WithInsecure()}
+		opts = []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	}
-	conn, err := grpc.Dial(gatewayUrl, opts...)
+	conn, err := grpc.NewClient(gatewayUrl, opts...)
 	if err != nil {
 		return nil, err
 	}
