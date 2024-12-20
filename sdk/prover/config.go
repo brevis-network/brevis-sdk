@@ -32,7 +32,3 @@ func (c ServiceConfig) GetSrsDir() string {
 	}
 	return os.ExpandEnv(c.SrsDir)
 }
-
-func (c ServiceConfig) GetLocalStoragePath() string {
-	return c.GetSetupDir() + "/input"
-}
