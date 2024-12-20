@@ -34,7 +34,7 @@ type Service struct {
 // brevis sdk in other languages.
 func NewService(
 	app sdk.AppCircuit, config ServiceConfig) (*Service, error) {
-	brevisApp, err := sdk.NewBrevisApp(uint64(config.ChainId), config.RpcURL, config.GetLocalStoragePath())
+	brevisApp, err := sdk.NewBrevisApp(uint64(config.ChainId), config.RpcURL, config.GetSetupDir())
 	if err != nil {
 		fmt.Printf("failed to initiate brevis app %s", err.Error())
 		os.Exit(1)
