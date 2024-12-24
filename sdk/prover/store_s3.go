@@ -5,16 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/brevis-network/brevis-sdk/sdk/prover/s3"
 	"github.com/philippgille/gokv"
-	"github.com/philippgille/gokv/s3"
 )
 
 type s3StoreOptions struct {
 	BucketName             string `json:"bucket_name"`
+	KeyPrefix              string `json:"key_prefix"`
 	Region                 string `json:"region"`
 	AWSAccessKeyID         string `json:"aws_access_key_id"`
 	AWSSecretAccessKey     string `json:"aws_secret_access_key"`
-	CustomEndpoint         string `json:"custom_endpoint"`
 	UsePathStyleAddressing bool   `json:"use_path_style_addressing"`
 	Codec                  string `json:"codec"`
 }
@@ -34,10 +34,10 @@ func newS3Store(optionsJSON string) (gokv.Store, error) {
 	}
 	store, err := s3.NewClient(s3.Options{
 		BucketName:             options.BucketName,
+		KeyPrefix:              options.KeyPrefix,
 		Region:                 options.Region,
-		AWSaccessKeyID:         options.AWSAccessKeyID,
-		AWSsecretAccessKey:     options.AWSSecretAccessKey,
-		CustomEndpoint:         options.CustomEndpoint,
+		AWSAccessKeyID:         options.AWSAccessKeyID,
+		AWSSecretAccessKey:     options.AWSSecretAccessKey,
 		UsePathStyleAddressing: options.UsePathStyleAddressing,
 		Codec:                  codec,
 	})
