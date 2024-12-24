@@ -40,7 +40,16 @@ func NewService(
 		os.Exit(1)
 	}
 
-	pk, vk, ccs, vkHash, err := readOrSetup(app, config.GetSetupDir(), config.GetSrsDir(), brevisApp)
+	var pk plonk.ProvingKey
+	var vk plonk.VerifyingKey
+	var ccs constraint.ConstraintSystem
+	var vkHash []byte
+
+	if config.DirectLoad {
+		pk, vk, ccs, vkHash, err = readOrSetup(app, config.GetSetupDir(), config.GetSrsDir(), brevisApp)
+	} else {
+		pk, vk, ccs, vkHash, err = readOnly(app, config.GetSetupDir(), brevisApp)
+	}
 	if err != nil {
 		return nil, err
 	}
