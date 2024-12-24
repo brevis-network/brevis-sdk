@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -19,6 +20,7 @@ import (
 type Client struct {
 	c          *awss3.S3
 	bucketName string
+	keyPrefix  string
 	codec      encoding.Codec
 }
 
@@ -36,10 +38,11 @@ func (c Client) Set(k string, v any) error {
 		return err
 	}
 
+	fullKey := strings.Join([]string{c.keyPrefix, k}, "")
 	pubObjectInput := awss3.PutObjectInput{
 		Body:   bytes.NewReader(data),
 		Bucket: &c.bucketName,
-		Key:    &k,
+		Key:    &fullKey,
 	}
 	_, err = c.c.PutObject(&pubObjectInput)
 	if err != nil {
@@ -60,9 +63,10 @@ func (c Client) Get(k string, v any) (found bool, err error) {
 		return false, err
 	}
 
+	fullKey := strings.Join([]string{c.keyPrefix, k}, "")
 	getObjectInput := awss3.GetObjectInput{
 		Bucket: &c.bucketName,
-		Key:    &k,
+		Key:    &fullKey,
 	}
 	getObjectOutput, err := c.c.GetObject(&getObjectInput)
 	if err != nil {
@@ -93,9 +97,10 @@ func (c Client) Delete(k string) error {
 		return err
 	}
 
+	fullKey := strings.Join([]string{c.keyPrefix, k}, "")
 	deleteObjectInput := awss3.DeleteObjectInput{
 		Bucket: &c.bucketName,
-		Key:    &k,
+		Key:    &fullKey,
 	}
 	_, err := c.c.DeleteObject(&deleteObjectInput)
 	return err
@@ -112,6 +117,8 @@ type Options struct {
 	// Name of the S3 bucket.
 	// The bucket is automatically created if it doesn't exist yet.
 	BucketName string
+	// Prefix for all keys, eg. "{your-folder-name}/".
+	KeyPrefix string
 	// Region of the S3 service you want to use.
 	// Valid values: https://docs.aws.amazon.com/general/latest/gr/rande.html#ddb_region.
 	// E.g. "us-west-2".
@@ -211,6 +218,7 @@ func NewClient(options Options) (Client, error) {
 
 	result.c = svc
 	result.bucketName = options.BucketName
+	result.keyPrefix = options.KeyPrefix
 	result.codec = options.Codec
 
 	return result, nil

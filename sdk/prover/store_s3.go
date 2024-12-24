@@ -11,6 +11,7 @@ import (
 
 type s3StoreOptions struct {
 	BucketName             string `json:"bucket_name"`
+	KeyPrefix              string `json:"key_prefix"`
 	Region                 string `json:"region"`
 	AWSAccessKeyID         string `json:"aws_access_key_id"`
 	AWSSecretAccessKey     string `json:"aws_secret_access_key"`
@@ -33,6 +34,7 @@ func newS3Store(optionsJSON string) (gokv.Store, error) {
 	}
 	store, err := s3.NewClient(s3.Options{
 		BucketName:             options.BucketName,
+		KeyPrefix:              options.KeyPrefix,
 		Region:                 options.Region,
 		AWSAccessKeyID:         options.AWSAccessKeyID,
 		AWSSecretAccessKey:     options.AWSSecretAccessKey,
