@@ -23,6 +23,13 @@ type ServiceConfig struct {
 
 	// default false. if true, it will parallel compile ccs and load pk vk, without digest check
 	DirectLoad bool
+
+	// Persistence type, currently supporting "syncmap", "badgerdb" and "s3".
+	// Default to "syncmap".
+	PersistenceType string
+
+	// Persistence options as JSON string. See implementations for details.
+	PersistenceOptions string
 }
 
 func (c ServiceConfig) GetSetupDir() string {

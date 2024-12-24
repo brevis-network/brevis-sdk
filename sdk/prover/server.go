@@ -5,15 +5,16 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math/big"
 	"net"
 	"net/http"
-	"os"
 	"sync"
 
 	"github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto"
+	"github.com/celer-network/goutils/log"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-	"github.com/hashicorp/go-uuid"
 	"github.com/rs/cors"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -21,91 +22,29 @@ import (
 	"github.com/brevis-network/brevis-sdk/sdk"
 
 	"github.com/consensys/gnark/backend/plonk"
+	"github.com/consensys/gnark/backend/witness"
 	"github.com/consensys/gnark/constraint"
+	"github.com/philippgille/gokv"
 	"google.golang.org/grpc"
+)
+
+const (
+	ProveStatusInit = iota
+	ProveStatusInProgress
+	ProveStatusSuccess
+	ProveStatusFailed
 )
 
 type Service struct {
 	svr *server
 }
 
-// NewService creates a new prover server instance that automatically manages
-// compilation & setup, and serves as a GRPC server that interoperates with
-// brevis sdk in other languages.
-func NewService(
-	app sdk.AppCircuit, config ServiceConfig) (*Service, error) {
-	brevisApp, err := sdk.NewBrevisApp(uint64(config.ChainId), config.RpcURL, config.GetSetupDir())
-	if err != nil {
-		fmt.Printf("failed to initiate brevis app %s", err.Error())
-		os.Exit(1)
-	}
-
-	var pk plonk.ProvingKey
-	var vk plonk.VerifyingKey
-	var ccs constraint.ConstraintSystem
-	var vkHash []byte
-
-	if config.DirectLoad {
-		pk, vk, ccs, vkHash, err = readOrSetup(app, config.GetSetupDir(), config.GetSrsDir(), brevisApp)
-	} else {
-		pk, vk, ccs, vkHash, err = readOnly(app, config.GetSetupDir(), brevisApp)
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &Service{
-		svr: newServer(brevisApp, app, pk, vk, ccs, vkHash),
-	}, nil
-}
-
-func (s *Service) Serve(bind string, port uint) {
-	go s.serveGrpc(bind, port)
-	s.serveGrpcGateway(bind, port, port+10)
-}
-
-func (s *Service) serveGrpc(bind string, port uint) {
-	grpcServer := grpc.NewServer()
-	sdkproto.RegisterProverServer(grpcServer, s.svr)
-	address := fmt.Sprintf("%s:%d", bind, port)
-	lis, err := net.Listen("tcp", address)
-	if err != nil {
-		fmt.Println("failed to start prover server:", err)
-		os.Exit(1)
-	}
-	fmt.Println(">> serving prover GRPC at port", port)
-	if err = grpcServer.Serve(lis); err != nil {
-		fmt.Println("grpc server crashed", err)
-		os.Exit(1)
-	}
-}
-
-func (s *Service) serveGrpcGateway(bind string, grpcPort, restPort uint) {
-	mux := runtime.NewServeMux()
-	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-	endpoint := fmt.Sprintf("%s:%d", bind, grpcPort)
-
-	err := sdkproto.RegisterProverHandlerFromEndpoint(context.Background(), mux, endpoint, opts)
-	if err != nil {
-		fmt.Println("failed to start prover server:", err)
-		os.Exit(1)
-	}
-
-	handler := cors.New(cors.Options{
-		AllowedHeaders:   []string{"*"},
-		AllowedOrigins:   []string{"*"},
-		AllowCredentials: true,
-	}).Handler(mux)
-
-	fmt.Println(">> serving prover REST API at port", restPort)
-	if err = http.ListenAndServe(fmt.Sprintf(":%d", restPort), handler); err != nil {
-		fmt.Println("REST server crashed", err)
-		os.Exit(1)
-	}
-}
-
-type proofRes struct {
-	proof string
-	err   string
+type proveRequest struct {
+	Status        int
+	Witness       []byte
+	PublicWitness []byte
+	Proof         string
+	Err           string
 }
 
 type server struct {
@@ -121,8 +60,98 @@ type server struct {
 	vkString string
 	vkHash   string
 
-	proofs map[string]proofRes
-	lock   sync.RWMutex
+	store      gokv.Store
+	activeJobs sync.Map
+}
+
+// package level singleton to ensure only one prove process is running at a time
+var proveProcessorLock sync.Mutex
+
+// NewService creates a new prover server instance that automatically manages
+// compilation & setup, and serves as a GRPC server that interoperates with
+// brevis sdk in other languages.
+func NewService(
+	app sdk.AppCircuit, config ServiceConfig) (*Service, error) {
+	brevisApp, err := sdk.NewBrevisApp(uint64(config.ChainId), config.RpcURL, config.GetSetupDir())
+	if err != nil {
+		return nil, fmt.Errorf("failed to initiate brevis app %w", err)
+	}
+
+	var pk plonk.ProvingKey
+	var vk plonk.VerifyingKey
+	var ccs constraint.ConstraintSystem
+	var vkHash []byte
+	if config.DirectLoad {
+		pk, vk, ccs, vkHash, err = readOnly(app, config.GetSetupDir(), brevisApp)
+	} else {
+		pk, vk, ccs, vkHash, err = readOrSetup(app, config.GetSetupDir(), config.GetSrsDir(), brevisApp)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("readOrSetup err: %w", err)
+	}
+	svr, err := newServer(brevisApp, app, pk, vk, ccs, vkHash, config.PersistenceType, config.PersistenceOptions)
+	if err != nil {
+		return nil, fmt.Errorf("newServer err: %w", err)
+	}
+	return &Service{svr: svr}, nil
+}
+
+func (s *Service) Serve(bind string, grpcPort, restPort uint) error {
+	errG := errgroup.Group{}
+	errG.Go(func() error { return s.serveGrpc(bind, grpcPort) })
+	errG.Go(func() error { return serveGrpcGateway(bind, grpcPort, restPort) })
+	return errG.Wait()
+}
+
+func (s *Service) serveGrpc(bind string, port uint) error {
+	grpcServer := grpc.NewServer()
+	sdkproto.RegisterProverServer(grpcServer, s.svr)
+	address := fmt.Sprintf("%s:%d", bind, port)
+	lis, err := net.Listen("tcp", address)
+	if err != nil {
+		return fmt.Errorf("failed to start prover server: %w", err)
+	}
+	log.Infoln(">> serving prover GRPC at port", port)
+	if err = grpcServer.Serve(lis); err != nil {
+		return fmt.Errorf("grpc server crashed: %w", err)
+	}
+	return nil
+}
+
+func serveGrpcGateway(bind string, grpcPort, restPort uint) error {
+	mux := runtime.NewServeMux()
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+	endpoint := fmt.Sprintf("%s:%d", bind, grpcPort)
+
+	err := sdkproto.RegisterProverHandlerFromEndpoint(context.Background(), mux, endpoint, opts)
+	if err != nil {
+		return fmt.Errorf("failed to start prover server: %w", err)
+	}
+
+	handler := cors.New(cors.Options{
+		AllowedHeaders:   []string{"*"},
+		AllowedOrigins:   []string{"*"},
+		AllowCredentials: true,
+	}).Handler(mux)
+
+	log.Infoln(">> serving prover REST API at port", restPort)
+	if err = http.ListenAndServe(fmt.Sprintf(":%d", restPort), handler); err != nil {
+		return fmt.Errorf("REST server crashed: %w", err)
+	}
+	return nil
+}
+
+func initStore(persistenceType string, persistenceOptions string) (gokv.Store, error) {
+	switch persistenceType {
+	case "", "syncmap":
+		return newSyncMapStore(persistenceOptions)
+	case "s3":
+		return newS3Store(persistenceOptions)
+	case "badgerdb":
+		return newBadgerDBStore(persistenceOptions)
+	default:
+		return nil, fmt.Errorf("unsupported persistence type %s", persistenceType)
+	}
 }
 
 func newServer(
@@ -132,18 +161,18 @@ func newServer(
 	vk plonk.VerifyingKey,
 	ccs constraint.ConstraintSystem,
 	vkHash []byte,
-) *server {
+	persistenceType string,
+	persistenceOptions string,
+) (*server, error) {
 	var buf bytes.Buffer
 	_, err := vk.WriteRawTo(&buf)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return nil, fmt.Errorf("vk.WriteTo err: %w", err)
 	}
+	store, err := initStore(persistenceType, persistenceOptions)
 	if err != nil {
-		fmt.Printf("failed to compute vk hash %s", err.Error())
-		os.Exit(1)
+		return nil, fmt.Errorf("initStore error: %w", err)
 	}
-
 	return &server{
 		appCircuit: appCircuit,
 		brevisApp:  brevisApp,
@@ -152,30 +181,35 @@ func newServer(
 		ccs:        ccs,
 		vkString:   hexutil.Encode(buf.Bytes()),
 		vkHash:     hexutil.Encode(vkHash),
-		proofs:     make(map[string]proofRes),
-	}
+		store:      store,
+		activeJobs: sync.Map{},
+	}, nil
 }
 
 func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkproto.ProveResponse, error) {
-	fmt.Println(req.String())
+	log.Debugln("received synchronous prove request", req.String())
 
 	errRes := func(protoErr *sdkproto.Err) (*sdkproto.ProveResponse, error) {
 		return &sdkproto.ProveResponse{Err: protoErr, CircuitInfo: nil}, nil
 	}
 
-	input, guest, witness, protoErr := s.buildInput(req)
+	input, guest, witnessStr, protoErr := s.buildInput(req)
 	if protoErr != nil {
 		return errRes(protoErr)
 	}
 
-	proof, err := s.prove(input, guest)
+	witness, publicWitness, err := s.genWitness(input, guest)
+	if err != nil {
+		return errRes(newErr(sdkproto.ErrCode_ERROR_INVALID_INPUT, "failed to generate witness: %s", err.Error()))
+	}
+	proof, err := s.prove(witness, publicWitness)
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, "failed to prove: %s", err.Error()))
 	}
 
 	return &sdkproto.ProveResponse{
 		Proof:       proof,
-		CircuitInfo: buildAppCircuitInfo(s.appCircuit, *input, s.vkString, s.vkHash, witness),
+		CircuitInfo: buildAppCircuitInfo(s.appCircuit, *input, s.vkString, s.vkHash, witnessStr),
 	}, nil
 }
 
@@ -184,58 +218,116 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (re
 		return &sdkproto.ProveAsyncResponse{Err: protoErr, ProofId: "", CircuitInfo: nil}, nil
 	}
 
-	uid, err := uuid.GenerateUUID()
+	proofId, err := getProofId(req)
 	if err != nil {
-		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to generate uuid %s", err.Error()))
+		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to generate proof ID: %s", err.Error()))
 	}
 
-	input, guest, witness, protoErr := s.buildInput(req)
+	input, guest, witnessStr, protoErr := s.buildInput(req)
 	if protoErr != nil {
 		return errRes(protoErr)
 	}
 
-	go func() {
-		proof, err := s.prove(input, guest)
-		if err != nil {
-			fmt.Println("failed to prove:", err.Error())
-			s.setProof(uid, "", err.Error())
-			return
-		}
+	witness, publicWitness, err := s.genWitness(input, guest)
+	if err != nil {
+		return errRes(newErr(sdkproto.ErrCode_ERROR_INVALID_INPUT, "failed to generate witness: %s", err.Error()))
+	}
+	witnessBytes, err := witness.MarshalBinary()
+	if err != nil {
+		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to marshal witness: %s", err.Error()))
+	}
+	publicWitnessBytes, err := publicWitness.MarshalBinary()
+	if err != nil {
+		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to marshal public witness: %s", err.Error()))
+	}
+	err = s.setProofRequest(proofId, &proveRequest{
+		Status:        ProveStatusInProgress,
+		Witness:       witnessBytes,
+		PublicWitness: publicWitnessBytes,
+	})
+	if err != nil {
+		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to save proof request: %s", err.Error()))
+	}
 
-		fmt.Printf("prove success and set in map, uid: %s\n", uid)
-		s.setProof(uid, proof, "")
-	}()
+	s.proveAsync(proofId, witness, publicWitness, witnessBytes, publicWitnessBytes)
 
 	return &sdkproto.ProveAsyncResponse{
 		Err:         nil,
-		ProofId:     uid,
-		CircuitInfo: buildAppCircuitInfo(s.appCircuit, *input, s.vkString, s.vkHash, witness),
+		ProofId:     proofId,
+		CircuitInfo: buildAppCircuitInfo(s.appCircuit, *input, s.vkString, s.vkHash, witnessStr),
 	}, nil
 }
 
 func (s *server) GetProof(ctx context.Context, req *sdkproto.GetProofRequest) (res *sdkproto.GetProofResponse, err error) {
-	id := req.ProofId
-	proof := s.getProof(id)
-
-	if proof.err != "" {
+	proofId := req.ProofId
+	found, proof, err := s.getProofRequest(proofId)
+	if err != nil {
 		return &sdkproto.GetProofResponse{
-			Err:   newErr(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, "failed to prove: %s %s", id, proof.err),
+			Err:   newErr(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, "failed to prove %s: internal err %s", proofId, err.Error()),
 			Proof: "",
 		}, nil
 	}
-
-	if len(proof.proof) > 0 {
-		s.deleteProof(id)
+	if proof.Err != "" {
+		return &sdkproto.GetProofResponse{
+			Err:   newErr(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, "failed to prove %s: %s", proofId, proof.Err),
+			Proof: "",
+		}, nil
 	}
+	if !found {
+		return &sdkproto.GetProofResponse{
+			Proof: "",
+		}, nil
+	}
+	// Lazily re-spawn an interrupted job
+	if proof.Status == ProveStatusInProgress {
+		_, ok := s.activeJobs.Load(proofId)
+		if !ok {
+			w, err := witness.New(big.NewInt(0))
+			if err != nil {
+				return &sdkproto.GetProofResponse{
+					Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to load witness %s: %s", proofId, err),
+				}, nil
+			}
+			pubW, err := witness.New(big.NewInt(0))
+			if err != nil {
+				return &sdkproto.GetProofResponse{
+					Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to load public witness %s: %s", proofId, err),
+				}, nil
+			}
+			err = w.UnmarshalBinary(proof.Witness)
+			if err != nil {
+				return &sdkproto.GetProofResponse{
+					Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to load witness %s: %s", proofId, err),
+				}, nil
+			}
+			err = pubW.UnmarshalBinary(proof.PublicWitness)
+			if err != nil {
+				return &sdkproto.GetProofResponse{
+					Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to load public witness %s: %s", proofId, err),
+				}, nil
+			}
+			s.proveAsync(proofId, w, pubW, proof.Witness, proof.PublicWitness)
+		}
+	}
+
 	return &sdkproto.GetProofResponse{
-		Proof: proof.proof,
+		Proof: proof.Proof,
 	}, nil
+}
+
+func (s *server) DeleteProof(ctx context.Context, req *sdkproto.DeleteProofRequest) (res *sdkproto.DeleteProofResponse, err error) {
+	id := req.ProofId
+	err = s.deleteProofRequest(id)
+	if err != nil {
+		return &sdkproto.DeleteProofResponse{Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to delete proof request: %s", err.Error())}, nil
+	}
+	return &sdkproto.DeleteProofResponse{}, nil
 }
 
 func (s *server) buildInput(req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.AppCircuit, string, *sdkproto.Err) {
 	makeErr := func(code sdkproto.ErrCode, format string, args ...any) (*sdk.CircuitInput, sdk.AppCircuit, string, *sdkproto.Err) {
-		fmt.Printf(format, args...)
-		fmt.Println()
+		log.Errorf(format, args...)
+		log.Errorln()
 		return nil, nil, "", newErr(code, format, args...)
 	}
 
@@ -292,55 +384,97 @@ func (s *server) buildInput(req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.
 	return &input, guest, witness, nil
 }
 
-var ProveProcessorLock sync.Mutex
-
-func (s *server) prove(input *sdk.CircuitInput, guest sdk.AppCircuit) (string, error) {
+func (s *server) genWitness(input *sdk.CircuitInput, guest sdk.AppCircuit) (witness.Witness, witness.Witness, error) {
 	witness, publicWitness, err := sdk.NewFullWitness(guest, *input)
 	if err != nil {
-		return "", fmt.Errorf("failed to get full witness: %s", err.Error())
+		return nil, nil, fmt.Errorf("failed to get full witness: %w", err)
 	}
+	return witness, publicWitness, nil
+}
 
-	ProveProcessorLock.Lock()
+func (s *server) prove(witness, publicWitness witness.Witness) (string, error) {
+	proveProcessorLock.Lock()
 	proof, err := sdk.Prove(s.ccs, s.pk, witness)
-	ProveProcessorLock.Unlock()
+	proveProcessorLock.Unlock()
 	if err != nil {
-		return "", fmt.Errorf("failed to prove: %s", err.Error())
+		return "", fmt.Errorf("failed to prove: %w", err)
 	}
 
 	err = sdk.Verify(s.vk, publicWitness, proof)
 	if err != nil {
-		return "", fmt.Errorf("failed to test verifying after proving: %s", err.Error())
+		return "", fmt.Errorf("failed to test verifying after proving: %w", err)
 	}
 
 	var buf bytes.Buffer
 	_, err = proof.WriteRawTo(&buf)
 	if err != nil {
-		return "", fmt.Errorf("failed to write proof bytes: %s", err.Error())
+		return "", fmt.Errorf("failed to write proof bytes: %w", err)
 	}
 
 	return hexutil.Encode(buf.Bytes()), nil
 }
 
-func (s *server) setProof(id, proof, err string) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	fmt.Printf("set proof: %s, %s\n", id, proof)
-	s.proofs[id] = proofRes{proof, err}
+func (s *server) proveAsync(
+	proofId string, witness, publicWitness witness.Witness,
+	witnessBytes, publicWitnessBytes []byte,
+) {
+	// Prove asynchronously in a separate goroutine
+	go func() {
+		proof, err := s.prove(witness, publicWitness)
+		s.activeJobs.Delete(proofId)
+		if err != nil {
+			log.Errorln("failed to prove:", err.Error())
+			setProofErr := s.setProofRequest(proofId, &proveRequest{
+				Status:        ProveStatusFailed,
+				Witness:       witnessBytes,
+				PublicWitness: publicWitnessBytes,
+				Err:           err.Error(),
+			})
+			if setProofErr != nil {
+				log.Errorln("failed to set proof:", err.Error())
+			}
+			return
+		}
+		err = s.setProofRequest(proofId, &proveRequest{
+			Status:        ProveStatusSuccess,
+			Witness:       witnessBytes,
+			PublicWitness: publicWitnessBytes,
+			Proof:         proof,
+		})
+		if err != nil {
+			log.Errorln("failed to set proof:", err.Error())
+		}
+		log.Infof("prove success, proof ID: %s\n", proofId)
+	}()
+	s.activeJobs.Store(proofId, true)
 }
 
-func (s *server) getProof(id string) proofRes {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-	fmt.Printf("get proof: %s\n", id)
-	res := s.proofs[id]
-	return res
+func (s *server) setProofRequest(id string, req *proveRequest) error {
+	log.Debugf("set proof, ID: %s\n", id)
+	setErr := s.store.Set(id, *req)
+	if setErr != nil {
+		return fmt.Errorf("store.Set err: %w", setErr)
+	}
+	return nil
 }
 
-func (s *server) deleteProof(id string) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	fmt.Printf("delete proof: %s\n", id)
-	delete(s.proofs, id)
+func (s *server) getProofRequest(id string) (bool, *proveRequest, error) {
+	log.Debugf("get proof, ID: %s\n", id)
+	var req proveRequest
+	found, err := s.store.Get(id, &req)
+	if err != nil {
+		return false, nil, fmt.Errorf("store.Get err: %w", err)
+	}
+	return found, &req, nil
+}
+
+func (s *server) deleteProofRequest(id string) error {
+	log.Debugf("delete proof: %s\n", id)
+	err := s.store.Delete(id)
+	if err != nil {
+		return fmt.Errorf("store.Delete err: %w", err)
+	}
+	return nil
 }
 
 func newErr(code sdkproto.ErrCode, format string, args ...any) *sdkproto.Err {
