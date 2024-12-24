@@ -10,6 +10,10 @@ import (
 	"github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/gowebpki/jcs"
+	"github.com/philippgille/gokv/encoding"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // hex2Addr accepts hex string with or without 0x prefix and return Addr
@@ -128,4 +132,30 @@ func convertProtoTxToSdkTx(in *sdkproto.TransactionData) (sdk.TransactionData, e
 	return sdk.TransactionData{
 		Hash: hex2Hash(in.Hash),
 	}, nil
+}
+
+func getStoreCodec(codec string) (encoding.Codec, error) {
+	switch codec {
+	case "":
+		// Allowed, as gokv will pick its default Codec
+		return nil, nil
+	case "json":
+		return encoding.Gob, nil
+	case "gob":
+		return encoding.JSON, nil
+	default:
+		return nil, fmt.Errorf("unsupported codec %s", codec)
+	}
+}
+
+func getProofId(req *sdkproto.ProveRequest) (string, error) {
+	jsonBytes, err := protojson.Marshal(req)
+	if err != nil {
+		return "", fmt.Errorf("protojson.Marshal err: %w", err)
+	}
+	canonJsonBytes, err := jcs.Transform(jsonBytes)
+	if err != nil {
+		return "", fmt.Errorf("jcs.Transform err: %w", err)
+	}
+	return crypto.Keccak256Hash(canonJsonBytes).Hex(), nil
 }
