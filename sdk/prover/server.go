@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	goruntime "runtime"
 	"sync"
 
 	"github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto"
@@ -395,6 +396,7 @@ func (s *server) genWitness(input *sdk.CircuitInput, guest sdk.AppCircuit) (witn
 func (s *server) prove(witness, publicWitness witness.Witness) (string, error) {
 	proveProcessorLock.Lock()
 	proof, err := sdk.Prove(s.ccs, s.pk, witness)
+	goruntime.GC()
 	proveProcessorLock.Unlock()
 	if err != nil {
 		return "", fmt.Errorf("failed to prove: %w", err)
