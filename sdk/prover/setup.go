@@ -51,7 +51,7 @@ func readOnly(circuit sdk.AppCircuit, setupDir string, brevisApp *sdk.BrevisApp)
 
 	wg.Wait()
 
-	fmt.Printf("load ccs, pk, vk success from %s", setupDir)
+	fmt.Printf("load ccs, pk, vk success from %s \n", setupDir)
 
 	return
 }
