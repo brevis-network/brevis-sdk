@@ -3,6 +3,7 @@ package prover
 import (
 	"bytes"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"path/filepath"
 
 	"github.com/celer-network/goutils/log"
@@ -43,6 +44,9 @@ func readOnly(circuit sdk.AppCircuit, setupDir string, brevisApp *sdk.BrevisApp)
 			return fmt.Errorf("fail to find pk vk, err: %w", err)
 		}
 		log.Debugf("load pk vk success, vk hash: %x\n", vkHash)
+
+		log.Infoln("hexutil.Encode(mustWriteToBytes(vk))", hexutil.Encode(sdk.MustWriteToBytes(vk)))
+
 		return nil
 	})
 	err = errG.Wait()

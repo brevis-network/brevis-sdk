@@ -267,6 +267,10 @@ func CmpHint(_ *big.Int, inputs []*big.Int, results []*big.Int) error {
 	return nil
 }
 
+func MustWriteToBytes(w io.WriterTo) []byte {
+	return mustWriteToBytes(w)
+}
+
 func mustWriteToBytes(w io.WriterTo) []byte {
 	b := bytes.NewBuffer([]byte{})
 	_, err := w.WriteTo(b)
