@@ -76,7 +76,16 @@ func NewService(
 	if err != nil {
 		return nil, fmt.Errorf("failed to initiate brevis app %w", err)
 	}
-	pk, vk, ccs, vkHash, err := readOrSetup(app, config.GetSetupDir(), config.GetSrsDir(), brevisApp)
+
+	var pk plonk.ProvingKey
+	var vk plonk.VerifyingKey
+	var ccs constraint.ConstraintSystem
+	var vkHash []byte
+	if config.DirectLoad {
+		pk, vk, ccs, vkHash, err = readOnly(app, config.GetSetupDir(), brevisApp)
+	} else {
+		pk, vk, ccs, vkHash, err = readOrSetup(app, config.GetSetupDir(), config.GetSrsDir(), brevisApp)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("readOrSetup err: %w", err)
 	}

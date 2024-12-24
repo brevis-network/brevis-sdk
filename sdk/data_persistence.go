@@ -105,7 +105,7 @@ func readDataFromLocalStorage(path string) *DataPersistence {
 	path = os.ExpandEnv(path)
 	data, err := os.ReadFile(path)
 	if err != nil {
-		fmt.Printf(">> no local storage record: %s", err.Error())
+		fmt.Printf(">> no local storage record: %s \n", err.Error())
 		return empty
 	}
 	result := DataPersistence{
@@ -115,7 +115,7 @@ func readDataFromLocalStorage(path string) *DataPersistence {
 	}
 	err = json.Unmarshal(data, &result)
 	if err != nil {
-		fmt.Printf(">> no local storage record: %s", err.Error())
+		fmt.Printf(">> no local storage record: %s \n", err.Error())
 		return empty
 	}
 	fmt.Printf(">> finish scan local storage: %s\n", path)
