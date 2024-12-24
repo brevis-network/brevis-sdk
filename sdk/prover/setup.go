@@ -3,7 +3,9 @@ package prover
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"path/filepath"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/crypto"
 
@@ -11,6 +13,48 @@ import (
 	"github.com/consensys/gnark/backend/plonk"
 	"github.com/consensys/gnark/constraint"
 )
+
+func readOnly(circuit sdk.AppCircuit, setupDir string, brevisApp *sdk.BrevisApp) (pk plonk.ProvingKey, vk plonk.VerifyingKey, ccs constraint.ConstraintSystem, vkHash []byte, err error) {
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		fmt.Println(">> compiling circuit")
+		ccs, err = sdk.CompileOnly(circuit)
+		if err != nil {
+			log.Panicln(err)
+		}
+
+		ccsBytes := bytes.NewBuffer(nil)
+		_, err = ccs.WriteTo(ccsBytes)
+		if err != nil {
+			log.Panicln(err)
+		}
+
+		ccsDigest := crypto.Keccak256(ccsBytes.Bytes())
+		fmt.Printf("circuit digest 0x%x\n", ccsDigest)
+	}()
+
+	go func() {
+		defer wg.Done()
+		fmt.Println(">> load vk pk")
+		var foundPkVk bool
+		maxReceipts, maxStorage, maxTxs := circuit.Allocate()
+		dataPoints := sdk.DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
+		pk, vk, vkHash, foundPkVk = readSetup(filepath.Join(setupDir, "pk"), filepath.Join(setupDir, "vk"), maxReceipts, maxStorage, dataPoints, brevisApp)
+		if !foundPkVk {
+			log.Panicf("fail to find pk vk")
+		}
+		fmt.Printf("load pk vk success, vk hash: %x \n", vkHash)
+	}()
+
+	wg.Wait()
+
+	fmt.Printf("load ccs, pk, vk success from %s", setupDir)
+
+	return
+}
 
 func readOrSetup(circuit sdk.AppCircuit, setupDir, srsDir string, brevisApp *sdk.BrevisApp) (pk plonk.ProvingKey, vk plonk.VerifyingKey, ccs constraint.ConstraintSystem, vkHash []byte, err error) {
 	fmt.Println(">> compiling circuit")

@@ -20,6 +20,9 @@ type ServiceConfig struct {
 
 	// Source chain id.
 	ChainId int
+
+	// default false. if true, it will parallel compile ccs and load pk vk, without digest check
+	DirectLoad bool
 }
 
 func (c ServiceConfig) GetSetupDir() string {

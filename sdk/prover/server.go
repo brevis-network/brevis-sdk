@@ -39,6 +39,7 @@ func NewService(
 		fmt.Printf("failed to initiate brevis app %s", err.Error())
 		os.Exit(1)
 	}
+
 	pk, vk, ccs, vkHash, err := readOrSetup(app, config.GetSetupDir(), config.GetSrsDir(), brevisApp)
 	if err != nil {
 		return nil, err
