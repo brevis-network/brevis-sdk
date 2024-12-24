@@ -1075,12 +1075,12 @@ func (q *BrevisApp) buildStorageSlot(s StorageData) (StorageSlot, error) {
 		} else {
 			blockBaseFee, err := q.getBlockBaseFee(s.BlockNum)
 			if err != nil {
-				return StorageSlot{}, nil
+				return StorageSlot{}, err
 			}
 
 			value, err := q.getStorageValue(s.BlockNum, s.Address, s.Slot)
 			if err != nil {
-				return StorageSlot{}, nil
+				return StorageSlot{}, err
 			}
 
 			data = &StorageData{
