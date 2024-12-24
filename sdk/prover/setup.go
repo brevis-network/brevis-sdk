@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"path/filepath"
+	goruntime "runtime"
 
 	"github.com/celer-network/goutils/log"
 
@@ -55,6 +56,8 @@ func readOnly(circuit sdk.AppCircuit, setupDir string, brevisApp *sdk.BrevisApp)
 	}
 
 	log.Debugf("load ccs, pk, vk success from %s \n", setupDir)
+
+	goruntime.GC()
 
 	return pk, vk, ccs, vkHash, nil
 }
