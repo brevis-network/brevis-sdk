@@ -22,5 +22,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	proverService.Serve("localhost", 33247)
+	err = proverService.Serve("localhost", 33247, 33257)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
