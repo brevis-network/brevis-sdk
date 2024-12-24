@@ -107,14 +107,17 @@ func readOrSetup(circuit sdk.AppCircuit, setupDir, srsDir string, brevisApp *sdk
 
 func readSetup(pkFilepath, vkFilepath string, maxReceipt, maxStorage, numMaxDataPoints int, brevisApp *sdk.BrevisApp) (pk plonk.ProvingKey, vk plonk.VerifyingKey, vkHash []byte, ok bool) {
 	var err error
+	fmt.Printf("load pk from %s \n", pkFilepath)
 	pk, err = sdk.ReadPkFrom(pkFilepath)
 	if err != nil {
 		return
 	}
+	fmt.Printf("load vk from %s \n", vkFilepath)
 	vk, vkHash, err = sdk.ReadVkFrom(vkFilepath, maxReceipt, maxStorage, numMaxDataPoints, brevisApp)
 	if err != nil {
 		return
 	}
+	fmt.Printf("load vk done, and vk hash is %x \n", vkHash)
 	ok = true
 	return
 }
