@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"math/big"
 	"net"
 	"net/http"
 	goruntime "runtime"
@@ -22,6 +21,7 @@ import (
 
 	"github.com/brevis-network/brevis-sdk/sdk"
 
+	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/plonk"
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/consensys/gnark/constraint"
@@ -283,16 +283,16 @@ func (s *server) GetProof(ctx context.Context, req *sdkproto.GetProofRequest) (r
 	if proof.Status == ProveStatusInProgress {
 		_, ok := s.activeJobs.Load(proofId)
 		if !ok {
-			w, err := witness.New(big.NewInt(0))
+			w, err := witness.New(ecc.BN254.ScalarField())
 			if err != nil {
 				return &sdkproto.GetProofResponse{
-					Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to load witness %s: %s", proofId, err),
+					Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to init witness %s: %s", proofId, err),
 				}, nil
 			}
-			pubW, err := witness.New(big.NewInt(0))
+			pubW, err := witness.New(ecc.BN254.ScalarField())
 			if err != nil {
 				return &sdkproto.GetProofResponse{
-					Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to load public witness %s: %s", proofId, err),
+					Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to init public witness %s: %s", proofId, err),
 				}, nil
 			}
 			err = w.UnmarshalBinary(proof.Witness)
