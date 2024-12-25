@@ -3,12 +3,15 @@ package prover
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"os/signal"
 	goruntime "runtime"
 	"sync"
+	"syscall"
 
 	"github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto"
 	"github.com/celer-network/goutils/log"
@@ -61,6 +64,8 @@ type server struct {
 	vkString string
 	vkHash   string
 
+	grpcServer *grpc.Server
+
 	store      gokv.Store
 	activeJobs sync.Map
 }
@@ -98,22 +103,36 @@ func NewService(
 }
 
 func (s *Service) Serve(bind string, grpcPort, restPort uint) error {
-	errG := errgroup.Group{}
+	stopCtx, done := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer done()
+	errG, errGCtx := errgroup.WithContext(context.Background())
+
 	errG.Go(func() error { return s.serveGrpc(bind, grpcPort) })
 	errG.Go(func() error { return serveGrpcGateway(bind, grpcPort, restPort) })
-	return errG.Wait()
+
+	var err error
+	select {
+	case <-errGCtx.Done():
+		err = errGCtx.Err()
+	case <-stopCtx.Done():
+	}
+
+	log.Infoln("Shutting down...")
+	s.svr.grpcServer.GracefulStop()
+	storeCloseErr := s.svr.store.Close()
+	return errors.Join(err, storeCloseErr)
 }
 
 func (s *Service) serveGrpc(bind string, port uint) error {
-	grpcServer := grpc.NewServer()
-	sdkproto.RegisterProverServer(grpcServer, s.svr)
+	s.svr.grpcServer = grpc.NewServer()
+	sdkproto.RegisterProverServer(s.svr.grpcServer, s.svr)
 	address := fmt.Sprintf("%s:%d", bind, port)
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		return fmt.Errorf("failed to start prover server: %w", err)
 	}
-	log.Infoln(">> serving prover GRPC at port", port)
-	if err = grpcServer.Serve(lis); err != nil {
+	log.Infoln(">> serving prover gRPC at port", port)
+	if err = s.svr.grpcServer.Serve(lis); err != nil {
 		return fmt.Errorf("grpc server crashed: %w", err)
 	}
 	return nil
