@@ -222,6 +222,7 @@ func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkpro
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_INVALID_INPUT, "failed to generate witness: %s", err.Error()))
 	}
+
 	proof, err := s.prove(witness, publicWitness)
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, "failed to prove: %s", err.Error()))
@@ -238,7 +239,7 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (re
 		return &sdkproto.ProveAsyncResponse{Err: protoErr, ProofId: "", CircuitInfo: nil}, nil
 	}
 
-	proofId, err := getProofId(req)
+	proofId, err := getProofId(s.vkHash, req)
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to generate proof ID: %s", err.Error()))
 	}
@@ -260,6 +261,20 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (re
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to marshal public witness: %s", err.Error()))
 	}
+	found, _, err := s.getProofRequest(proofId)
+	if err != nil {
+		return &sdkproto.ProveAsyncResponse{
+			Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to get proof request %s: internal err %s", proofId, err.Error()),
+		}, nil
+	}
+	resp := &sdkproto.ProveAsyncResponse{
+		Err:         nil,
+		ProofId:     proofId,
+		CircuitInfo: buildAppCircuitInfo(s.appCircuit, *input, s.vkString, s.vkHash, witnessStr),
+	}
+	if found {
+		return resp, nil
+	}
 	err = s.setProofRequest(proofId, &proveRequest{
 		Status:        ProveStatusInProgress,
 		Witness:       witnessBytes,
@@ -271,11 +286,7 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (re
 
 	s.proveAsync(proofId, witness, publicWitness, witnessBytes, publicWitnessBytes)
 
-	return &sdkproto.ProveAsyncResponse{
-		Err:         nil,
-		ProofId:     proofId,
-		CircuitInfo: buildAppCircuitInfo(s.appCircuit, *input, s.vkString, s.vkHash, witnessStr),
-	}, nil
+	return resp, nil
 }
 
 func (s *server) GetProof(ctx context.Context, req *sdkproto.GetProofRequest) (res *sdkproto.GetProofResponse, err error) {
@@ -283,7 +294,7 @@ func (s *server) GetProof(ctx context.Context, req *sdkproto.GetProofRequest) (r
 	found, proof, err := s.getProofRequest(proofId)
 	if err != nil {
 		return &sdkproto.GetProofResponse{
-			Err:   newErr(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, "failed to prove %s: internal err %s", proofId, err.Error()),
+			Err:   newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to get proof request %s: internal err %s", proofId, err.Error()),
 			Proof: "",
 		}, nil
 	}
