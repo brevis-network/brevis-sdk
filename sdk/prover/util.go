@@ -148,7 +148,7 @@ func getStoreCodec(codec string) (encoding.Codec, error) {
 	}
 }
 
-func getProofId(req *sdkproto.ProveRequest) (string, error) {
+func getProofId(vkHash string, req *sdkproto.ProveRequest) (string, error) {
 	jsonBytes, err := protojson.Marshal(req)
 	if err != nil {
 		return "", fmt.Errorf("protojson.Marshal err: %w", err)
@@ -157,5 +157,5 @@ func getProofId(req *sdkproto.ProveRequest) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("jcs.Transform err: %w", err)
 	}
-	return crypto.Keccak256Hash(canonJsonBytes).Hex(), nil
+	return crypto.Keccak256Hash(append([]byte(vkHash), canonJsonBytes...)).Hex(), nil
 }
