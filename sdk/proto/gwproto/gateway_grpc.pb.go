@@ -26,7 +26,7 @@ const (
 	Gateway_GetSingleRunParams_FullMethodName          = "/brevis.Gateway/GetSingleRunParams"
 	Gateway_SendBatchQueries_FullMethodName            = "/brevis.Gateway/SendBatchQueries"
 	Gateway_SendBatchQueriesAsync_FullMethodName       = "/brevis.Gateway/SendBatchQueriesAsync"
-	Gateway_GetQueryKeysByReqIds_FullMethodName        = "/brevis.Gateway/GetQueryKeysByReqIds"
+	Gateway_GetQueryKeysByBatchId_FullMethodName       = "/brevis.Gateway/GetQueryKeysByBatchId"
 	Gateway_GetCircuitDigest_FullMethodName            = "/brevis.Gateway/GetCircuitDigest"
 	Gateway_GetCircuitDummyInputRequest_FullMethodName = "/brevis.Gateway/GetCircuitDummyInputRequest"
 	Gateway_SubmitVK_FullMethodName                    = "/brevis.Gateway/SubmitVK"
@@ -43,7 +43,7 @@ type GatewayClient interface {
 	GetSingleRunParams(ctx context.Context, in *GetSingleRunParamsRequest, opts ...grpc.CallOption) (*GetSingleRunParamsResponse, error)
 	SendBatchQueries(ctx context.Context, in *SendBatchQueriesRequest, opts ...grpc.CallOption) (*SendBatchQueriesResponse, error)
 	SendBatchQueriesAsync(ctx context.Context, in *SendBatchQueriesRequest, opts ...grpc.CallOption) (*SendBatchQueriesAsyncResponse, error)
-	GetQueryKeysByReqIds(ctx context.Context, in *GetQueryKeysByReqIdsRequest, opts ...grpc.CallOption) (*GetQueryKeysByReqIdsResponse, error)
+	GetQueryKeysByBatchId(ctx context.Context, in *GetQueryKeysByBatchIdRequest, opts ...grpc.CallOption) (*GetQueryKeysByBatchIdResponse, error)
 	GetCircuitDigest(ctx context.Context, in *CircuitDigestRequest, opts ...grpc.CallOption) (*CircuitDigestResponse, error)
 	GetCircuitDummyInputRequest(ctx context.Context, in *CircuitDummyInputRequest, opts ...grpc.CallOption) (*CircuitDummyInputResponse, error)
 	SubmitVK(ctx context.Context, in *SubmitVKRequest, opts ...grpc.CallOption) (*SubmitVKResponse, error)
@@ -120,9 +120,9 @@ func (c *gatewayClient) SendBatchQueriesAsync(ctx context.Context, in *SendBatch
 	return out, nil
 }
 
-func (c *gatewayClient) GetQueryKeysByReqIds(ctx context.Context, in *GetQueryKeysByReqIdsRequest, opts ...grpc.CallOption) (*GetQueryKeysByReqIdsResponse, error) {
-	out := new(GetQueryKeysByReqIdsResponse)
-	err := c.cc.Invoke(ctx, Gateway_GetQueryKeysByReqIds_FullMethodName, in, out, opts...)
+func (c *gatewayClient) GetQueryKeysByBatchId(ctx context.Context, in *GetQueryKeysByBatchIdRequest, opts ...grpc.CallOption) (*GetQueryKeysByBatchIdResponse, error) {
+	out := new(GetQueryKeysByBatchIdResponse)
+	err := c.cc.Invoke(ctx, Gateway_GetQueryKeysByBatchId_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +167,7 @@ type GatewayServer interface {
 	GetSingleRunParams(context.Context, *GetSingleRunParamsRequest) (*GetSingleRunParamsResponse, error)
 	SendBatchQueries(context.Context, *SendBatchQueriesRequest) (*SendBatchQueriesResponse, error)
 	SendBatchQueriesAsync(context.Context, *SendBatchQueriesRequest) (*SendBatchQueriesAsyncResponse, error)
-	GetQueryKeysByReqIds(context.Context, *GetQueryKeysByReqIdsRequest) (*GetQueryKeysByReqIdsResponse, error)
+	GetQueryKeysByBatchId(context.Context, *GetQueryKeysByBatchIdRequest) (*GetQueryKeysByBatchIdResponse, error)
 	GetCircuitDigest(context.Context, *CircuitDigestRequest) (*CircuitDigestResponse, error)
 	GetCircuitDummyInputRequest(context.Context, *CircuitDummyInputRequest) (*CircuitDummyInputResponse, error)
 	SubmitVK(context.Context, *SubmitVKRequest) (*SubmitVKResponse, error)
@@ -198,8 +198,8 @@ func (UnimplementedGatewayServer) SendBatchQueries(context.Context, *SendBatchQu
 func (UnimplementedGatewayServer) SendBatchQueriesAsync(context.Context, *SendBatchQueriesRequest) (*SendBatchQueriesAsyncResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendBatchQueriesAsync not implemented")
 }
-func (UnimplementedGatewayServer) GetQueryKeysByReqIds(context.Context, *GetQueryKeysByReqIdsRequest) (*GetQueryKeysByReqIdsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetQueryKeysByReqIds not implemented")
+func (UnimplementedGatewayServer) GetQueryKeysByBatchId(context.Context, *GetQueryKeysByBatchIdRequest) (*GetQueryKeysByBatchIdResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetQueryKeysByBatchId not implemented")
 }
 func (UnimplementedGatewayServer) GetCircuitDigest(context.Context, *CircuitDigestRequest) (*CircuitDigestResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCircuitDigest not implemented")
@@ -348,20 +348,20 @@ func _Gateway_SendBatchQueriesAsync_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Gateway_GetQueryKeysByReqIds_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetQueryKeysByReqIdsRequest)
+func _Gateway_GetQueryKeysByBatchId_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetQueryKeysByBatchIdRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(GatewayServer).GetQueryKeysByReqIds(ctx, in)
+		return srv.(GatewayServer).GetQueryKeysByBatchId(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Gateway_GetQueryKeysByReqIds_FullMethodName,
+		FullMethod: Gateway_GetQueryKeysByBatchId_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GatewayServer).GetQueryKeysByReqIds(ctx, req.(*GetQueryKeysByReqIdsRequest))
+		return srv.(GatewayServer).GetQueryKeysByBatchId(ctx, req.(*GetQueryKeysByBatchIdRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -456,8 +456,8 @@ var Gateway_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Gateway_SendBatchQueriesAsync_Handler,
 		},
 		{
-			MethodName: "GetQueryKeysByReqIds",
-			Handler:    _Gateway_GetQueryKeysByReqIds_Handler,
+			MethodName: "GetQueryKeysByBatchId",
+			Handler:    _Gateway_GetQueryKeysByBatchId_Handler,
 		},
 		{
 			MethodName: "GetCircuitDigest",
