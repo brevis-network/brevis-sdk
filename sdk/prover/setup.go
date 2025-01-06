@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"path/filepath"
+	goruntime "runtime"
 
 	"github.com/celer-network/goutils/log"
 
@@ -43,6 +44,7 @@ func readOnly(circuit sdk.AppCircuit, setupDir string, brevisApp *sdk.BrevisApp)
 			return fmt.Errorf("fail to find pk vk, err: %w", err)
 		}
 		log.Debugf("load pk vk success, vk hash: %x\n", vkHash)
+		// NOTE: Full vk can be dumped using `xxd -p -c0 vk` under the setup directory
 		return nil
 	})
 	err = errG.Wait()
@@ -51,6 +53,8 @@ func readOnly(circuit sdk.AppCircuit, setupDir string, brevisApp *sdk.BrevisApp)
 	}
 
 	log.Debugf("load ccs, pk, vk success from %s \n", setupDir)
+
+	goruntime.GC()
 
 	return pk, vk, ccs, vkHash, nil
 }

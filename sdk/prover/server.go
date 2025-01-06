@@ -3,12 +3,15 @@ package prover
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
-	"math/big"
 	"net"
 	"net/http"
+	"os/signal"
+	goruntime "runtime"
 	"sync"
+	"syscall"
 
 	"github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto"
 	"github.com/celer-network/goutils/log"
@@ -21,6 +24,7 @@ import (
 
 	"github.com/brevis-network/brevis-sdk/sdk"
 
+	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/plonk"
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/consensys/gnark/constraint"
@@ -60,6 +64,8 @@ type server struct {
 	vkString string
 	vkHash   string
 
+	grpcServer *grpc.Server
+
 	store      gokv.Store
 	activeJobs sync.Map
 }
@@ -97,22 +103,36 @@ func NewService(
 }
 
 func (s *Service) Serve(bind string, grpcPort, restPort uint) error {
-	errG := errgroup.Group{}
+	stopCtx, done := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer done()
+	errG, errGCtx := errgroup.WithContext(context.Background())
+
 	errG.Go(func() error { return s.serveGrpc(bind, grpcPort) })
 	errG.Go(func() error { return serveGrpcGateway(bind, grpcPort, restPort) })
-	return errG.Wait()
+
+	var err error
+	select {
+	case <-errGCtx.Done():
+		err = errGCtx.Err()
+	case <-stopCtx.Done():
+	}
+
+	log.Infoln("Shutting down...")
+	s.svr.grpcServer.GracefulStop()
+	storeCloseErr := s.svr.store.Close()
+	return errors.Join(err, storeCloseErr)
 }
 
 func (s *Service) serveGrpc(bind string, port uint) error {
-	grpcServer := grpc.NewServer()
-	sdkproto.RegisterProverServer(grpcServer, s.svr)
+	s.svr.grpcServer = grpc.NewServer()
+	sdkproto.RegisterProverServer(s.svr.grpcServer, s.svr)
 	address := fmt.Sprintf("%s:%d", bind, port)
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		return fmt.Errorf("failed to start prover server: %w", err)
 	}
-	log.Infoln(">> serving prover GRPC at port", port)
-	if err = grpcServer.Serve(lis); err != nil {
+	log.Infoln(">> serving prover gRPC at port", port)
+	if err = s.svr.grpcServer.Serve(lis); err != nil {
 		return fmt.Errorf("grpc server crashed: %w", err)
 	}
 	return nil
@@ -202,6 +222,7 @@ func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkpro
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_INVALID_INPUT, "failed to generate witness: %s", err.Error()))
 	}
+
 	proof, err := s.prove(witness, publicWitness)
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, "failed to prove: %s", err.Error()))
@@ -218,7 +239,7 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (re
 		return &sdkproto.ProveAsyncResponse{Err: protoErr, ProofId: "", CircuitInfo: nil}, nil
 	}
 
-	proofId, err := getProofId(req)
+	proofId, err := getProofId(s.vkHash, req)
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to generate proof ID: %s", err.Error()))
 	}
@@ -240,6 +261,20 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (re
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to marshal public witness: %s", err.Error()))
 	}
+	found, _, err := s.getProofRequest(proofId)
+	if err != nil {
+		return &sdkproto.ProveAsyncResponse{
+			Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to get proof request %s: internal err %s", proofId, err.Error()),
+		}, nil
+	}
+	resp := &sdkproto.ProveAsyncResponse{
+		Err:         nil,
+		ProofId:     proofId,
+		CircuitInfo: buildAppCircuitInfo(s.appCircuit, *input, s.vkString, s.vkHash, witnessStr),
+	}
+	if found {
+		return resp, nil
+	}
 	err = s.setProofRequest(proofId, &proveRequest{
 		Status:        ProveStatusInProgress,
 		Witness:       witnessBytes,
@@ -251,11 +286,7 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (re
 
 	s.proveAsync(proofId, witness, publicWitness, witnessBytes, publicWitnessBytes)
 
-	return &sdkproto.ProveAsyncResponse{
-		Err:         nil,
-		ProofId:     proofId,
-		CircuitInfo: buildAppCircuitInfo(s.appCircuit, *input, s.vkString, s.vkHash, witnessStr),
-	}, nil
+	return resp, nil
 }
 
 func (s *server) GetProof(ctx context.Context, req *sdkproto.GetProofRequest) (res *sdkproto.GetProofResponse, err error) {
@@ -263,7 +294,7 @@ func (s *server) GetProof(ctx context.Context, req *sdkproto.GetProofRequest) (r
 	found, proof, err := s.getProofRequest(proofId)
 	if err != nil {
 		return &sdkproto.GetProofResponse{
-			Err:   newErr(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, "failed to prove %s: internal err %s", proofId, err.Error()),
+			Err:   newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to get proof request %s: internal err %s", proofId, err.Error()),
 			Proof: "",
 		}, nil
 	}
@@ -282,16 +313,16 @@ func (s *server) GetProof(ctx context.Context, req *sdkproto.GetProofRequest) (r
 	if proof.Status == ProveStatusInProgress {
 		_, ok := s.activeJobs.Load(proofId)
 		if !ok {
-			w, err := witness.New(big.NewInt(0))
+			w, err := witness.New(ecc.BN254.ScalarField())
 			if err != nil {
 				return &sdkproto.GetProofResponse{
-					Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to load witness %s: %s", proofId, err),
+					Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to init witness %s: %s", proofId, err),
 				}, nil
 			}
-			pubW, err := witness.New(big.NewInt(0))
+			pubW, err := witness.New(ecc.BN254.ScalarField())
 			if err != nil {
 				return &sdkproto.GetProofResponse{
-					Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to load public witness %s: %s", proofId, err),
+					Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to init public witness %s: %s", proofId, err),
 				}, nil
 			}
 			err = w.UnmarshalBinary(proof.Witness)
@@ -395,6 +426,7 @@ func (s *server) genWitness(input *sdk.CircuitInput, guest sdk.AppCircuit) (witn
 func (s *server) prove(witness, publicWitness witness.Witness) (string, error) {
 	proveProcessorLock.Lock()
 	proof, err := sdk.Prove(s.ccs, s.pk, witness)
+	goruntime.GC()
 	proveProcessorLock.Unlock()
 	if err != nil {
 		return "", fmt.Errorf("failed to prove: %w", err)
