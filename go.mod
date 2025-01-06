@@ -3,6 +3,7 @@ module github.com/brevis-network/brevis-sdk
 go 1.21.5
 
 require (
+	github.com/aws/aws-sdk-go v1.49.16
 	github.com/cbergoon/merkletree v0.2.0
 	github.com/celer-network/goutils v0.2.0
 	github.com/consensys/gnark v0.10.0
@@ -15,8 +16,8 @@ require (
 	github.com/philippgille/gokv v0.7.0
 	github.com/philippgille/gokv/badgerdb v0.7.0
 	github.com/philippgille/gokv/encoding v0.7.0
-	github.com/philippgille/gokv/s3 v0.7.0
 	github.com/philippgille/gokv/syncmap v0.7.0
+	github.com/philippgille/gokv/util v0.7.0
 	github.com/rs/cors v1.7.0
 	github.com/stretchr/testify v1.9.0
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1
@@ -28,7 +29,6 @@ require (
 	github.com/AndreasBriese/bbloom v0.0.0-20190825152654-46b345b51c96 // indirect
 	github.com/DataDog/zstd v1.5.2 // indirect
 	github.com/VictoriaMetrics/fastcache v1.12.2 // indirect
-	github.com/aws/aws-sdk-go v1.49.16 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -54,7 +54,6 @@ require (
 	github.com/kr/text v0.2.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
-	github.com/philippgille/gokv/util v0.7.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect

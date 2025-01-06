@@ -251,8 +251,6 @@ github.com/philippgille/gokv/badgerdb v0.7.0 h1:5OlE0P0RBExr8JX8tNf1SO1pEUU2IzUH
 github.com/philippgille/gokv/badgerdb v0.7.0/go.mod h1:eoN3U92DPGGXbtNxoZSUl7ahapGHUBSasOz0EFL0Kys=
 github.com/philippgille/gokv/encoding v0.7.0 h1:2oxepKzzTsi00iLZBCZ7Rmqrallh9zws3iqSrLGfkgo=
 github.com/philippgille/gokv/encoding v0.7.0/go.mod h1:yncOBBUciyniPI8t5ECF8XSCwhONE9Rjf3My5IHs3fA=
-github.com/philippgille/gokv/s3 v0.7.0 h1:gxQpTWZiFSDb0XqUsGi0iBlkLceXQwgOLC7kuP8wO/g=
-github.com/philippgille/gokv/s3 v0.7.0/go.mod h1:L8FFP22sep3w1jAUgzqfjy5vg+5qVobBcQyf7K8zGaU=
 github.com/philippgille/gokv/syncmap v0.7.0 h1:HCiYj2i2lYAnhJocty+x0pynan8iW33uGlN8OMcJPlk=
 github.com/philippgille/gokv/syncmap v0.7.0/go.mod h1:IEWzmDbwowNA0P1Nq2kmrsWTQKt9zWZBCyK70bXh00w=
 github.com/philippgille/gokv/test v0.7.0 h1:0wBKnKaFZlSeHxLXcmUJqK//IQGUMeu+o8B876KCiOM=
