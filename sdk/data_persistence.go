@@ -188,29 +188,30 @@ func buildLogFieldsData(fs []LogFieldData, receipt *types.Receipt) (fields []Log
 }
 
 // Send rpc request to query receipt related information
-func (q *BrevisApp) getReceiptInfos(txHash common.Hash) (receipt *types.Receipt, mptKey *big.Int, blockNumber *big.Int, baseFee *big.Int, err error) {
+func (q *BrevisApp) getReceiptInfos(txHash common.Hash) (receipt *types.Receipt, mptKey *big.Int, blockNumber *big.Int, baseFee *big.Int, time uint64, err error) {
 	receipt, err = q.ec.TransactionReceipt(context.Background(), txHash)
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("cannot get mpt key with wrong tx hash %s: %s", txHash.Hex(), err.Error())
+		return nil, nil, nil, nil, 0, fmt.Errorf("cannot get mpt key with wrong tx hash %s: %s", txHash.Hex(), err.Error())
 	}
 	mptKey = q.calculateMPTKeyWithIndex(int(receipt.TransactionIndex))
 	blockNumber = receipt.BlockNumber
 
 	header, _, err := GetHeaderAndTxHashes(q.ec, context.Background(), receipt.BlockNumber)
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("cannot get block with wrong tx hash %s: %s", txHash.Hex(), err.Error())
+		return nil, nil, nil, nil, 0, fmt.Errorf("cannot get block with wrong tx hash %s: %s", txHash.Hex(), err.Error())
 	}
 
 	receipts, err := q.ec.BlockReceipts(context.Background(), rpc.BlockNumberOrHashWithNumber(rpc.BlockNumber(receipt.BlockNumber.Int64())))
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("unsupported block for tx %s: %s", txHash.Hex(), err.Error())
+		return nil, nil, nil, nil, 0, fmt.Errorf("unsupported block for tx %s: %s", txHash.Hex(), err.Error())
 	}
 	_, _, _, err = GetReceiptProof(types.NewBlockWithHeader(header), receipts, int(receipt.TransactionIndex))
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("unsupported block for tx %s: %s", txHash.Hex(), err.Error())
+		return nil, nil, nil, nil, 0, fmt.Errorf("unsupported block for tx %s: %s", txHash.Hex(), err.Error())
 	}
 
 	baseFee = header.BaseFee
+	time = header.Time
 	return
 }
 
@@ -227,10 +228,11 @@ func convertReceiptDataToReceipt(r *ReceiptData) Receipt {
 		fields[i] = fields[len(r.Fields)-1]
 	}
 	return Receipt{
-		BlockNum:     newU32(r.BlockNum),
-		BlockBaseFee: newU248(r.BlockBaseFee),
-		MptKeyPath:   newU32(r.MptKeyPath),
-		Fields:       fields,
+		BlockNum:       newU32(r.BlockNum),
+		BlockBaseFee:   newU248(r.BlockBaseFee),
+		MptKeyPath:     newU32(r.MptKeyPath),
+		Fields:         fields,
+		BlockTimestamp: newU248(r.BlockTimestamp),
 	}
 }
 
@@ -247,12 +249,13 @@ func convertFieldDataToField(f LogFieldData) LogField {
 	}
 }
 
-func (q *BrevisApp) getBlockBaseFee(blkNum *big.Int) (baseFee *big.Int, err error) {
+func (q *BrevisApp) getBlockInfo(blkNum *big.Int) (baseFee *big.Int, time uint64, err error) {
 	header, _, err := GetHeaderAndTxHashes(q.ec, context.Background(), blkNum)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get blk base fee with wrong blkNum %d: %s", blkNum, err.Error())
+		return nil, 0, fmt.Errorf("cannot get blk base fee with wrong blkNum %d: %s", blkNum, err.Error())
 	}
 	baseFee = header.BaseFee
+	time = header.Time
 	return
 }
 
@@ -270,18 +273,19 @@ func ConvertStorageDataToStorage(data *StorageData) StorageSlot {
 
 func convertStorageDataToStorage(data *StorageData) StorageSlot {
 	return StorageSlot{
-		BlockNum:     newU32(data.BlockNum),
-		BlockBaseFee: newU248(data.BlockBaseFee),
-		Contract:     ConstUint248(data.Address),
-		Slot:         ConstFromBigEndianBytes(data.Slot[:]),
-		Value:        ConstFromBigEndianBytes(data.Value[:]),
+		BlockNum:       newU32(data.BlockNum),
+		BlockBaseFee:   newU248(data.BlockBaseFee),
+		Contract:       ConstUint248(data.Address),
+		Slot:           ConstFromBigEndianBytes(data.Slot[:]),
+		Value:          ConstFromBigEndianBytes(data.Value[:]),
+		BlockTimestamp: newU248(data.BlockTimestamp),
 	}
 }
 
-func (q *BrevisApp) calculateTxLeafHashBlockBaseFeeAndMPTKey(txHash common.Hash) (leafHash common.Hash, mptKey *big.Int, blockNumber *big.Int, baseFee *big.Int, err error) {
+func (q *BrevisApp) calculateTxLeafHashBlockBaseFeeAndMPTKey(txHash common.Hash) (leafHash common.Hash, mptKey *big.Int, blockNumber *big.Int, baseFee *big.Int, time uint64, err error) {
 	receipt, err := q.ec.TransactionReceipt(context.Background(), txHash)
 	if err != nil {
-		return common.Hash{}, nil, nil, nil, fmt.Errorf("cannot calculate tx leaf hash with wrong tx hash %s: %s", txHash.Hex(), err.Error())
+		return common.Hash{}, nil, nil, nil, 0, fmt.Errorf("cannot calculate tx leaf hash with wrong tx hash %s: %s", txHash.Hex(), err.Error())
 	}
 	mptKey = q.calculateMPTKeyWithIndex(int(receipt.TransactionIndex))
 	blockNumber = receipt.BlockNumber
@@ -289,17 +293,18 @@ func (q *BrevisApp) calculateTxLeafHashBlockBaseFeeAndMPTKey(txHash common.Hash)
 	header, _, err := GetHeaderAndTxHashes(q.ec, context.Background(), receipt.BlockNumber)
 
 	if err != nil {
-		return common.Hash{}, nil, nil, nil, fmt.Errorf("cannot calculate tx leaf hash with wrong tx hash %s: %s", txHash.Hex(), err.Error())
+		return common.Hash{}, nil, nil, nil, 0, fmt.Errorf("cannot calculate tx leaf hash with wrong tx hash %s: %s", txHash.Hex(), err.Error())
 	}
 	baseFee = header.BaseFee
+	time = header.Time
 
 	bk, err := q.ec.BlockByNumber(context.Background(), receipt.BlockNumber)
 	if err != nil {
-		return common.Hash{}, nil, nil, nil, fmt.Errorf("cannot calculate tx leaf hash with wrong tx hash %s: %s", txHash.Hex(), err.Error())
+		return common.Hash{}, nil, nil, nil, 0, fmt.Errorf("cannot calculate tx leaf hash with wrong tx hash %s: %s", txHash.Hex(), err.Error())
 	}
 	proofs, _, _, err := getTransactionProof(bk, int(receipt.TransactionIndex))
 	if err != nil {
-		return common.Hash{}, nil, nil, nil, fmt.Errorf("cannot calculate tx leaf hash with wrong tx hash %s: %s", txHash.Hex(), err.Error())
+		return common.Hash{}, nil, nil, nil, 0, fmt.Errorf("cannot calculate tx leaf hash with wrong tx hash %s: %s", txHash.Hex(), err.Error())
 	}
 
 	leafHash = common.BytesToHash(crypto.Keccak256(proofs[len(proofs)-1]))
@@ -313,10 +318,11 @@ func ConvertTxDataToTransaction(data *TransactionData) Transaction {
 
 func convertTxDataToTransaction(data *TransactionData) Transaction {
 	return Transaction{
-		BlockNum:     ConstUint32(data.BlockNum),
-		BlockBaseFee: newU248(data.BlockBaseFee),
-		MptKeyPath:   newU32(data.MptKeyPath),
-		LeafHash:     ConstFromBigEndianBytes(data.LeafHash.Bytes()),
+		BlockNum:       ConstUint32(data.BlockNum),
+		BlockBaseFee:   newU248(data.BlockBaseFee),
+		MptKeyPath:     newU32(data.MptKeyPath),
+		LeafHash:       ConstFromBigEndianBytes(data.LeafHash.Bytes()),
+		BlockTimestamp: newU248(data.BlockTimestamp),
 	}
 }
 
