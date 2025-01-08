@@ -55,7 +55,7 @@ type proveRequest struct {
 }
 
 type server struct {
-	// sdkproto.UnimplementedProverServer
+	sdkproto.UnimplementedProverServer
 
 	appCircuit sdk.AppCircuit
 	brevisApp  *sdk.BrevisApp
