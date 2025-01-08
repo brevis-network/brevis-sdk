@@ -348,7 +348,7 @@ func (r Receipt) goPack() []*big.Int {
 		bits = append(bits, decomposeBits(fromInterface(field.Index.Val), 7)...)
 		bits = append(bits, field.Value.toBinary()...)
 	}
-	bits = append(bits, decomposeBits(fromInterface(r.BlockTimestamp.Val), 8*16)...)
+	bits = append(bits, decomposeBits(fromInterface(r.BlockTimestamp.Val), 8*8)...)
 	return packBitsToInt(bits, bn254_fr.Bits-1) // pack to ints of bit size of Bn254Fr - 1, which is 252 bits
 }
 
