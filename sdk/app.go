@@ -11,6 +11,7 @@ import (
 
 	pgoldilocks "github.com/OpenAssetStandards/poseidon-goldilocks-go"
 	"github.com/consensys/gnark/frontend"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/brevis-network/brevis-sdk/sdk/proto/commonproto"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
@@ -172,13 +173,9 @@ func NewBrevisApp(
 	}
 
 	localInputDataPath := filepath.Join(outDir, "input", "data.json")
-	localInputData := readDataFromLocalStorage(localInputDataPath)
+	localInputData, _ := readDataFromLocalStorage(localInputDataPath)
 	if localInputData == nil {
-		localInputData = &DataPersistence{
-			Receipts: map[string]*ReceiptData{},
-			Storages: map[string]*StorageData{},
-			Txs:      map[string]*TransactionData{},
-		}
+		localInputData = &DataPersistence{}
 	}
 
 	resp, err := gc.c.GetCircuitDigest(context.Background(), &gwproto.CircuitDigestRequest{})
@@ -312,22 +309,37 @@ func (q *BrevisApp) BuildCircuitInput(app AppCircuit) (CircuitInput, error) {
 	q.dataPoints = DataPointsNextPowerOf2(q.maxReceipts + q.maxStorage + q.maxTxs)
 	in := defaultCircuitInput(q.maxReceipts, q.maxStorage, q.maxTxs, q.dataPoints)
 
+	var errG errgroup.Group
 	// receipt
-	err = q.assignReceipts(&in)
-	if err != nil {
-		return buildCircuitInputErr("failed to assign in from receipt queries", err)
-	}
+	errG.Go(func() error {
+		err := q.assignReceipts(&in)
+		if err != nil {
+			return fmt.Errorf("failed to assign in from receipt queries: %w", err)
+		}
+		return nil
+	})
 
 	// storage
-	err = q.assignStorageSlots(&in)
-	if err != nil {
-		return buildCircuitInputErr("failed to assign in from storage queries", err)
-	}
+	errG.Go(func() error {
+		err := q.assignStorageSlots(&in)
+		if err != nil {
+			return fmt.Errorf("failed to assign in from storage queries: %w", err)
+		}
+		return nil
+	})
 
 	// transaction
-	err = q.assignTransactions(&in)
+	errG.Go(func() error {
+		err = q.assignTransactions(&in)
+		if err != nil {
+			return fmt.Errorf("failed to assign in from transaction queries: %w", err)
+		}
+		return nil
+	})
+
+	err = errG.Wait()
 	if err != nil {
-		return buildCircuitInputErr("failed to assign in from transaction queries", err)
+		return buildCircuitInputErr("failed to build input", err)
 	}
 
 	q.writeDataIntoLocalStorage()
@@ -970,32 +982,42 @@ func CalPoseidonBn254MerkleTree(leafs []*big.Int) (*big.Int, error) {
 }
 
 func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
+	var errG errgroup.Group
 	// assigning user appointed receipts at specific indices
 	for i, r := range q.receipts.special {
-		receipt, err := q.buildReceipt(r)
-		if err != nil {
-			return err
-		}
-		in.Receipts.Raw[i] = receipt
-		in.Receipts.Toggles[i] = 1
+		index := i
+		receiptData := r
+		in.Receipts.Toggles[index] = 1
+		errG.Go(func() error {
+			receipt, err := q.buildReceipt(receiptData)
+			if err != nil {
+				return err
+			}
+			in.Receipts.Raw[index] = receipt
+			return nil
+		})
 	}
 
 	// distribute other receipts in order to the rest of the unassigned spaces
 	j := 0
 	for _, r := range q.receipts.ordered {
+		receiptData := r
 		for in.Receipts.Toggles[j] == 1 {
 			j++
 		}
-		receipt, err := q.buildReceipt(r)
-		if err != nil {
-			return err
-		}
-		in.Receipts.Raw[j] = receipt
 		in.Receipts.Toggles[j] = 1
+		errG.Go(func() error {
+			receipt, err := q.buildReceipt(receiptData)
+			if err != nil {
+				return err
+			}
+			in.Receipts.Raw[j] = receipt
+			return nil
+		})
 		j++
 	}
 
-	return nil
+	return errG.Wait()
 }
 
 func (q *BrevisApp) BuildReceipt(t ReceiptData) (Receipt, error) {
@@ -1004,8 +1026,8 @@ func (q *BrevisApp) BuildReceipt(t ReceiptData) (Receipt, error) {
 
 func (q *BrevisApp) buildReceipt(r ReceiptData) (Receipt, error) {
 	key := generateReceiptKey(r, q.srcChainId)
-	data := q.localInputData.Receipts[key]
-	if data == nil {
+	data, ok := q.localInputData.Receipts.Load(key)
+	if !ok {
 		if r.isReadyToSave() {
 			fmt.Println("adding manual input receipt data")
 			data = &r
@@ -1027,38 +1049,50 @@ func (q *BrevisApp) buildReceipt(r ReceiptData) (Receipt, error) {
 				Fields:       fields,
 			}
 		}
-		q.localInputData.Receipts[key] = data
+		q.localInputData.Receipts.Store(key, data)
 	}
-	return convertReceiptDataToReceipt(data), nil
+	return convertReceiptDataToReceipt(data.(*ReceiptData)), nil
 }
 
 func (q *BrevisApp) assignStorageSlots(in *CircuitInput) (err error) {
+	var errG errgroup.Group
 	// assigning user appointed data at specific indices
-	for i, val := range q.storageVals.special {
-		s, err := q.buildStorageSlot(val)
-		if err != nil {
-			return err
-		}
-		in.StorageSlots.Raw[i] = s
-		in.StorageSlots.Toggles[i] = 1
+	for i, s := range q.storageVals.special {
+		index := i
+		storageData := s
+		in.StorageSlots.Toggles[index] = 1
+
+		errG.Go(func() error {
+			storage, err := q.buildStorageSlot(storageData)
+			if err != nil {
+				return err
+			}
+			in.StorageSlots.Raw[index] = storage
+			return nil
+		})
 	}
 
 	// distribute other data in order to the rest of the unassigned spaces
 	j := 0
-	for _, val := range q.storageVals.ordered {
+	for _, s := range q.storageVals.ordered {
+		storageData := s
 		for in.StorageSlots.Toggles[j] == 1 {
 			j++
 		}
-		s, err := q.buildStorageSlot(val)
-		if err != nil {
-			return err
-		}
-		in.StorageSlots.Raw[j] = s
 		in.StorageSlots.Toggles[j] = 1
+
+		errG.Go(func() error {
+			storage, err := q.buildStorageSlot(storageData)
+			if err != nil {
+				return err
+			}
+			in.StorageSlots.Raw[j] = storage
+			return nil
+		})
 		j++
 	}
 
-	return nil
+	return errG.Wait()
 }
 
 func (q *BrevisApp) BuildStorageSlot(s StorageData) (StorageSlot, error) {
@@ -1067,8 +1101,8 @@ func (q *BrevisApp) BuildStorageSlot(s StorageData) (StorageSlot, error) {
 
 func (q *BrevisApp) buildStorageSlot(s StorageData) (StorageSlot, error) {
 	key := generateStorageKey(s, q.srcChainId)
-	data := q.localInputData.Storages[key]
-	if data == nil {
+	data, ok := q.localInputData.Storages.Load(key)
+	if !ok {
 		if s.isReadyToSave() {
 			fmt.Println("adding manual input storage data")
 			data = &s
@@ -1091,34 +1125,44 @@ func (q *BrevisApp) buildStorageSlot(s StorageData) (StorageSlot, error) {
 				Value:        value,
 			}
 		}
-		q.localInputData.Storages[key] = data
+		q.localInputData.Storages.Store(key, data)
 	}
 
-	return convertStorageDataToStorage(data), nil
+	return convertStorageDataToStorage(data.(*StorageData)), nil
 }
 
 func (q *BrevisApp) assignTransactions(in *CircuitInput) (err error) {
+	var errG errgroup.Group
 	// assigning user appointed data at specific indices
 	for i, t := range q.txs.special {
-		tx, err := q.buildTx(t)
-		if err != nil {
-			return err
-		}
-		in.Transactions.Raw[i] = tx
-		in.Transactions.Toggles[i] = 1
+		index := i
+		txData := t
+		in.Transactions.Toggles[index] = 1
+		errG.Go(func() error {
+			tx, err := q.buildTx(txData)
+			if err != nil {
+				return err
+			}
+			in.Transactions.Raw[index] = tx
+			return nil
+		})
 	}
 
 	j := 0
-	for i, t := range q.txs.ordered {
+	for _, t := range q.txs.ordered {
+		txData := t
 		for in.Transactions.Toggles[j] == 1 {
 			j++
 		}
-		tx, err := q.buildTx(t)
-		if err != nil {
-			return err
-		}
-		in.Transactions.Raw[i] = tx
-		in.Transactions.Toggles[i] = 1
+		in.Transactions.Toggles[j] = 1
+		errG.Go(func() error {
+			tx, err := q.buildTx(txData)
+			if err != nil {
+				return err
+			}
+			in.Transactions.Raw[j] = tx
+			return nil
+		})
 		j++
 	}
 
@@ -1131,8 +1175,8 @@ func (q *BrevisApp) BuildTx(t TransactionData) (Transaction, error) {
 
 func (q *BrevisApp) buildTx(t TransactionData) (Transaction, error) {
 	key := generateTxKey(t, q.srcChainId)
-	data := q.localInputData.Txs[key]
-	if data == nil {
+	data, ok := q.localInputData.Txs.Load(key)
+	if !ok {
 		if t.isReadyToSave() {
 			data = &t
 		} else {
@@ -1149,10 +1193,10 @@ func (q *BrevisApp) buildTx(t TransactionData) (Transaction, error) {
 				LeafHash:     leafHash,
 			}
 		}
-		q.localInputData.Txs[key] = data
+		q.localInputData.Txs.Store(key, data)
 	}
 
-	return convertTxDataToTransaction(data), nil
+	return convertTxDataToTransaction(data.(*TransactionData)), nil
 }
 
 func buildCircuitInputErr(m string, err error) (CircuitInput, error) {

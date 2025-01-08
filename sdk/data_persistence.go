@@ -8,6 +8,7 @@ import (
 	"io"
 	"math/big"
 	"os"
+	"sync"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -23,10 +24,16 @@ import (
 )
 
 // To reduce rpc requests for developers, save data into local storage for future reference
-type DataPersistence struct {
+type DataPersistenceSerializable struct {
 	Receipts map[string]*ReceiptData     `json:"receipts,omitempty"`
 	Storages map[string]*StorageData     `json:"storage_slots,omitempty"`
 	Txs      map[string]*TransactionData `json:"txs,omitempty"`
+}
+
+type DataPersistence struct {
+	Receipts sync.Map
+	Storages sync.Map
+	Txs      sync.Map
 }
 
 type ReceiptPos struct {
@@ -95,31 +102,26 @@ func generateTxKey(tx TransactionData, srcChainId uint64) string {
 	return crypto.Keccak256Hash(data).Hex()
 }
 
-func readDataFromLocalStorage(path string) *DataPersistence {
+func readDataFromLocalStorage(path string) (*DataPersistence, error) {
 	fmt.Printf(">> scan local storage: %s\n", path)
-	empty := &DataPersistence{
-		Receipts: map[string]*ReceiptData{},
-		Storages: map[string]*StorageData{},
-		Txs:      map[string]*TransactionData{},
-	}
 	path = os.ExpandEnv(path)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		fmt.Printf(">> no local storage record: %s \n", err.Error())
-		return empty
+		return nil, err
 	}
-	result := DataPersistence{
+	serializable := &DataPersistenceSerializable{
 		Receipts: map[string]*ReceiptData{},
 		Storages: map[string]*StorageData{},
 		Txs:      map[string]*TransactionData{},
 	}
-	err = json.Unmarshal(data, &result)
+	err = json.Unmarshal(data, serializable)
 	if err != nil {
-		fmt.Printf(">> no local storage record: %s \n", err.Error())
-		return empty
+		fmt.Printf(">> json.Unmarshal failed: %s \n", err.Error())
+		return nil, err
 	}
 	fmt.Printf(">> finish scan local storage: %s\n", path)
-	return &result
+	return buildDataPersistence(serializable), nil
 }
 
 func (q *BrevisApp) writeDataIntoLocalStorage() {
@@ -414,4 +416,18 @@ func GetReceiptProof(bk *types.Block, receipts types.Receipts, index int) (nodes
 		return
 	}
 	return proofWriter.Values, keyIndex, leafValue[:len(leafValue)-len(leafRlp[1])], nil
+}
+
+func buildDataPersistence(s *DataPersistenceSerializable) *DataPersistence {
+	p := &DataPersistence{}
+	for k, v := range s.Receipts {
+		p.Receipts.Store(k, v)
+	}
+	for k, v := range s.Storages {
+		p.Storages.Store(k, v)
+	}
+	for k, v := range s.Txs {
+		p.Txs.Store(k, v)
+	}
+	return p
 }
