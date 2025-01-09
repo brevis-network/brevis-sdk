@@ -127,7 +127,8 @@ func readDataFromLocalStorage(path string) (*DataPersistence, error) {
 func (q *BrevisApp) writeDataIntoLocalStorage() {
 	fmt.Printf(">> write input data into local storage: %s\n", q.localInputDataPath)
 
-	data, err := json.Marshal(q.localInputData)
+	ser := buildDataPersistenceSerializable(q.localInputData)
+	data, err := json.Marshal(ser)
 	if err != nil {
 		fmt.Printf(">> write input data into local storage failed: %s\n", err.Error())
 	}
@@ -435,5 +436,28 @@ func buildDataPersistence(s *DataPersistenceSerializable) *DataPersistence {
 	for k, v := range s.Txs {
 		p.Txs.Store(k, v)
 	}
+	return p
+}
+
+func buildDataPersistenceSerializable(s *DataPersistence) *DataPersistenceSerializable {
+	p := &DataPersistenceSerializable{}
+	s.Receipts.Range(func(k, v any) bool {
+		ko := k.(string)
+		vo := v.(*ReceiptData)
+		p.Receipts[ko] = vo
+		return true
+	})
+	s.Storages.Range(func(k, v any) bool {
+		ko := k.(string)
+		vo := v.(*StorageData)
+		p.Storages[ko] = vo
+		return true
+	})
+	s.Txs.Range(func(k, v any) bool {
+		ko := k.(string)
+		vo := v.(*TransactionData)
+		p.Txs[ko] = vo
+		return true
+	})
 	return p
 }
