@@ -110,25 +110,20 @@ func readDataFromLocalStorage(path string) (*DataPersistence, error) {
 		fmt.Printf(">> no local storage record: %s \n", err.Error())
 		return nil, err
 	}
-	serializable := &DataPersistenceSerializable{
-		Receipts: map[string]*ReceiptData{},
-		Storages: map[string]*StorageData{},
-		Txs:      map[string]*TransactionData{},
-	}
-	err = json.Unmarshal(data, serializable)
+	persistence := &DataPersistence{}
+	err = json.Unmarshal(data, persistence)
 	if err != nil {
 		fmt.Printf(">> json.Unmarshal failed: %s \n", err.Error())
 		return nil, err
 	}
 	fmt.Printf(">> finish scan local storage: %s\n", path)
-	return buildDataPersistence(serializable), nil
+	return persistence, nil
 }
 
 func (q *BrevisApp) writeDataIntoLocalStorage() {
 	fmt.Printf(">> write input data into local storage: %s\n", q.localInputDataPath)
 
-	ser := buildDataPersistenceSerializable(q.localInputData)
-	data, err := json.Marshal(ser)
+	data, err := json.Marshal(q.localInputData)
 	if err != nil {
 		fmt.Printf(">> write input data into local storage failed: %s\n", err.Error())
 	}
@@ -425,8 +420,15 @@ func GetReceiptProof(bk *types.Block, receipts types.Receipts, index int) (nodes
 	return proofWriter.Values, keyIndex, leafValue[:len(leafValue)-len(leafRlp[1])], nil
 }
 
-func buildDataPersistence(s *DataPersistenceSerializable) *DataPersistence {
-	p := &DataPersistence{}
+func (p *DataPersistence) UnmarshalJSON(data []byte) error {
+	s := &DataPersistenceSerializable{
+		Receipts: make(map[string]*ReceiptData),
+		Storages: make(map[string]*StorageData),
+		Txs:      make(map[string]*TransactionData),
+	}
+	if err := json.Unmarshal(data, s); err != nil {
+		return err
+	}
 	for k, v := range s.Receipts {
 		p.Receipts.Store(k, v)
 	}
@@ -436,32 +438,26 @@ func buildDataPersistence(s *DataPersistenceSerializable) *DataPersistence {
 	for k, v := range s.Txs {
 		p.Txs.Store(k, v)
 	}
-	return p
+	return nil
 }
 
-func buildDataPersistenceSerializable(s *DataPersistence) *DataPersistenceSerializable {
-	p := &DataPersistenceSerializable{
+func (p *DataPersistence) MarshalJSON() ([]byte, error) {
+	s := &DataPersistenceSerializable{
 		Receipts: make(map[string]*ReceiptData),
 		Storages: make(map[string]*StorageData),
 		Txs:      make(map[string]*TransactionData),
 	}
-	s.Receipts.Range(func(k, v any) bool {
-		ko := k.(string)
-		vo := v.(*ReceiptData)
-		p.Receipts[ko] = vo
+	p.Receipts.Range(func(k, v interface{}) bool {
+		s.Receipts[k.(string)] = v.(*ReceiptData)
 		return true
 	})
-	s.Storages.Range(func(k, v any) bool {
-		ko := k.(string)
-		vo := v.(*StorageData)
-		p.Storages[ko] = vo
+	p.Storages.Range(func(k, v interface{}) bool {
+		s.Storages[k.(string)] = v.(*StorageData)
 		return true
 	})
-	s.Txs.Range(func(k, v any) bool {
-		ko := k.(string)
-		vo := v.(*TransactionData)
-		p.Txs[ko] = vo
+	p.Txs.Range(func(k, v interface{}) bool {
+		s.Txs[k.(string)] = v.(*TransactionData)
 		return true
 	})
-	return p
+	return json.Marshal(s)
 }
