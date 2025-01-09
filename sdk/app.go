@@ -481,11 +481,11 @@ type submitProofOptions struct {
 	onError     func(err error)
 	ctx         context.Context
 }
-type SubmitProofOption func(option submitProofOptions)
+type SubmitProofOption func(option *submitProofOptions)
 
 // WithFinalProofSubmittedCallback sets an async callback for final proof submission result
 func WithFinalProofSubmittedCallback(onSubmitted func(txHash common.Hash), onError func(err error)) SubmitProofOption {
-	return func(option submitProofOptions) {
+	return func(option *submitProofOptions) {
 		option.onSubmitted = onSubmitted
 		option.onError = onError
 	}
@@ -493,7 +493,7 @@ func WithFinalProofSubmittedCallback(onSubmitted func(txHash common.Hash), onErr
 
 // WithContext uses the input context as the context for waiting for final proof submission
 func WithContext(ctx context.Context) SubmitProofOption {
-	return func(option submitProofOptions) { option.ctx = ctx }
+	return func(option *submitProofOptions) { option.ctx = ctx }
 }
 
 func (q *BrevisApp) SubmitProofWithQueryId(queryId string, nonce uint64, dstChainId uint64, proof []byte) error {
@@ -509,7 +509,7 @@ func (q *BrevisApp) SubmitProofWithQueryId(queryId string, nonce uint64, dstChai
 		return fmt.Errorf("error calling brevis gateway SubmitProof: %s", err.Error())
 	}
 	if !res.GetSuccess() {
-		return fmt.Errorf("error calling brevis gateway SubmitProof: cdoe %s, msg %s",
+		return fmt.Errorf("error calling brevis gateway SubmitProof: code %s, msg %s",
 			res.GetErr().GetCode(), res.GetErr().GetMsg())
 	}
 	return nil
@@ -518,7 +518,7 @@ func (q *BrevisApp) SubmitProofWithQueryId(queryId string, nonce uint64, dstChai
 func (q *BrevisApp) SubmitProof(proof plonk.Proof, options ...SubmitProofOption) error {
 	opts := submitProofOptions{}
 	for _, apply := range options {
-		apply(opts)
+		apply(&opts)
 	}
 
 	buf := bytes.NewBuffer([]byte{})
@@ -538,7 +538,7 @@ func (q *BrevisApp) SubmitProof(proof plonk.Proof, options ...SubmitProofOption)
 		return fmt.Errorf("error calling brevis gateway SubmitProof: %s", err.Error())
 	}
 	if !res.GetSuccess() {
-		return fmt.Errorf("error calling brevis gateway SubmitProof: cdoe %s, msg %s",
+		return fmt.Errorf("error calling brevis gateway SubmitProof: code %s, msg %s",
 			res.GetErr().GetCode(), res.GetErr().GetMsg())
 	}
 
@@ -893,7 +893,7 @@ func (q *BrevisApp) assignInputCommitment(w *CircuitInput, dummyInputCommitment 
 
 	w.InputCommitmentsRoot, err = CalPoseidonBn254MerkleTree(leafs)
 	if err != nil {
-		panic(fmt.Sprintf("failed to dp sub hash merkel with poseidon bn254: %s", err.Error()))
+		panic(fmt.Sprintf("failed to dp sub hash merkle with poseidon bn254: %s", err.Error()))
 	}
 }
 
@@ -918,7 +918,7 @@ func doHash(hasher *utils.PoseidonBn254Hasher, packed []*big.Int) (*big.Int, err
 	return ret, nil
 }
 
-// To reduce toggles commitment constraint comsumption,
+// To reduce toggles commitment constraint consumption,
 // hash 32 toggles into one value which is used as merkle tree leaf.
 func (q *BrevisApp) assignToggleCommitment(in *CircuitInput) {
 	var err error
