@@ -111,5 +111,5 @@ require (
 replace (
 	github.com/OpenAssetStandards/poseidon-goldilocks-go => github.com/brevis-network/poseidon-goldilocks-go v0.0.0-20240826082508-8017eb90f413
 	github.com/consensys/gnark => github.com/brevis-network/gnark v0.1.0
-	github.com/ethereum/go-ethereum => github.com/celer-network/go-ethereum v0.0.0-20241121071212-493d247cb6ac
+	github.com/ethereum/go-ethereum => github.com/celer-network/go-ethereum v0.0.0-20241127055952-5c9c5c11f87a
 )
