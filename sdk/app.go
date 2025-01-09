@@ -991,6 +991,7 @@ func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
 		index := i
 		receiptData := r
 		in.Receipts.Toggles[index] = 1
+
 		errG.Go(func() error {
 			receipt, err := q.buildReceipt(receiptData)
 			if err != nil {
@@ -1009,12 +1010,14 @@ func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
 			j++
 		}
 		in.Receipts.Toggles[j] = 1
+
+		index := j
 		errG.Go(func() error {
 			receipt, err := q.buildReceipt(receiptData)
 			if err != nil {
 				return err
 			}
-			in.Receipts.Raw[j] = receipt
+			in.Receipts.Raw[index] = receipt
 			return nil
 		})
 		j++
@@ -1085,12 +1088,13 @@ func (q *BrevisApp) assignStorageSlots(in *CircuitInput) (err error) {
 		}
 		in.StorageSlots.Toggles[j] = 1
 
+		index := j
 		errG.Go(func() error {
 			storage, err := q.buildStorageSlot(storageData)
 			if err != nil {
 				return err
 			}
-			in.StorageSlots.Raw[j] = storage
+			in.StorageSlots.Raw[index] = storage
 			return nil
 		})
 		j++
@@ -1143,6 +1147,7 @@ func (q *BrevisApp) assignTransactions(in *CircuitInput) (err error) {
 		index := i
 		txData := t
 		in.Transactions.Toggles[index] = 1
+
 		errG.Go(func() error {
 			tx, err := q.buildTx(txData)
 			if err != nil {
@@ -1160,12 +1165,14 @@ func (q *BrevisApp) assignTransactions(in *CircuitInput) (err error) {
 			j++
 		}
 		in.Transactions.Toggles[j] = 1
+
+		index := j
 		errG.Go(func() error {
 			tx, err := q.buildTx(txData)
 			if err != nil {
 				return err
 			}
-			in.Transactions.Raw[j] = tx
+			in.Transactions.Raw[index] = tx
 			return nil
 		})
 		j++
