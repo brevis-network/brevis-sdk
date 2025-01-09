@@ -440,7 +440,11 @@ func buildDataPersistence(s *DataPersistenceSerializable) *DataPersistence {
 }
 
 func buildDataPersistenceSerializable(s *DataPersistence) *DataPersistenceSerializable {
-	p := &DataPersistenceSerializable{}
+	p := &DataPersistenceSerializable{
+		Receipts: make(map[string]*ReceiptData),
+		Storages: make(map[string]*StorageData),
+		Txs:      make(map[string]*TransactionData),
+	}
 	s.Receipts.Range(func(k, v any) bool {
 		ko := k.(string)
 		vo := v.(*ReceiptData)
