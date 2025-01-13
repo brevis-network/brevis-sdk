@@ -112,15 +112,14 @@ func printVkHash(vk plonk.VerifyingKey, maxReceipt, maxStorage, dataPoints int, 
 		panic("invalid max storage")
 	}
 
-	reVk, err := replonk.ValueOfVerifyingKey[sw_bn254.ScalarField, sw_bn254.G1Affine, sw_bn254.G2Affine](vk)
+	vkHashInBigInt, err := CalBrevisCircuitDigest(maxReceipt, maxStorage, dataPoints-maxReceipt-maxStorage, vk, brevisApp)
 	if err != nil {
+		fmt.Printf("error computing vk hash: %s", err.Error())
 		return nil, err
 	}
 
-	vkHash := utils.CalculateAppVkHashForBn254(reVk)
-
 	// Make sure vk hash is 32-bytes
-	vkHash = common.BytesToHash(vkHash).Bytes()
+	vkHash := common.BytesToHash(vkHashInBigInt.Bytes()).Bytes()
 	fmt.Println("///////////////////////////////////////////////////////////////////////////////")
 	fmt.Printf("// vk hash: 0x%x\n", vkHash)
 	fmt.Println("///////////////////////////////////////////////////////////////////////////////")
