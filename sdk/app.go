@@ -219,11 +219,21 @@ func NewBrevisApp(
 }
 
 // set digests directly
-func NewBrevisAppWithDigestsSetOnly(receiptCircuitDigestHash, storageCircuitDigestHash, txCircuitDigestHash *pgoldilocks.HashOut256) *BrevisApp {
+func NewBrevisAppWithDigestsSetOnly(
+	receiptCircuitDigestHash,
+	storageCircuitDigestHash,
+	txCircuitDigestHash *pgoldilocks.HashOut256,
+	gnarkReceiptVk,
+	gnarkStorageVk,
+	gnarkTxVk string,
+) *BrevisApp {
 	return &BrevisApp{
 		receiptCircuitDigestHash: receiptCircuitDigestHash,
 		storageCircuitDigestHash: storageCircuitDigestHash,
 		txCircuitDigestHash:      txCircuitDigestHash,
+		gnarkReceiptVk:           gnarkReceiptVk,
+		gnarkStorageVk:           gnarkStorageVk,
+		gnarkTxVk:                gnarkTxVk,
 	}
 }
 
@@ -250,6 +260,9 @@ func NewBrevisAppWithDigestsSetOnlyFromRemote(gatewayUrlOverride ...string) *Bre
 		receiptCircuitDigestHash: &pgoldilocks.HashOut256{resp.HashesLimbs[0], resp.HashesLimbs[1], resp.HashesLimbs[2], resp.HashesLimbs[3]},
 		storageCircuitDigestHash: &pgoldilocks.HashOut256{resp.HashesLimbs[4], resp.HashesLimbs[5], resp.HashesLimbs[6], resp.HashesLimbs[7]},
 		txCircuitDigestHash:      &pgoldilocks.HashOut256{resp.HashesLimbs[8], resp.HashesLimbs[9], resp.HashesLimbs[10], resp.HashesLimbs[11]},
+		gnarkReceiptVk:           resp.GnarkVks[0],
+		gnarkStorageVk:           resp.GnarkVks[1],
+		gnarkTxVk:                resp.GnarkVks[2],
 	}
 }
 
