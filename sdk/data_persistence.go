@@ -64,15 +64,29 @@ type TransactionPos struct {
 }
 
 func (q *ReceiptData) isReadyToSave() bool {
-	return q.BlockBaseFee != nil && q.BlockNum != nil && q.MptKeyPath != nil && q.BlockBaseFee.Sign() == 1 && q.BlockNum.Sign() == 1 && q.MptKeyPath.Sign() == 1
+	return q.BlockBaseFee != nil &&
+		q.BlockNum != nil &&
+		q.MptKeyPath != nil &&
+		q.BlockBaseFee.Sign() == 1 &&
+		q.BlockNum.Sign() == 1 &&
+		q.MptKeyPath.Sign() == 1 &&
+		q.BlockTimestamp != 0
 }
 
 func (q *StorageData) isReadyToSave() bool {
-	return q.BlockBaseFee != nil && q.BlockBaseFee.Sign() == 1
+	return q.BlockBaseFee != nil &&
+		q.BlockBaseFee.Sign() == 1 &&
+		q.BlockTimestamp != 0
 }
 
 func (q *TransactionData) isReadyToSave() bool {
-	return q.BlockBaseFee != nil && q.BlockNum != nil && q.MptKeyPath != nil && q.BlockBaseFee.Sign() == 1 && q.BlockNum.Sign() == 1 && q.MptKeyPath.Sign() == 1
+	return q.BlockBaseFee != nil &&
+		q.BlockNum != nil &&
+		q.MptKeyPath != nil &&
+		q.BlockBaseFee.Sign() == 1 &&
+		q.BlockNum.Sign() == 1 &&
+		q.MptKeyPath.Sign() == 1 &&
+		q.BlockTimestamp != 0
 }
 
 func generateReceiptKey(receipt ReceiptData, srcChainId uint64) string {
