@@ -1010,7 +1010,6 @@ func (q *BrevisApp) buildReceipt(r ReceiptData) (Receipt, error) {
 	data := q.localInputData.Receipts[key]
 	if data == nil {
 		if r.isReadyToSave() {
-			fmt.Println("adding manual input receipt data")
 			data = &r
 		} else {
 			receiptInfo, mptKey, blockNum, baseFee, time, err := q.getReceiptInfos(r.TxHash)
@@ -1074,7 +1073,6 @@ func (q *BrevisApp) buildStorageSlot(s StorageData) (StorageSlot, error) {
 	data := q.localInputData.Storages[key]
 	if data == nil {
 		if s.isReadyToSave() {
-			fmt.Println("adding manual input storage data")
 			data = &s
 		} else {
 			baseFee, time, err := q.getBlockInfo(s.BlockNum)
