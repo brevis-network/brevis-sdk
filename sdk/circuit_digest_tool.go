@@ -17,11 +17,8 @@ var (
 	StorageD     = new(big.Int).SetUint64(uint64(2))
 	TransactionD = new(big.Int).SetUint64(uint64(3))
 
-	ReceiptVkHashHex     = "0x03e2e4a805080e6a792c9927ab14a83f427ec91d601ab463446231954b4a6d38"
-	StorageVkHashHex     = "0x19efa435ccc1bf59b4e97281e7dcc612e2eda104987cfa9f6457435a90156297"
-	TransactionVkHashHex = "0x051756e504e16aa2635181222db1d8a9310930599ce44c000414b02101431c89"
-	MiddleNodeVkHashHex  = "0x15dc69eafcfd4546b82fecf468fd5878e2f7cb2270abee4e15abb638c77bbe52"
-	AggAllVkHash         = "0x078ab850e8148fc412016972abf837fddbc8c7f87d049e337fcdfdc1a47caca2"
+	MiddleNodeVkHashHex = "0x15dc69eafcfd4546b82fecf468fd5878e2f7cb2270abee4e15abb638c77bbe52"
+	AggAllVkHash        = "0x078ab850e8148fc412016972abf837fddbc8c7f87d049e337fcdfdc1a47caca2"
 
 	P2AggRecursionLeafCircuitDigestHash      = &pgoldilocks.HashOut256{6297162860691876658, 7207440660511781486, 956392925008767441, 15443083968980057808}
 	P2Bn128WrapCircuitDigestHashForOnly2Leaf = utils.Hex2BigInt("0x1a608b7771b23c7972539bad7f395d7ad5c4a5e5be9dc891960179c1cacd8c78") // for from P2AggRecursionLeafCircuitDigestHash
@@ -31,25 +28,7 @@ var (
 	P2Bn128WrapCircuitDigestHashForOnlyFromLeafRecursion = utils.Hex2BigInt("0x08e1f454d096c46ebf2e1f40ff4858ce8188f86cc9623242ea605b774aee12aa") // for from P2AggRecursionMiddleFormMiddleLeafCircuitDigestHash
 	P2Bn128WrapCircuitDigestHash                         = utils.Hex2BigInt("0x1E24794162210326BC751EB2FB4AFB6CB76B2CD94E6CEAFB9191A18B6E24A9D1") // for from P2AggRecursionNoLeafCircuitDigestHash
 
-	ReceiptVkHash     = utils.Hex2BigInt(ReceiptVkHashHex)
-	StorageVkHash     = utils.Hex2BigInt(StorageVkHashHex)
-	TransactionVkHash = utils.Hex2BigInt(TransactionVkHashHex)
-	MiddleNodeVkHash  = utils.Hex2BigInt(MiddleNodeVkHashHex)
-
-	ReceiptNode = Hash2HashDigestNode{
-		CircuitDigest: ReceiptD,
-		VkHash:        ReceiptVkHash,
-	}
-
-	StorageNode = Hash2HashDigestNode{
-		CircuitDigest: StorageD,
-		VkHash:        StorageVkHash,
-	}
-
-	TransactionNode = Hash2HashDigestNode{
-		CircuitDigest: TransactionD,
-		VkHash:        TransactionVkHash,
-	}
+	MiddleNodeVkHash = utils.Hex2BigInt(MiddleNodeVkHashHex)
 )
 
 func CalBrevisCircuitDigest(receiptCount, storageCount, transactionCount int, appVk plonk.VerifyingKey, brevisApp *BrevisApp) (*big.Int, error) {
@@ -61,7 +40,7 @@ func CalBrevisCircuitDigest(receiptCount, storageCount, transactionCount int, ap
 	appVkHashBytes := utils.CalculateAppVkHashForBn254(reVk)
 	appVkHashBigInt := new(big.Int).SetBytes(appVkHashBytes)
 
-	hash2HashDigest, err := GetHash2HashCircuitDigest(receiptCount, storageCount, transactionCount)
+	hash2HashDigest, err := GetHash2HashCircuitDigest(receiptCount, storageCount, transactionCount, brevisApp)
 	if err != nil {
 		return nil, err
 	}
@@ -98,10 +77,25 @@ type Hash2HashDigestNode struct {
 	VkHash        *big.Int
 }
 
-func GetHash2HashCircuitDigest(receiptCount, storageCount, transactionCount int) (*big.Int, error) {
+func GetHash2HashCircuitDigest(receiptCount, storageCount, transactionCount int, brevisApp *BrevisApp) (*big.Int, error) {
 	receiptLeafCount, storageLeafCount, transactionLeafCount, totalLeafCount, err := GetAndCheckLeafCount(receiptCount, storageCount, transactionCount)
 	if err != nil {
 		return nil, err
+	}
+
+	ReceiptNode := Hash2HashDigestNode{
+		CircuitDigest: ReceiptD,
+		VkHash:        utils.Hex2BigInt(brevisApp.gnarkReceiptVk),
+	}
+
+	StorageNode := Hash2HashDigestNode{
+		CircuitDigest: StorageD,
+		VkHash:        utils.Hex2BigInt(brevisApp.gnarkStorageVk),
+	}
+
+	TransactionNode := Hash2HashDigestNode{
+		CircuitDigest: TransactionD,
+		VkHash:        utils.Hex2BigInt(brevisApp.gnarkTxVk),
 	}
 
 	var totalLeafs []Hash2HashDigestNode
