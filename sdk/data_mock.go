@@ -61,10 +61,11 @@ func (q *BrevisApp) buildMockReceipt(r ReceiptData) (Receipt, error) {
 		}
 	}
 	return Receipt{
-		BlockNum:     newU32(r.BlockNum),
-		BlockBaseFee: newU248(r.BlockBaseFee),
-		MptKeyPath:   newU32(r.MptKeyPath),
-		Fields:       fields,
+		BlockNum:       newU32(r.BlockNum),
+		BlockBaseFee:   newU248(r.BlockBaseFee),
+		MptKeyPath:     newU32(r.MptKeyPath),
+		Fields:         fields,
+		BlockTimestamp: newU248(r.BlockTimestamp),
 	}, nil
 }
 
@@ -99,11 +100,12 @@ func (q *BrevisApp) assignMockStorageSlots(in *CircuitInput) (err error) {
 
 func (q *BrevisApp) buildMockStorageSlot(s StorageData) (StorageSlot, error) {
 	return StorageSlot{
-		BlockNum:     newU32(s.BlockNum),
-		BlockBaseFee: newU248(s.BlockBaseFee),
-		Contract:     ConstUint248(s.Address),
-		Slot:         ConstFromBigEndianBytes(s.Slot[:]),
-		Value:        ConstFromBigEndianBytes(s.Value[:]),
+		BlockNum:       newU32(s.BlockNum),
+		BlockBaseFee:   newU248(s.BlockBaseFee),
+		Contract:       ConstUint248(s.Address),
+		Slot:           ConstFromBigEndianBytes(s.Slot[:]),
+		Value:          ConstFromBigEndianBytes(s.Value[:]),
+		BlockTimestamp: newU248(s.BlockTimestamp),
 	}, nil
 }
 

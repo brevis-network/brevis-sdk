@@ -151,10 +151,11 @@ const NumMaxLogFields = 4
 
 // Receipt is a collection of LogField.
 type Receipt struct {
-	BlockNum     Uint32
-	BlockBaseFee Uint248
-	MptKeyPath   Uint32
-	Fields       [NumMaxLogFields]LogField
+	BlockNum       Uint32
+	BlockBaseFee   Uint248
+	MptKeyPath     Uint32
+	Fields         [NumMaxLogFields]LogField
+	BlockTimestamp Uint248
 }
 
 func DefaultReceipt() Receipt {
@@ -163,10 +164,11 @@ func DefaultReceipt() Receipt {
 
 func defaultReceipt() Receipt {
 	r := Receipt{
-		BlockNum:     newU32(0),
-		BlockBaseFee: newU248(0),
-		MptKeyPath:   newU32(0),
-		Fields:       [NumMaxLogFields]LogField{},
+		BlockNum:       newU32(0),
+		BlockBaseFee:   newU248(0),
+		MptKeyPath:     newU32(0),
+		Fields:         [NumMaxLogFields]LogField{},
+		BlockTimestamp: newU248(0),
 	}
 	for i := range r.Fields {
 		r.Fields[i] = defaultLogField()
@@ -184,6 +186,7 @@ func (r Receipt) Values() []frontend.Variable {
 	for _, field := range r.Fields {
 		ret = append(ret, field.Values()...)
 	}
+	ret = append(ret, r.BlockTimestamp.Values()...)
 	return ret
 }
 
@@ -203,6 +206,9 @@ func (r Receipt) FromValues(vs ...frontend.Variable) CircuitVariable {
 		start, end = end, end+f.NumVars()
 		nr.Fields[i] = f.FromValues(vs[start:end]...).(LogField)
 	}
+
+	start, end = end, end+r.BlockTimestamp.NumVars()
+	nr.BlockTimestamp = r.BlockTimestamp.FromValues(vs[start:end]...).(Uint248)
 	return nr
 }
 
@@ -212,6 +218,7 @@ func (r Receipt) NumVars() uint32 {
 	for _, field := range r.Fields {
 		sum += field.NumVars()
 	}
+	sum += r.BlockTimestamp.NumVars()
 	return sum
 }
 
@@ -294,7 +301,7 @@ func (f LogField) NumVars() uint32 {
 }
 
 // pack packs the log fields into Bn254 scalars
-// 4 + 3 * 59 = 181 bytes, fits into 6 fr vars
+// 4 + 16 + 8 + 4 * 59 + 8 = 272 bytes
 // 59 bytes for each log field:
 //   - 20 bytes for contract address
 //   - 6 bytes for topic (topics are 32-byte long, but we are only using the first 6 bytes distinguish them.
@@ -315,6 +322,8 @@ func (r Receipt) pack(api frontend.API) []frontend.Variable {
 		bits = append(bits, api.ToBinary(field.Index.Val, 7)...)
 		bits = append(bits, field.Value.toBinaryVars(api)...)
 	}
+	bits = append(bits, api.ToBinary(r.BlockTimestamp.Val, 8*8)...)
+
 	return packBitsToFr(api, bits)
 }
 
@@ -339,6 +348,7 @@ func (r Receipt) goPack() []*big.Int {
 		bits = append(bits, decomposeBits(fromInterface(field.Index.Val), 7)...)
 		bits = append(bits, field.Value.toBinary()...)
 	}
+	bits = append(bits, decomposeBits(fromInterface(r.BlockTimestamp.Val), 8*8)...)
 	return packBitsToInt(bits, bn254_fr.Bits-1) // pack to ints of bit size of Bn254Fr - 1, which is 252 bits
 }
 
@@ -366,15 +376,18 @@ type StorageSlot struct {
 	Slot Bytes32
 	// The storage slot value
 	Value Bytes32
+
+	BlockTimestamp Uint248
 }
 
 func defaultStorageSlot() StorageSlot {
 	return StorageSlot{
-		BlockNum:     newU32(0),
-		BlockBaseFee: newU248(0),
-		Contract:     newU248(0),
-		Slot:         ConstFromBigEndianBytes([]byte{}),
-		Value:        ConstFromBigEndianBytes([]byte{}),
+		BlockNum:       newU32(0),
+		BlockBaseFee:   newU248(0),
+		Contract:       newU248(0),
+		Slot:           ConstFromBigEndianBytes([]byte{}),
+		Value:          ConstFromBigEndianBytes([]byte{}),
+		BlockTimestamp: newU248(0),
 	}
 }
 
@@ -387,6 +400,7 @@ func (s StorageSlot) Values() []frontend.Variable {
 	ret = append(ret, s.Contract.Values()...)
 	ret = append(ret, s.Slot.Values()...)
 	ret = append(ret, s.Value.Values()...)
+	ret = append(ret, s.BlockTimestamp.Values()...)
 	return ret
 }
 
@@ -408,11 +422,19 @@ func (s StorageSlot) FromValues(vs ...frontend.Variable) CircuitVariable {
 	start, end = end, end+s.Value.NumVars()
 	nr.Value = s.Value.FromValues(vs[start:end]...).(Bytes32)
 
+	start, end = end, end+s.BlockTimestamp.NumVars()
+	nr.BlockTimestamp = s.BlockTimestamp.FromValues(vs[start:end]...).(Uint248)
+
 	return nr
 }
 
 func (s StorageSlot) NumVars() uint32 {
-	return s.BlockNum.NumVars() + s.BlockBaseFee.NumVars() + s.Contract.NumVars() + s.Slot.NumVars() + s.Value.NumVars()
+	return s.BlockNum.NumVars() +
+		s.BlockBaseFee.NumVars() +
+		s.Contract.NumVars() +
+		s.Slot.NumVars() +
+		s.Value.NumVars() +
+		s.BlockTimestamp.NumVars()
 }
 
 func (s StorageSlot) String() string { return "StorageSlot" }
@@ -422,10 +444,12 @@ func (s StorageSlot) Pack(api frontend.API) []frontend.Variable {
 }
 
 // pack packs the storage slots into Bn254 scalars
-// 4 bytes for block num + 84 bytes for each slot = 672 bits, fits into 3 Bn254 fr vars:
+// - 4 bytes for block num
+// - 16 bytes for block base fee
 // - 20 bytes for contract address
 // - 32 bytes for slot key
 // - 32 bytes for slot value
+// - 8 bytes for block timestamp
 func (s StorageSlot) pack(api frontend.API) []frontend.Variable {
 	var bits []frontend.Variable
 	bits = append(bits, api.ToBinary(s.BlockNum.Val, 8*4)...)
@@ -433,6 +457,7 @@ func (s StorageSlot) pack(api frontend.API) []frontend.Variable {
 	bits = append(bits, api.ToBinary(s.Contract.Val, 8*20)...)
 	bits = append(bits, s.Slot.toBinaryVars(api)...)
 	bits = append(bits, s.Value.toBinaryVars(api)...)
+	bits = append(bits, api.ToBinary(s.BlockTimestamp.Val, 8*8)...)
 	return packBitsToFr(api, bits)
 }
 
@@ -447,6 +472,7 @@ func (s StorageSlot) goPack() []*big.Int {
 	bits = append(bits, decomposeBits(fromInterface(s.Contract.Val), 8*20)...)
 	bits = append(bits, s.Slot.toBinary()...)
 	bits = append(bits, s.Value.toBinary()...)
+	bits = append(bits, decomposeBits(fromInterface(s.BlockTimestamp.Val), 8*8)...)
 	return packBitsToInt(bits, bn254_fr.Bits-1)
 }
 
@@ -467,7 +493,8 @@ type Transaction struct {
 	// From      Uint248
 	// To        Uint248
 	// Value     Bytes32
-	LeafHash Bytes32
+	LeafHash       Bytes32
+	BlockTimestamp Uint248
 }
 
 func defaultTransaction() Transaction {
@@ -483,7 +510,8 @@ func defaultTransaction() Transaction {
 		// From:                newU248(0),
 		// To:                  newU248(0),
 		// Value:               ConstBytes32([]byte{}),
-		LeafHash: ConstFromBigEndianBytes([]byte{}),
+		LeafHash:       ConstFromBigEndianBytes([]byte{}),
+		BlockTimestamp: newU248(0),
 	}
 }
 
@@ -503,6 +531,7 @@ func (t Transaction) Values() []frontend.Variable {
 	ret = append(ret, t.BlockBaseFee.Values()...)
 	ret = append(ret, t.MptKeyPath.Values()...)
 	ret = append(ret, t.LeafHash.Values()...)
+	ret = append(ret, t.BlockTimestamp.Values()...)
 	return ret
 }
 
@@ -546,6 +575,9 @@ func (t Transaction) FromValues(vs ...frontend.Variable) CircuitVariable {
 	start, end = end, end+t.LeafHash.NumVars()
 	nr.LeafHash = t.LeafHash.FromValues(vs[start:end]...).(Bytes32)
 
+	start, end = end, end+t.BlockTimestamp.NumVars()
+	nr.BlockTimestamp = t.BlockTimestamp.FromValues(vs[start:end]...).(Uint248)
+
 	return nr
 }
 
@@ -557,6 +589,7 @@ func (t Transaction) NumVars() uint32 {
 		t.BlockBaseFee,
 		t.MptKeyPath,
 		t.LeafHash,
+		t.BlockTimestamp,
 	}
 	sum := uint32(0)
 	for _, f := range fields {
@@ -594,6 +627,7 @@ func (t Transaction) pack(api frontend.API) []variable {
 	// bits = append(bits, api.ToBinary(t.To.Val, 8*20)...)
 	// bits = append(bits, t.Value.toBinaryVars(api)...)
 	bits = append(bits, t.LeafHash.toBinaryVars(api)...)
+	bits = append(bits, api.ToBinary(t.BlockTimestamp.Val, 8*8)...)
 	return packBitsToFr(api, bits)
 }
 
@@ -615,5 +649,6 @@ func (t Transaction) goPack() []*big.Int {
 	// bits = append(bits, decomposeBits(fromInterface(t.To.Val), 8*20)...)
 	// bits = append(bits, t.Value.toBinary()...)
 	bits = append(bits, t.LeafHash.toBinary()...)
+	bits = append(bits, decomposeBits(fromInterface(t.BlockTimestamp.Val), 8*8)...)
 	return packBitsToInt(bits, bn254_fr.Bits-1)
 }

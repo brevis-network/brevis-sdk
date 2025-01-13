@@ -28,11 +28,12 @@ import (
 )
 
 type ReceiptData struct {
-	TxHash       common.Hash    `json:"tx_hash,omitempty"`        // Required value
-	BlockNum     *big.Int       `json:"block_num,omitempty"`      // Optional value
-	BlockBaseFee *big.Int       `json:"block_base_fee,omitempty"` // Optional value
-	MptKeyPath   *big.Int       `json:"mpt_key_path,omitempty"`   // Optional value
-	Fields       []LogFieldData `json:"fields,omitempty"`         // required value
+	TxHash         common.Hash    `json:"tx_hash,omitempty"`         // Required value
+	BlockNum       *big.Int       `json:"block_num,omitempty"`       // Optional value
+	BlockBaseFee   *big.Int       `json:"block_base_fee,omitempty"`  // Optional value
+	MptKeyPath     *big.Int       `json:"mpt_key_path,omitempty"`    // Optional value
+	Fields         []LogFieldData `json:"fields,omitempty"`          // required value
+	BlockTimestamp uint64         `json:"block_timestamp,omitempty"` // Optional value
 }
 
 type LogFieldData struct {
@@ -60,19 +61,21 @@ type LogFieldData struct {
 }
 
 type StorageData struct {
-	BlockNum     *big.Int       `json:"block_num,omitempty"`      // Required value
-	BlockBaseFee *big.Int       `json:"block_base_fee,omitempty"` // Optional value
-	Address      common.Address `json:"address,omitempty"`        // Required value
-	Slot         common.Hash    `json:"slot,omitempty"`           // Required value
-	Value        common.Hash    `json:"value,omitempty"`          // Optional value
+	BlockNum       *big.Int       `json:"block_num,omitempty"`       // Required value
+	BlockBaseFee   *big.Int       `json:"block_base_fee,omitempty"`  // Optional value
+	Address        common.Address `json:"address,omitempty"`         // Required value
+	Slot           common.Hash    `json:"slot,omitempty"`            // Required value
+	Value          common.Hash    `json:"value,omitempty"`           // Optional value
+	BlockTimestamp uint64         `json:"block_timestamp,omitempty"` // Optional value
 }
 
 type TransactionData struct {
-	Hash         common.Hash `json:"hash,omitempty"`           // Required value
-	BlockNum     *big.Int    `json:"block_num,omitempty"`      // Optional value
-	BlockBaseFee *big.Int    `json:"block_base_fee,omitempty"` // Optional value
-	MptKeyPath   *big.Int    `json:"mpt_key_path,omitempty"`   // Optional value
-	LeafHash     common.Hash `json:"leaf_hash,omitempty"`      // Optional value
+	Hash           common.Hash `json:"hash,omitempty"`            // Required value
+	BlockNum       *big.Int    `json:"block_num,omitempty"`       // Optional value
+	BlockBaseFee   *big.Int    `json:"block_base_fee,omitempty"`  // Optional value
+	MptKeyPath     *big.Int    `json:"mpt_key_path,omitempty"`    // Optional value
+	LeafHash       common.Hash `json:"leaf_hash,omitempty"`       // Optional value
+	BlockTimestamp uint64      `json:"block_timestamp,omitempty"` // Optional value
 }
 
 type rawData[T ReceiptData | StorageData | TransactionData] struct {
@@ -1007,10 +1010,9 @@ func (q *BrevisApp) buildReceipt(r ReceiptData) (Receipt, error) {
 	data := q.localInputData.Receipts[key]
 	if data == nil {
 		if r.isReadyToSave() {
-			fmt.Println("adding manual input receipt data")
 			data = &r
 		} else {
-			receiptInfo, mptKey, blockNum, blockBaseFee, err := q.getReceiptInfos(r.TxHash)
+			receiptInfo, mptKey, blockNum, baseFee, time, err := q.getReceiptInfos(r.TxHash)
 			if err != nil {
 				return Receipt{}, err
 			}
@@ -1020,11 +1022,12 @@ func (q *BrevisApp) buildReceipt(r ReceiptData) (Receipt, error) {
 			}
 
 			data = &ReceiptData{
-				TxHash:       r.TxHash,
-				BlockNum:     blockNum,
-				BlockBaseFee: blockBaseFee,
-				MptKeyPath:   mptKey,
-				Fields:       fields,
+				TxHash:         r.TxHash,
+				BlockNum:       blockNum,
+				BlockBaseFee:   baseFee,
+				MptKeyPath:     mptKey,
+				Fields:         fields,
+				BlockTimestamp: time,
 			}
 		}
 		q.localInputData.Receipts[key] = data
@@ -1070,10 +1073,9 @@ func (q *BrevisApp) buildStorageSlot(s StorageData) (StorageSlot, error) {
 	data := q.localInputData.Storages[key]
 	if data == nil {
 		if s.isReadyToSave() {
-			fmt.Println("adding manual input storage data")
 			data = &s
 		} else {
-			blockBaseFee, err := q.getBlockBaseFee(s.BlockNum)
+			baseFee, time, err := q.getBlockInfo(s.BlockNum)
 			if err != nil {
 				return StorageSlot{}, err
 			}
@@ -1084,11 +1086,12 @@ func (q *BrevisApp) buildStorageSlot(s StorageData) (StorageSlot, error) {
 			}
 
 			data = &StorageData{
-				BlockNum:     s.BlockNum,
-				BlockBaseFee: blockBaseFee,
-				Address:      s.Address,
-				Slot:         s.Slot,
-				Value:        value,
+				BlockNum:       s.BlockNum,
+				BlockBaseFee:   baseFee,
+				Address:        s.Address,
+				Slot:           s.Slot,
+				Value:          value,
+				BlockTimestamp: time,
 			}
 		}
 		q.localInputData.Storages[key] = data
@@ -1136,17 +1139,18 @@ func (q *BrevisApp) buildTx(t TransactionData) (Transaction, error) {
 		if t.isReadyToSave() {
 			data = &t
 		} else {
-			leafHash, mptKey, blockNumber, baseFee, err := q.calculateTxLeafHashBlockBaseFeeAndMPTKey(t.Hash)
+			leafHash, mptKey, blockNumber, baseFee, time, err := q.calculateTxLeafHashBlockBaseFeeAndMPTKey(t.Hash)
 			if err != nil {
 				return Transaction{}, err
 			}
 
 			data = &TransactionData{
-				Hash:         t.Hash,
-				BlockNum:     blockNumber,
-				BlockBaseFee: baseFee,
-				MptKeyPath:   mptKey,
-				LeafHash:     leafHash,
+				Hash:           t.Hash,
+				BlockNum:       blockNumber,
+				BlockBaseFee:   baseFee,
+				MptKeyPath:     mptKey,
+				LeafHash:       leafHash,
+				BlockTimestamp: time,
 			}
 		}
 		q.localInputData.Txs[key] = data
