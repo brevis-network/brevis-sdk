@@ -46,12 +46,12 @@ type Service struct {
 }
 
 type proveRequest struct {
-	Status              int
-	RequestBytes        []byte
-	Witness             []byte
-	Proof               string
-	AppCircuitInfoBytes []byte
-	Err                 string
+	Status         int
+	Request        []byte
+	Witness        []byte
+	Proof          string
+	AppCircuitInfo []byte
+	Err            string
 }
 
 type server struct {
@@ -245,7 +245,7 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (re
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to generate proof ID: %s", err.Error()))
 	}
-	found, _, err := s.getProofRequest(proofId)
+	found, _, err := s.getProveRequest(proofId)
 	if err != nil {
 		return &sdkproto.ProveAsyncResponse{
 			Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "proof ID %s, failed to get proof request: internal err %s", proofId, err.Error()),
@@ -264,93 +264,74 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (re
 			Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "proof ID %s, proto.Marshal err: %s", proofId, err.Error()),
 		}, nil
 	}
-	err = s.setProofRequest(proofId, &proveRequest{
-		Status:       ProveStatusInit,
-		RequestBytes: requestBytes,
-	})
+	proveRequest := &proveRequest{
+		Status:  ProveStatusInit,
+		Request: requestBytes,
+	}
+	err = s.setProveRequest(proofId, proveRequest)
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "proof ID %s, failed to save proof request: %s", proofId, err.Error()))
 	}
 
-	go s.buildInputAndProve(proofId, req, requestBytes)
+	go s.buildInputAndProve(proofId, proveRequest, req)
 
 	return resp, nil
 }
 
 func (s *server) GetProof(ctx context.Context, req *sdkproto.GetProofRequest) (res *sdkproto.GetProofResponse, err error) {
 	proofId := req.ProofId
-	found, proof, err := s.getProofRequest(proofId)
+	found, proveRequest, err := s.getProveRequest(proofId)
 	if err != nil {
 		return &sdkproto.GetProofResponse{
-			Err:   newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to get proof request %s: internal err %s", proofId, err.Error()),
-			Proof: "",
+			Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to get proof request %s: internal err %s", proofId, err.Error()),
 		}, nil
 	}
 	if !found {
-		return &sdkproto.GetProofResponse{
-			Proof: "",
-		}, nil
+		return &sdkproto.GetProofResponse{}, nil
 	}
 	// Lazily re-spawn an interrupted job
-	switch proof.Status {
+	switch proveRequest.Status {
 	case ProveStatusInit:
 		requestProto := &sdkproto.ProveRequest{}
-		err = proto.Unmarshal(proof.RequestBytes, requestProto)
+		err = proto.Unmarshal(proveRequest.Request, requestProto)
 		if err != nil {
 			return &sdkproto.GetProofResponse{
-				Err:   newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to unmarshal request, proof ID %s: internal err %s", proofId, err.Error()),
-				Proof: "",
+				Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to unmarshal request, proof ID %s: internal err %s", proofId, err.Error()),
 			}, nil
 		}
 		_, ok := s.activeJobs.Load(proofId)
 		if !ok {
-			go s.buildInputAndProve(proofId, requestProto, proof.RequestBytes)
+			go s.buildInputAndProve(proofId, proveRequest, requestProto)
 		}
 		return &sdkproto.GetProofResponse{}, nil
 	case ProveStatusInProgress:
 		appCircuitInfo := &commonproto.AppCircuitInfo{}
-		err = proto.Unmarshal(proof.AppCircuitInfoBytes, appCircuitInfo)
+		err = proto.Unmarshal(proveRequest.AppCircuitInfo, appCircuitInfo)
 		if err != nil {
 			return &sdkproto.GetProofResponse{
-				Err:   newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to unmarshal app circuit info, proof ID %s: internal err %s", proofId, err.Error()),
-				Proof: "",
+				Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to unmarshal app circuit info, proof ID %s: internal err %s", proofId, err.Error()),
 			}, nil
 		}
 		_, ok := s.activeJobs.Load(proofId)
 		if !ok {
-			// Unmarshal witnesses
-			w, err := witness.New(ecc.BN254.ScalarField())
-			if err != nil {
-				return &sdkproto.GetProofResponse{
-					Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to init witness %s: %s", proofId, err),
-				}, nil
-			}
-			err = w.UnmarshalBinary(proof.Witness)
-			if err != nil {
-				return &sdkproto.GetProofResponse{
-					Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to load witness %s: %s", proofId, err),
-				}, nil
-			}
-			go s.doProve(proofId, proof.RequestBytes, w, proof.Witness)
+			go s.continueProve(proofId, proveRequest)
 		}
 		return &sdkproto.GetProofResponse{CircuitInfo: appCircuitInfo}, nil
 	case ProveStatusSuccess:
 		appCircuitInfo := &commonproto.AppCircuitInfo{}
-		err = proto.Unmarshal(proof.AppCircuitInfoBytes, appCircuitInfo)
+		err = proto.Unmarshal(proveRequest.AppCircuitInfo, appCircuitInfo)
 		if err != nil {
 			return &sdkproto.GetProofResponse{
-				Err:   newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to unmarshal app circuit info, proof ID %s: internal err %s", proofId, err.Error()),
-				Proof: "",
+				Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to unmarshal app circuit info, proof ID %s: internal err %s", proofId, err.Error()),
 			}, nil
 		}
 		return &sdkproto.GetProofResponse{
-			Proof:       proof.Proof,
+			Proof:       proveRequest.Proof,
 			CircuitInfo: appCircuitInfo,
 		}, nil
 	case ProveStatusFailed:
 		return &sdkproto.GetProofResponse{
-			Err:   newErr(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, "failed to prove %s: %s", proofId, proof.Err),
-			Proof: "",
+			Err: newErr(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, "failed to prove %s: %s", proofId, proveRequest.Err),
 		}, nil
 	default:
 		panic("Unknown prove status")
@@ -359,7 +340,7 @@ func (s *server) GetProof(ctx context.Context, req *sdkproto.GetProofRequest) (r
 
 func (s *server) DeleteProof(ctx context.Context, req *sdkproto.DeleteProofRequest) (res *sdkproto.DeleteProofResponse, err error) {
 	id := req.ProofId
-	err = s.deleteProofRequest(id)
+	err = s.deleteProveRequest(id)
 	if err != nil {
 		return &sdkproto.DeleteProofResponse{Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to delete proof request: %s", err.Error())}, nil
 	}
@@ -451,103 +432,77 @@ func (s *server) prove(witness witness.Witness) (string, error) {
 	return hexutil.Encode(buf.Bytes()), nil
 }
 
-func (s *server) buildInputAndProve(proofId string, req *sdkproto.ProveRequest, requestBytes []byte) {
+func (s *server) buildInputAndProve(proofId string, proveRequest *proveRequest, proveRequestProto *sdkproto.ProveRequest) {
 	s.activeJobs.Store(proofId, true)
 	defer s.activeJobs.Delete(proofId)
 
-	input, guest, witnessStr, protoErr := s.buildInput(req)
+	input, guest, witnessStr, protoErr := s.buildInput(proveRequestProto)
 	if protoErr != nil {
-		setProofErr := s.setProofRequest(proofId, &proveRequest{
-			Status:       ProveStatusFailed,
-			RequestBytes: requestBytes,
-			Err:          protoErr.String(),
-		})
-		if setProofErr != nil {
-			log.Errorln("failed to set proof:", setProofErr.Error())
-		}
+		s.markProofFailed(proofId, proveRequest, errors.New(protoErr.String()))
+		return
 	}
 	witness, _, err := s.genWitness(input, guest)
 	if err != nil {
-		setProofErr := s.setProofRequest(proofId, &proveRequest{
-			Status:       ProveStatusFailed,
-			RequestBytes: requestBytes,
-			Err:          err.Error(),
-		})
-		if setProofErr != nil {
-			log.Errorln("failed to set proof:", setProofErr.Error())
-		}
+		s.markProofFailed(proofId, proveRequest, err)
+		return
 	}
 	witnessBytes, err := witness.MarshalBinary()
 	if err != nil {
-		setProofErr := s.setProofRequest(proofId, &proveRequest{
-			Status:       ProveStatusFailed,
-			RequestBytes: requestBytes,
-			Err:          err.Error(),
-		})
-		if setProofErr != nil {
-			log.Errorln("failed to set proof:", setProofErr.Error())
-		}
+		s.markProofFailed(proofId, proveRequest, err)
+		return
 	}
+	proveRequest.Witness = witnessBytes
 	appCircuitInfo := buildAppCircuitInfo(s.appCircuit, *input, s.vkString, s.vkHash, witnessStr)
 	appCircuitInfoBytes, err := proto.Marshal(appCircuitInfo)
 	if err != nil {
-		setProofErr := s.setProofRequest(proofId, &proveRequest{
-			Status:       ProveStatusFailed,
-			RequestBytes: requestBytes,
-			Witness:      witnessBytes,
-			Err:          err.Error(),
-		})
-		if setProofErr != nil {
-			log.Errorln("failed to set proof:", setProofErr.Error())
-		}
+		s.markProofFailed(proofId, proveRequest, err)
+		return
 	}
-	setProofErr := s.setProofRequest(proofId, &proveRequest{
-		Status:              ProveStatusInProgress,
-		RequestBytes:        requestBytes,
-		Witness:             witnessBytes,
-		AppCircuitInfoBytes: appCircuitInfoBytes,
-	})
+	proveRequest.Status = ProveStatusInProgress
+	proveRequest.AppCircuitInfo = appCircuitInfoBytes
+	setProofErr := s.setProveRequest(proofId, proveRequest)
 	if setProofErr != nil {
 		log.Errorln("failed to set proof:", setProofErr.Error())
 	}
-	s.doProveHelper(proofId, requestBytes, witness, witnessBytes)
+	s.doProveHelper(proofId, proveRequest, witness)
 }
 
-func (s *server) doProve(proofId string, requestBytes []byte, witness witness.Witness, witnessBytes []byte) {
+func (s *server) continueProve(proofId string, proveRequest *proveRequest) {
 	s.activeJobs.Store(proofId, true)
 	defer s.activeJobs.Delete(proofId)
 
-	s.doProveHelper(proofId, requestBytes, witness, witnessBytes)
-}
-
-func (s *server) doProveHelper(proofId string, requestBytes []byte, witness witness.Witness, witnessBytes []byte) {
-	proof, err := s.prove(witness)
+	// Unmarshal witnesses
+	witness, err := witness.New(ecc.BN254.ScalarField())
 	if err != nil {
-		log.Errorln("failed to prove:", err.Error())
-		setProofErr := s.setProofRequest(proofId, &proveRequest{
-			Status:       ProveStatusFailed,
-			RequestBytes: requestBytes,
-			Witness:      witnessBytes,
-			Err:          err.Error(),
-		})
-		if setProofErr != nil {
-			log.Errorln("failed to set proof:", err.Error())
-		}
+		s.markProofFailed(proofId, proveRequest, err)
 		return
 	}
-	err = s.setProofRequest(proofId, &proveRequest{
-		Status:  ProveStatusSuccess,
-		Witness: witnessBytes,
-		Proof:   proof,
-	})
+	err = witness.UnmarshalBinary(proveRequest.Witness)
+	if err != nil {
+		s.markProofFailed(proofId, proveRequest, err)
+		return
+	}
+
+	s.doProveHelper(proofId, proveRequest, witness)
+}
+
+func (s *server) doProveHelper(proofId string, proveRequest *proveRequest, witness witness.Witness) {
+	proof, err := s.prove(witness)
+	if err != nil {
+		s.markProofFailed(proofId, proveRequest, err)
+		return
+	}
+	proveRequest.Status = ProveStatusSuccess
+	proveRequest.Proof = proof
+	err = s.setProveRequest(proofId, proveRequest)
 	if err != nil {
 		log.Errorln("failed to set proof:", err.Error())
 	}
 	log.Infof("prove success, proof ID: %s\n", proofId)
 }
 
-func (s *server) setProofRequest(id string, req *proveRequest) error {
-	log.Debugf("set proof, ID: %s\n", id)
+func (s *server) setProveRequest(id string, req *proveRequest) error {
+	log.Debugf("set prove request, ID: %s\n", id)
 	setErr := s.store.Set(id, *req)
 	if setErr != nil {
 		return fmt.Errorf("store.Set err: %w", setErr)
@@ -555,8 +510,8 @@ func (s *server) setProofRequest(id string, req *proveRequest) error {
 	return nil
 }
 
-func (s *server) getProofRequest(id string) (bool, *proveRequest, error) {
-	log.Debugf("get proof, ID: %s\n", id)
+func (s *server) getProveRequest(id string) (bool, *proveRequest, error) {
+	log.Debugf("get prove request, ID: %s\n", id)
 	var req proveRequest
 	found, err := s.store.Get(id, &req)
 	if err != nil {
@@ -565,14 +520,23 @@ func (s *server) getProofRequest(id string) (bool, *proveRequest, error) {
 	return found, &req, nil
 }
 
-func (s *server) deleteProofRequest(id string) error {
-	log.Debugf("delete proof: %s\n", id)
+func (s *server) deleteProveRequest(id string) error {
+	log.Debugf("delete prove request, ID: %s\n", id)
 	s.activeJobs.Delete(id)
 	err := s.store.Delete(id)
 	if err != nil {
 		return fmt.Errorf("store.Delete err: %w", err)
 	}
 	return nil
+}
+
+func (s *server) markProofFailed(proofId string, request *proveRequest, err error) {
+	request.Status = ProveStatusFailed
+	request.Err = err.Error()
+	setProofErr := s.setProveRequest(proofId, request)
+	if setProofErr != nil {
+		log.Errorf("failed to set proof, err: %s, original err: %s", setProofErr.Error(), err.Error())
+	}
 }
 
 func newErr(code sdkproto.ErrCode, format string, args ...any) *sdkproto.Err {
