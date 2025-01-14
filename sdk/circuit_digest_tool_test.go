@@ -24,7 +24,8 @@ var testBrevisApp = &BrevisApp{
 
 func TestHash2HashCircuitDigest(t *testing.T) {
 	assert := test.NewAssert(t)
-	digest, err := GetHash2HashCircuitDigest(32, 32, 64)
+	// TODO: Fix
+	digest, err := GetHash2HashCircuitDigest(32, 32, 64, nil)
 	assert.NoError(err)
 	log.Infof("digest: %x", digest)
 	log.Infof("digest: %s", digest)
@@ -87,7 +88,8 @@ func TestHashAllDigest(t *testing.T) {
 	log.Infof("app vk hashL %s", appVkHashBigInt)
 	log.Infof("app vk hashL %x", appVkHashBigInt)
 
-	hash2HashDigest, err := GetHash2HashCircuitDigest(32, 32, 64)
+	// TODO: Fix
+	hash2HashDigest, err := GetHash2HashCircuitDigest(32, 32, 64, nil)
 	assert.NoError(err)
 
 	plonky2RootFromBn128Digest, _, _, err := GetPlonky2CircuitDigestFromRootNodeSelf(32, 32, 64, testBrevisApp)
