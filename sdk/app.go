@@ -3,6 +3,7 @@ package sdk
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/big"
@@ -11,10 +12,12 @@ import (
 
 	pgoldilocks "github.com/OpenAssetStandards/poseidon-goldilocks-go"
 	"github.com/consensys/gnark/frontend"
+	"github.com/philippgille/gokv"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/brevis-network/brevis-sdk/sdk/proto/commonproto"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
+	"github.com/brevis-network/brevis-sdk/store"
 
 	"github.com/brevis-network/brevis-sdk/sdk/eth"
 	"github.com/brevis-network/zk-hash/utils"
@@ -26,6 +29,10 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
+)
+
+const (
+	defaultConcurrentFetchLimit = 20
 )
 
 type ReceiptData struct {
@@ -115,6 +122,65 @@ func (q *rawData[T]) list(max int) []T {
 	return l
 }
 
+type BrevisAppConfig struct {
+	SrcChainId uint64 `mapstructure:"src_chain_id"`
+	RpcUrl     string `mapstructure:"rpc_url"`
+	GatewayUrl string `mapstructure:"gateway_url"`
+	OutDir     string `mapstructure:"out_dir"`
+
+	// Persistence type, currently supporting "syncmap", "file", "badgerdb" and "s3".
+	// Defaults to "file" under {outDir}/input
+	PersistenceType string `mapstructure:"persistence_type"`
+
+	// Persistence options as JSON string. See implementations for details.
+	PersistenceOptions string `mapstructure:"persistence_options"`
+
+	// ConcurrentFetchLimit limits the number of concurrent on-chain fetches
+	ConcurrentFetchLimit int `mapstructure:"concurrent_fetch_limit"`
+}
+
+// BrevisHashInfo contains Brevis circuit hashes
+type BrevisHashInfo struct {
+	receiptCircuitDigestHash *pgoldilocks.HashOut256
+	storageCircuitDigestHash *pgoldilocks.HashOut256
+	txCircuitDigestHash      *pgoldilocks.HashOut256
+
+	gnarkReceiptVkHash string
+	gnarkStorageVkHash string
+	gnarkTxVkHash      string
+}
+
+func NewBrevisHashInfo(gatewayUrlOverride string) (*BrevisHashInfo, error) {
+	var gc *GatewayClient
+	var err error
+	if gatewayUrlOverride == "" {
+		gc, err = NewGatewayClient()
+	} else {
+		gc, err = NewGatewayClient(gatewayUrlOverride)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("NewGatewayClient err: %w", err)
+	}
+	resp, err := gc.c.GetCircuitDigest(context.Background(), &gwproto.CircuitDigestRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("GetCircuitDigest err: %w", err)
+	}
+	if resp.Err != nil {
+		return nil, fmt.Errorf("GetCircuitDigest responded with err: %s", resp.Err)
+	}
+	if len(resp.HashesLimbs) != 12 {
+		return nil, fmt.Errorf("invalid circuit digest hashes number of limbs: %d", len(resp.HashesLimbs))
+	}
+	return &BrevisHashInfo{
+		receiptCircuitDigestHash: &pgoldilocks.HashOut256{resp.HashesLimbs[0], resp.HashesLimbs[1], resp.HashesLimbs[2], resp.HashesLimbs[3]},
+		storageCircuitDigestHash: &pgoldilocks.HashOut256{resp.HashesLimbs[4], resp.HashesLimbs[5], resp.HashesLimbs[6], resp.HashesLimbs[7]},
+		txCircuitDigestHash:      &pgoldilocks.HashOut256{resp.HashesLimbs[8], resp.HashesLimbs[9], resp.HashesLimbs[10], resp.HashesLimbs[11]},
+		gnarkReceiptVkHash:       resp.GnarkVks[0],
+		gnarkStorageVkHash:       resp.GnarkVks[1],
+		gnarkTxVkHash:            resp.GnarkVks[2],
+	}, nil
+}
+
 type BrevisApp struct {
 	gc            *GatewayClient
 	ec            *ethclient.Client
@@ -128,8 +194,12 @@ type BrevisApp struct {
 	mockStorage  rawData[StorageData]
 	mockTxs      rawData[TransactionData]
 
-	localInputDataPath string
-	localInputData     *DataPersistence
+	concurrentFetchLimit int
+
+	// Persists data to reduce the number of RPC queries
+	dataStore gokv.Store
+
+	*BrevisHashInfo
 
 	// cache fields
 	circuitInput                    CircuitInput
@@ -139,79 +209,131 @@ type BrevisApp struct {
 	srcChainId, dstChainId          uint64
 	maxReceipts, maxStorage, maxTxs int
 	dataPoints                      int
-
-	receiptCircuitDigestHash *pgoldilocks.HashOut256
-	storageCircuitDigestHash *pgoldilocks.HashOut256
-	txCircuitDigestHash      *pgoldilocks.HashOut256
-
-	gnarkReceiptVk string
-	gnarkStorageVk string
-	gnarkTxVk      string
 }
 
+// NewBrevisAppWithConfig creates a BrevisApp with specified configs
+func NewBrevisAppWithConfig(config *BrevisAppConfig) (*BrevisApp, error) {
+	return newBrevisApp(
+		config.SrcChainId,
+		config.RpcUrl,
+		config.OutDir,
+		config.PersistenceType,
+		config.PersistenceOptions,
+		config.ConcurrentFetchLimit,
+		config.GatewayUrl,
+	)
+}
+
+// NewBrevisApp returns a BrevisApp with local file persistence under {outDir}/input
+// Consider using NewBrevisAppWithConfig for more configurability
 func NewBrevisApp(
 	srcChainId uint64,
 	rpcUrl string,
 	outDir string,
 	gatewayUrlOverride ...string,
 ) (*BrevisApp, error) {
+	return newBrevisApp(srcChainId, rpcUrl, outDir, "", "", 0, gatewayUrlOverride[0])
+}
+
+func newBrevisApp(
+	srcChainId uint64, rpcUrl string, outDir string, persistenceType string, persistenceOptions string,
+	concurrentFetchLimit int, gatewayUrlOverride string,
+) (*BrevisApp, error) {
 	ec, err := ethclient.Dial(rpcUrl)
 	if err != nil {
-		fmt.Printf("dialing invalid rpc url %s: %s\n", rpcUrl, err.Error())
-		return nil, err
+		return nil, fmt.Errorf("ethclient.Dial rpcUrl: %s err: %w", rpcUrl, err)
 	}
 
 	chainId, err := ec.ChainID(context.Background())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ec.ChainID err: %w", err)
 	}
 
 	if srcChainId != chainId.Uint64() {
 		return nil, fmt.Errorf("invalid src chain id %d rpcUrl %s pair", srcChainId, rpcUrl)
 	}
-	gc, err := NewGatewayClient(gatewayUrlOverride...)
+	var gc *GatewayClient
+	if gatewayUrlOverride == "" {
+		gc, err = NewGatewayClient()
+	} else {
+		gc, err = NewGatewayClient(gatewayUrlOverride)
+	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("NewGatewayClient err: %w", err)
 	}
 
 	br, err := eth.BrevisRequestMetaData.GetAbi()
 	if err != nil {
-		return nil, err
-	}
-
-	localInputDataPath := filepath.Join(outDir, "input", "data.json")
-	localInputData, _ := readDataFromLocalStorage(localInputDataPath)
-	if localInputData == nil {
-		localInputData = &DataPersistence{}
+		return nil, fmt.Errorf("GetAbi err: %w", err)
 	}
 
 	resp, err := gc.c.GetCircuitDigest(context.Background(), &gwproto.CircuitDigestRequest{})
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("GetCircuitDigest err: %w", err)
 	}
 	if resp.Err != nil {
-		panic(resp.Err)
+		return nil, fmt.Errorf("GetCircuitDigest responded with err: %s", resp.Err)
 	}
 	if len(resp.HashesLimbs) != 12 {
-		panic("invalid circuit digest hashes limbs")
+		return nil, fmt.Errorf("invalid circuit digest hashes number of limbs: %d", len(resp.HashesLimbs))
+	}
+
+	if concurrentFetchLimit <= 0 {
+		concurrentFetchLimit = defaultConcurrentFetchLimit
+	}
+	// Setup dataStore, defaults to "file" under {outDir}/input
+	if persistenceType == "" {
+		persistenceType = "file"
+	}
+	if persistenceOptions == "" {
+		persistenceOptionsStruct := store.FileStoreOptions{Directory: filepath.Join(outDir, "input")}
+		persistenceOptionsBytes, err := json.Marshal(persistenceOptionsStruct)
+		if err != nil {
+			return nil, fmt.Errorf("json.Marshal err: %w", err)
+		}
+		persistenceOptions = string(persistenceOptionsBytes)
+	}
+	dataStore, err := store.InitStore(persistenceType, persistenceOptions)
+	if err != nil {
+		return nil, fmt.Errorf("InitStore err: %w", err)
 	}
 
 	return &BrevisApp{
-		gc:                       gc,
-		ec:                       ec,
-		brevisRequest:            br,
-		srcChainId:               srcChainId,
-		receipts:                 rawData[ReceiptData]{},
-		storageVals:              rawData[StorageData]{},
-		txs:                      rawData[TransactionData]{},
-		localInputData:           localInputData,
-		localInputDataPath:       localInputDataPath,
-		receiptCircuitDigestHash: &pgoldilocks.HashOut256{resp.HashesLimbs[0], resp.HashesLimbs[1], resp.HashesLimbs[2], resp.HashesLimbs[3]},
-		storageCircuitDigestHash: &pgoldilocks.HashOut256{resp.HashesLimbs[4], resp.HashesLimbs[5], resp.HashesLimbs[6], resp.HashesLimbs[7]},
-		txCircuitDigestHash:      &pgoldilocks.HashOut256{resp.HashesLimbs[8], resp.HashesLimbs[9], resp.HashesLimbs[10], resp.HashesLimbs[11]},
-		gnarkReceiptVk:           resp.GnarkVks[0],
-		gnarkStorageVk:           resp.GnarkVks[1],
-		gnarkTxVk:                resp.GnarkVks[2],
+		gc:                   gc,
+		ec:                   ec,
+		brevisRequest:        br,
+		srcChainId:           srcChainId,
+		receipts:             rawData[ReceiptData]{},
+		storageVals:          rawData[StorageData]{},
+		txs:                  rawData[TransactionData]{},
+		concurrentFetchLimit: concurrentFetchLimit,
+		dataStore:            dataStore,
+		BrevisHashInfo: &BrevisHashInfo{
+			receiptCircuitDigestHash: &pgoldilocks.HashOut256{resp.HashesLimbs[0], resp.HashesLimbs[1], resp.HashesLimbs[2], resp.HashesLimbs[3]},
+			storageCircuitDigestHash: &pgoldilocks.HashOut256{resp.HashesLimbs[4], resp.HashesLimbs[5], resp.HashesLimbs[6], resp.HashesLimbs[7]},
+			txCircuitDigestHash:      &pgoldilocks.HashOut256{resp.HashesLimbs[8], resp.HashesLimbs[9], resp.HashesLimbs[10], resp.HashesLimbs[11]},
+			gnarkReceiptVkHash:       resp.GnarkVks[0],
+			gnarkStorageVkHash:       resp.GnarkVks[1],
+			gnarkTxVkHash:            resp.GnarkVks[2],
+		},
+	}, nil
+}
+
+// NewBrevisAppWithConfig creates a BrevisApp with existing dependencies
+// Best used when the dependencies are shared across multiple BrevisApp instances
+func NewBrevisAppWithDependencies(
+	gc *GatewayClient, ec *ethclient.Client, brevisRequest *abi.ABI, srcChainId uint64,
+	dataStore gokv.Store, hashInfo *BrevisHashInfo) (*BrevisApp, error) {
+	return &BrevisApp{
+		gc:             gc,
+		ec:             ec,
+		brevisRequest:  brevisRequest,
+		srcChainId:     srcChainId,
+		receipts:       rawData[ReceiptData]{},
+		storageVals:    rawData[StorageData]{},
+		txs:            rawData[TransactionData]{},
+		dataStore:      dataStore,
+		BrevisHashInfo: hashInfo,
 	}, nil
 }
 
@@ -225,42 +347,35 @@ func NewBrevisAppWithDigestsSetOnly(
 	gnarkTxVk string,
 ) *BrevisApp {
 	return &BrevisApp{
-		receiptCircuitDigestHash: receiptCircuitDigestHash,
-		storageCircuitDigestHash: storageCircuitDigestHash,
-		txCircuitDigestHash:      txCircuitDigestHash,
-		gnarkReceiptVk:           gnarkReceiptVk,
-		gnarkStorageVk:           gnarkStorageVk,
-		gnarkTxVk:                gnarkTxVk,
+		BrevisHashInfo: &BrevisHashInfo{
+			receiptCircuitDigestHash: receiptCircuitDigestHash,
+			storageCircuitDigestHash: storageCircuitDigestHash,
+			txCircuitDigestHash:      txCircuitDigestHash,
+			gnarkReceiptVkHash:       gnarkReceiptVk,
+			gnarkStorageVkHash:       gnarkStorageVk,
+			gnarkTxVkHash:            gnarkTxVk,
+		},
 	}
 }
 
-// retrieve digests from gateway
+// NewBrevisAppWithDigestsSetOnlyFromRemote creates a BrevisApp with digests retrieved from gateway
+// Used during setup
+// TODO: Deprecated and remove
 func NewBrevisAppWithDigestsSetOnlyFromRemote(gatewayUrlOverride ...string) *BrevisApp {
 	gc, err := NewGatewayClient(gatewayUrlOverride...)
 	if err != nil {
 		panic(err)
 	}
-
-	resp, err := gc.c.GetCircuitDigest(context.Background(), &gwproto.CircuitDigestRequest{})
+	var hashInfo *BrevisHashInfo
+	if len(gatewayUrlOverride) == 0 {
+		hashInfo, err = NewBrevisHashInfo("")
+	} else {
+		hashInfo, err = NewBrevisHashInfo(gatewayUrlOverride[0])
+	}
 	if err != nil {
 		panic(err)
 	}
-	if resp.Err != nil {
-		panic(resp.Err)
-	}
-	if len(resp.HashesLimbs) != 12 {
-		panic("invalid circuit digest hashes limbs")
-	}
-
-	return &BrevisApp{
-		gc:                       gc,
-		receiptCircuitDigestHash: &pgoldilocks.HashOut256{resp.HashesLimbs[0], resp.HashesLimbs[1], resp.HashesLimbs[2], resp.HashesLimbs[3]},
-		storageCircuitDigestHash: &pgoldilocks.HashOut256{resp.HashesLimbs[4], resp.HashesLimbs[5], resp.HashesLimbs[6], resp.HashesLimbs[7]},
-		txCircuitDigestHash:      &pgoldilocks.HashOut256{resp.HashesLimbs[8], resp.HashesLimbs[9], resp.HashesLimbs[10], resp.HashesLimbs[11]},
-		gnarkReceiptVk:           resp.GnarkVks[0],
-		gnarkStorageVk:           resp.GnarkVks[1],
-		gnarkTxVk:                resp.GnarkVks[2],
-	}
+	return &BrevisApp{gc: gc, BrevisHashInfo: hashInfo}
 }
 
 // AddReceipt adds the ReceiptData to be queried. If an index is specified, the
@@ -333,6 +448,7 @@ func (q *BrevisApp) BuildCircuitInput(app AppCircuit) (CircuitInput, error) {
 	in := defaultCircuitInput(q.maxReceipts, q.maxStorage, q.maxTxs, q.dataPoints)
 
 	var errG errgroup.Group
+	errG.SetLimit(q.concurrentFetchLimit)
 	// receipt
 	errG.Go(func() error {
 		err := q.assignReceipts(&in)
@@ -364,8 +480,6 @@ func (q *BrevisApp) BuildCircuitInput(app AppCircuit) (CircuitInput, error) {
 	if err != nil {
 		return buildCircuitInputErr("failed to build input", err)
 	}
-
-	q.writeDataIntoLocalStorage()
 
 	if q.realDataLength() > 0 && q.mockDataLength() > 0 {
 		return CircuitInput{}, fmt.Errorf("you cannot add real data and mock data at the same time")
@@ -641,7 +755,7 @@ func (q *BrevisApp) prepareQueryForBrevisPartnerFlow(
 		return
 	}
 
-	vkHashInBigInt, err := CalBrevisCircuitDigest(q.maxReceipts, q.maxStorage, q.dataPoints-q.maxReceipts-q.maxStorage, vk, q)
+	vkHashInBigInt, err := CalcBrevisCircuitDigest(q.maxReceipts, q.maxStorage, q.dataPoints-q.maxReceipts-q.maxStorage, vk, q.BrevisHashInfo)
 	if err != nil {
 		fmt.Printf("error computing vk hash: %s", err.Error())
 		return
@@ -721,7 +835,7 @@ func (q *BrevisApp) GenerateProtoQuery(
 		return nil, err
 	}
 
-	vkHashInBigInt, err := CalBrevisCircuitDigest(q.maxReceipts, q.maxStorage, q.dataPoints-q.maxReceipts-q.maxStorage, vk, q)
+	vkHashInBigInt, err := CalcBrevisCircuitDigest(q.maxReceipts, q.maxStorage, q.dataPoints-q.maxReceipts-q.maxStorage, vk, q.BrevisHashInfo)
 	if err != nil {
 		fmt.Printf("error computing vk hash: %s", err.Error())
 		return nil, err
@@ -1006,6 +1120,7 @@ func CalPoseidonBn254MerkleTree(leafs []*big.Int) (*big.Int, error) {
 
 func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
 	var errG errgroup.Group
+	errG.SetLimit(q.concurrentFetchLimit)
 	// assigning user appointed receipts at specific indices
 	for i, r := range q.receipts.special {
 		index := i
@@ -1052,10 +1167,14 @@ func (q *BrevisApp) BuildReceipt(t ReceiptData) (Receipt, error) {
 
 func (q *BrevisApp) buildReceipt(r ReceiptData) (Receipt, error) {
 	key := generateReceiptKey(r, q.srcChainId)
-	data, ok := q.localInputData.Receipts.Load(key)
+	var data ReceiptData
+	ok, err := q.dataStore.Get(key, &data)
+	if err != nil {
+		return Receipt{}, fmt.Errorf("dataStore Get err: %w", err)
+	}
 	if !ok {
 		if r.isReadyToSave() {
-			data = &r
+			data = r
 		} else {
 			receiptInfo, mptKey, blockNum, baseFee, time, err := q.getReceiptInfos(r.TxHash)
 			if err != nil {
@@ -1066,7 +1185,7 @@ func (q *BrevisApp) buildReceipt(r ReceiptData) (Receipt, error) {
 				return Receipt{}, err
 			}
 
-			data = &ReceiptData{
+			data = ReceiptData{
 				TxHash:         r.TxHash,
 				BlockNum:       blockNum,
 				BlockBaseFee:   baseFee,
@@ -1075,13 +1194,17 @@ func (q *BrevisApp) buildReceipt(r ReceiptData) (Receipt, error) {
 				BlockTimestamp: time,
 			}
 		}
-		q.localInputData.Receipts.Store(key, data)
+		err = q.dataStore.Set(key, &data)
+		if err != nil {
+			return Receipt{}, fmt.Errorf("dataStore Set err: %w", err)
+		}
 	}
-	return convertReceiptDataToReceipt(data.(*ReceiptData)), nil
+	return convertReceiptDataToReceipt(&data), nil
 }
 
 func (q *BrevisApp) assignStorageSlots(in *CircuitInput) (err error) {
 	var errG errgroup.Group
+	errG.SetLimit(q.concurrentFetchLimit)
 	// assigning user appointed data at specific indices
 	for i, s := range q.storageVals.special {
 		index := i
@@ -1128,10 +1251,14 @@ func (q *BrevisApp) BuildStorageSlot(s StorageData) (StorageSlot, error) {
 
 func (q *BrevisApp) buildStorageSlot(s StorageData) (StorageSlot, error) {
 	key := generateStorageKey(s, q.srcChainId)
-	data, ok := q.localInputData.Storages.Load(key)
+	var data StorageData
+	ok, err := q.dataStore.Get(key, &data)
+	if err != nil {
+		return StorageSlot{}, fmt.Errorf("dataStore Get err: %w", err)
+	}
 	if !ok {
 		if s.isReadyToSave() {
-			data = &s
+			data = s
 		} else {
 			baseFee, time, err := q.getBlockInfo(s.BlockNum)
 			if err != nil {
@@ -1143,7 +1270,7 @@ func (q *BrevisApp) buildStorageSlot(s StorageData) (StorageSlot, error) {
 				return StorageSlot{}, err
 			}
 
-			data = &StorageData{
+			data = StorageData{
 				BlockNum:       s.BlockNum,
 				BlockBaseFee:   baseFee,
 				Address:        s.Address,
@@ -1152,14 +1279,17 @@ func (q *BrevisApp) buildStorageSlot(s StorageData) (StorageSlot, error) {
 				BlockTimestamp: time,
 			}
 		}
-		q.localInputData.Storages.Store(key, data)
+		err = q.dataStore.Set(key, &data)
+		if err != nil {
+			return StorageSlot{}, fmt.Errorf("dataStore Set err: %w", err)
+		}
 	}
-
-	return convertStorageDataToStorage(data.(*StorageData)), nil
+	return convertStorageDataToStorage(&data), nil
 }
 
 func (q *BrevisApp) assignTransactions(in *CircuitInput) (err error) {
 	var errG errgroup.Group
+	errG.SetLimit(q.concurrentFetchLimit)
 	// assigning user appointed data at specific indices
 	for i, t := range q.txs.special {
 		index := i
@@ -1205,17 +1335,21 @@ func (q *BrevisApp) BuildTx(t TransactionData) (Transaction, error) {
 
 func (q *BrevisApp) buildTx(t TransactionData) (Transaction, error) {
 	key := generateTxKey(t, q.srcChainId)
-	data, ok := q.localInputData.Txs.Load(key)
+	var data TransactionData
+	ok, err := q.dataStore.Get(key, &data)
+	if err != nil {
+		return Transaction{}, fmt.Errorf("dataStore Get err: %w", err)
+	}
 	if !ok {
 		if t.isReadyToSave() {
-			data = &t
+			data = t
 		} else {
 			leafHash, mptKey, blockNumber, baseFee, time, err := q.calculateTxLeafHashBlockBaseFeeAndMPTKey(t.Hash)
 			if err != nil {
 				return Transaction{}, err
 			}
 
-			data = &TransactionData{
+			data = TransactionData{
 				Hash:           t.Hash,
 				BlockNum:       blockNumber,
 				BlockBaseFee:   baseFee,
@@ -1224,10 +1358,12 @@ func (q *BrevisApp) buildTx(t TransactionData) (Transaction, error) {
 				BlockTimestamp: time,
 			}
 		}
-		q.localInputData.Txs.Store(key, data)
+		err = q.dataStore.Set(key, &data)
+		if err != nil {
+			return Transaction{}, fmt.Errorf("dataStore Set err: %w", err)
+		}
 	}
-
-	return convertTxDataToTransaction(data.(*TransactionData)), nil
+	return convertTxDataToTransaction(&data), nil
 }
 
 func buildCircuitInputErr(m string, err error) (CircuitInput, error) {
@@ -1263,9 +1399,22 @@ func allocationIndexErr(name string, pinnedIndex, maxCount int) error {
 		pinnedIndex, name, maxCount)
 }
 
-// Reset app input, used for prover server
-func (q *BrevisApp) ResetInput() {
-	q.receipts = rawData[ReceiptData]{}
-	q.storageVals = rawData[StorageData]{}
-	q.txs = rawData[TransactionData]{}
+func (q *BrevisApp) GetGatewayClient() *GatewayClient {
+	return q.gc
+}
+
+func (q *BrevisApp) GetEthClient() *ethclient.Client {
+	return q.ec
+}
+
+func (q *BrevisApp) GetBrevisRequest() *abi.ABI {
+	return q.brevisRequest
+}
+
+func (q *BrevisApp) GetDataStore() gokv.Store {
+	return q.dataStore
+}
+
+func (q *BrevisApp) CloseDataStore() error {
+	return q.dataStore.Close()
 }

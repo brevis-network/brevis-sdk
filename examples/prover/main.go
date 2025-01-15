@@ -14,9 +14,14 @@ func main() {
 		prover.ServiceConfig{
 			SetupDir: "$HOME/circuitOut",
 			SrsDir:   "$HOME/kzgsrs",
-			RpcURL:   "RPC_URL",
-			ChainId:  1,
-		})
+		},
+		prover.SourceChainConfigs{
+			&prover.SourceChainConfig{
+				RpcUrl:  "RPC_URL",
+				ChainId: 1,
+			},
+		},
+	)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

@@ -16,7 +16,7 @@ import (
 	"github.com/consensys/gnark/constraint"
 )
 
-func readOnly(circuit sdk.AppCircuit, setupDir string, brevisApp *sdk.BrevisApp) (pk plonk.ProvingKey, vk plonk.VerifyingKey, ccs constraint.ConstraintSystem, vkHash []byte, err error) {
+func readOnly(circuit sdk.AppCircuit, setupDir string, hashInfo *sdk.BrevisHashInfo) (pk plonk.ProvingKey, vk plonk.VerifyingKey, ccs constraint.ConstraintSystem, vkHash []byte, err error) {
 	errG := errgroup.Group{}
 	errG.Go(func() error {
 		log.Debugln(">> compiling circuit")
@@ -39,7 +39,7 @@ func readOnly(circuit sdk.AppCircuit, setupDir string, brevisApp *sdk.BrevisApp)
 		log.Debugln(">> load vk pk")
 		maxReceipts, maxStorage, maxTxs := circuit.Allocate()
 		dataPoints := sdk.DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
-		pk, vk, vkHash, err = readSetup(filepath.Join(setupDir, "pk"), filepath.Join(setupDir, "vk"), maxReceipts, maxStorage, dataPoints, brevisApp)
+		pk, vk, vkHash, err = readSetup(filepath.Join(setupDir, "pk"), filepath.Join(setupDir, "vk"), maxReceipts, maxStorage, dataPoints, hashInfo)
 		if err != nil {
 			return fmt.Errorf("fail to find pk vk, err: %w", err)
 		}
@@ -59,7 +59,7 @@ func readOnly(circuit sdk.AppCircuit, setupDir string, brevisApp *sdk.BrevisApp)
 	return pk, vk, ccs, vkHash, nil
 }
 
-func readOrSetup(circuit sdk.AppCircuit, setupDir, srsDir string, brevisApp *sdk.BrevisApp) (pk plonk.ProvingKey, vk plonk.VerifyingKey, ccs constraint.ConstraintSystem, vkHash []byte, err error) {
+func readOrSetup(circuit sdk.AppCircuit, setupDir, srsDir string, hashInfo *sdk.BrevisHashInfo) (pk plonk.ProvingKey, vk plonk.VerifyingKey, ccs constraint.ConstraintSystem, vkHash []byte, err error) {
 	log.Debugln(">> compiling circuit")
 	ccs, err = sdk.CompileOnly(circuit)
 	if err != nil {
@@ -82,7 +82,7 @@ func readOrSetup(circuit sdk.AppCircuit, setupDir, srsDir string, brevisApp *sdk
 	vkFilepath := filepath.Join(setupDir, fmt.Sprintf("0x%x", ccsDigest), "vk")
 
 	log.Debugln("trying to read setup from cache...")
-	pk, vk, vkHash, err = readSetup(pkFilepath, vkFilepath, maxReceipts, maxStorage, dataPoints, brevisApp)
+	pk, vk, vkHash, err = readSetup(pkFilepath, vkFilepath, maxReceipts, maxStorage, dataPoints, hashInfo)
 	if err == nil {
 		return pk, vk, ccs, vkHash, nil
 	}
@@ -90,7 +90,7 @@ func readOrSetup(circuit sdk.AppCircuit, setupDir, srsDir string, brevisApp *sdk
 	log.Debugf("no setup matching circuit digest 0x%x is found in %s\n", ccsDigest, setupDir)
 	log.Debugln(">> setup")
 
-	pk, vk, vkHash, err = sdk.Setup(ccs, srsDir, maxReceipts, maxStorage, dataPoints, brevisApp)
+	pk, vk, vkHash, err = sdk.Setup(ccs, srsDir, maxReceipts, maxStorage, dataPoints, hashInfo)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -107,14 +107,14 @@ func readOrSetup(circuit sdk.AppCircuit, setupDir, srsDir string, brevisApp *sdk
 	return pk, vk, ccs, vkHash, nil
 }
 
-func readSetup(pkFilepath, vkFilepath string, maxReceipt, maxStorage, numMaxDataPoints int, brevisApp *sdk.BrevisApp) (pk plonk.ProvingKey, vk plonk.VerifyingKey, vkHash []byte, err error) {
+func readSetup(pkFilepath, vkFilepath string, maxReceipt, maxStorage, numMaxDataPoints int, hashInfo *sdk.BrevisHashInfo) (pk plonk.ProvingKey, vk plonk.VerifyingKey, vkHash []byte, err error) {
 	log.Debugf("load pk from %s\n", pkFilepath)
 	pk, err = sdk.ReadPkFrom(pkFilepath)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	log.Debugf("load vk from %s\n", vkFilepath)
-	vk, vkHash, err = sdk.ReadVkFrom(vkFilepath, maxReceipt, maxStorage, numMaxDataPoints, brevisApp)
+	vk, vkHash, err = sdk.ReadVkFrom(vkFilepath, maxReceipt, maxStorage, numMaxDataPoints, hashInfo)
 	if err != nil {
 		return nil, nil, nil, err
 	}

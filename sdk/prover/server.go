@@ -15,8 +15,9 @@ import (
 
 	"github.com/brevis-network/brevis-sdk/sdk/proto/commonproto"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto"
+	"github.com/brevis-network/brevis-sdk/store"
 	"github.com/celer-network/goutils/log"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/rs/cors"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/credentials/insecure"
@@ -45,20 +46,23 @@ type Service struct {
 	svr *server
 }
 
-type proveRequest struct {
-	Status         int
-	Request        []byte
-	Witness        []byte
-	Proof          string
-	AppCircuitInfo []byte
-	Err            string
+type ProveRequest struct {
+	Status         int    `json:"status"`
+	SrcChainId     uint64 `json:"src_chain_id"`
+	Request        []byte `json:"request"`
+	Witness        []byte `json:"witness"`
+	Proof          string `json:"proof"`
+	AppCircuitInfo []byte `json:"app_circuit_info"`
+	Err            string `json:"err"`
 }
 
 type server struct {
 	sdkproto.UnimplementedProverServer
 
 	appCircuit sdk.AppCircuit
-	brevisApp  *sdk.BrevisApp
+	// chain ID => *BrevisApp
+	// Placeholder for common dependencies shared by all BrevisApp instances
+	appTemplates map[uint64]*sdk.BrevisApp
 
 	pk  plonk.ProvingKey
 	vk  plonk.VerifyingKey
@@ -69,36 +73,21 @@ type server struct {
 
 	grpcServer *grpc.Server
 
-	store      gokv.Store
-	activeJobs sync.Map
+	store gokv.Store
+
+	// proof ID => *BrevisApp
+	activeApps sync.Map
 }
 
-// package level singleton to ensure only one prove process is running at a time
-var proveProcessorLock sync.Mutex
+// package level singleton to ensure only one prove action is running at a time
+var proveLock sync.Mutex
 
 // NewService creates a new prover server instance that automatically manages
 // compilation & setup, and serves as a GRPC server that interoperates with
 // brevis sdk in other languages.
 func NewService(
-	app sdk.AppCircuit, config ServiceConfig) (*Service, error) {
-	brevisApp, err := sdk.NewBrevisApp(uint64(config.ChainId), config.RpcURL, config.GetSetupDir())
-	if err != nil {
-		return nil, fmt.Errorf("failed to initiate brevis app %w", err)
-	}
-
-	var pk plonk.ProvingKey
-	var vk plonk.VerifyingKey
-	var ccs constraint.ConstraintSystem
-	var vkHash []byte
-	if config.DirectLoad {
-		pk, vk, ccs, vkHash, err = readOnly(app, config.GetSetupDir(), brevisApp)
-	} else {
-		pk, vk, ccs, vkHash, err = readOrSetup(app, config.GetSetupDir(), config.GetSrsDir(), brevisApp)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("readOrSetup err: %w", err)
-	}
-	svr, err := newServer(brevisApp, app, pk, vk, ccs, vkHash, config.PersistenceType, config.PersistenceOptions)
+	app sdk.AppCircuit, config ServiceConfig, srcChainConfigs SourceChainConfigs) (*Service, error) {
+	svr, err := newServer(app, config, srcChainConfigs)
 	if err != nil {
 		return nil, fmt.Errorf("newServer err: %w", err)
 	}
@@ -164,51 +153,71 @@ func serveGrpcGateway(bind string, grpcPort, restPort uint) error {
 	return nil
 }
 
-func initStore(persistenceType string, persistenceOptions string) (gokv.Store, error) {
-	switch persistenceType {
-	case "", "syncmap":
-		return newSyncMapStore(persistenceOptions)
-	case "s3":
-		return newS3Store(persistenceOptions)
-	case "badgerdb":
-		return newBadgerDBStore(persistenceOptions)
-	default:
-		return nil, fmt.Errorf("unsupported persistence type %s", persistenceType)
+func newServer(appCircuit sdk.AppCircuit, config ServiceConfig, srcChainConfigs SourceChainConfigs) (*server, error) {
+	hashInfo, err := sdk.NewBrevisHashInfo(config.GatewayUrl)
+	if err != nil {
+		return nil, fmt.Errorf("NewBrevisHashInfo err: %w", err)
 	}
-}
+	var pk plonk.ProvingKey
+	var vk plonk.VerifyingKey
+	var ccs constraint.ConstraintSystem
+	var vkHash []byte
+	if config.DirectLoad {
+		pk, vk, ccs, vkHash, err = readOnly(appCircuit, config.GetSetupDir(), hashInfo)
+	} else {
+		pk, vk, ccs, vkHash, err = readOrSetup(appCircuit, config.GetSetupDir(), config.GetSrsDir(), hashInfo)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("readOrSetup err: %w", err)
+	}
 
-func newServer(
-	brevisApp *sdk.BrevisApp,
-	appCircuit sdk.AppCircuit,
-	pk plonk.ProvingKey,
-	vk plonk.VerifyingKey,
-	ccs constraint.ConstraintSystem,
-	vkHash []byte,
-	persistenceType string,
-	persistenceOptions string,
-) (*server, error) {
 	var buf bytes.Buffer
-	_, err := vk.WriteRawTo(&buf)
+	_, err = vk.WriteRawTo(&buf)
 	if err != nil {
 		return nil, fmt.Errorf("vk.WriteTo err: %w", err)
 	}
-	store, err := initStore(persistenceType, persistenceOptions)
+	persistenceType := config.ProofPersistenceType
+	if persistenceType == "" {
+		persistenceType = "syncmap"
+	}
+	store, err := store.InitStore(persistenceType, config.ProofPersistenceOptions)
 	if err != nil {
-		return nil, fmt.Errorf("initStore error: %w", err)
+		return nil, fmt.Errorf("InitStore error: %w", err)
+	}
+
+	// Create BrevisApp templates for each source chain
+	appTemplates := make(map[uint64]*sdk.BrevisApp)
+	for _, srcChainConfig := range srcChainConfigs {
+		srcChainId := srcChainConfig.ChainId
+		appConfig := &sdk.BrevisAppConfig{
+			SrcChainId:         srcChainId,
+			RpcUrl:             srcChainConfig.RpcUrl,
+			GatewayUrl:         config.GatewayUrl,
+			OutDir:             config.SetupDir,
+			PersistenceType:    config.DataPersistenceType,
+			PersistenceOptions: config.DataPersistenceOptions,
+		}
+		template, err := sdk.NewBrevisAppWithConfig(appConfig)
+		if err != nil {
+			return nil, fmt.Errorf("NewBrevisAppWithConfig err: %w", err)
+		}
+		appTemplates[srcChainId] = template
 	}
 	return &server{
-		appCircuit: appCircuit,
-		brevisApp:  brevisApp,
-		pk:         pk,
-		vk:         vk,
-		ccs:        ccs,
-		vkString:   hexutil.Encode(buf.Bytes()),
-		vkHash:     hexutil.Encode(vkHash),
-		store:      store,
-		activeJobs: sync.Map{},
+		appCircuit:   appCircuit,
+		appTemplates: appTemplates,
+		pk:           pk,
+		vk:           vk,
+		ccs:          ccs,
+		vkString:     hexutil.Encode(buf.Bytes()),
+		vkHash:       hexutil.Encode(vkHash),
+		store:        store,
+		activeApps:   sync.Map{},
 	}, nil
 }
 
+// Prove synchronously proves an app and returns the proof. This can be a long blocking call so use with caution.
+// ProveAsync should be used in most cases.
 func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkproto.ProveResponse, error) {
 	log.Debugln("received synchronous prove request", req.String())
 
@@ -216,7 +225,23 @@ func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkpro
 		return &sdkproto.ProveResponse{Err: protoErr, CircuitInfo: nil}, nil
 	}
 
-	input, guest, witnessStr, protoErr := s.buildInput(req)
+	srcChainId := req.SrcChainId
+	appTemplate, ok := s.appTemplates[srcChainId]
+	if !ok {
+		return errRes(newErr(sdkproto.ErrCode_ERROR_INVALID_INPUT, "unsupported chain ID: %d", srcChainId))
+	}
+	brevisApp, err := sdk.NewBrevisAppWithDependencies(
+		appTemplate.GetGatewayClient(), appTemplate.GetEthClient(), appTemplate.GetBrevisRequest(), srcChainId, appTemplate.GetDataStore(), appTemplate.BrevisHashInfo)
+	if err != nil {
+		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to create BrevisApp: %s", err.Error()))
+	}
+	defer func() {
+		err := brevisApp.CloseDataStore()
+		if err != nil {
+			log.Errorf("failed to close dataStore: %s", err.Error())
+		}
+	}()
+	input, guest, witnessStr, protoErr := s.buildInput(brevisApp, req)
 	if protoErr != nil {
 		return errRes(protoErr)
 	}
@@ -237,6 +262,8 @@ func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkpro
 	}, nil
 }
 
+// ProveAsync returns a proof ID and triggers a prove action asynchronously. The status, app circuit info and proof can be
+// queried with subsequent GetProof calls.
 func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (res *sdkproto.ProveAsyncResponse, err error) {
 	errRes := func(protoErr *sdkproto.Err) (*sdkproto.ProveAsyncResponse, error) {
 		return &sdkproto.ProveAsyncResponse{Err: protoErr, ProofId: ""}, nil
@@ -264,9 +291,10 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (re
 			Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "proof ID %s, proto.Marshal err: %s", proofId, err.Error()),
 		}, nil
 	}
-	proveRequest := &proveRequest{
-		Status:  ProveStatusInit,
-		Request: requestBytes,
+	proveRequest := &ProveRequest{
+		Status:     ProveStatusInit,
+		SrcChainId: req.SrcChainId,
+		Request:    requestBytes,
 	}
 	err = s.setProveRequest(proofId, proveRequest)
 	if err != nil {
@@ -278,6 +306,7 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (re
 	return resp, nil
 }
 
+// GetProofs returns the status, app circuit info and proof associated with a proof ID
 func (s *server) GetProof(ctx context.Context, req *sdkproto.GetProofRequest) (res *sdkproto.GetProofResponse, err error) {
 	proofId := req.ProofId
 	found, proveRequest, err := s.getProveRequest(proofId)
@@ -299,7 +328,7 @@ func (s *server) GetProof(ctx context.Context, req *sdkproto.GetProofRequest) (r
 				Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to unmarshal request, proof ID %s: internal err %s", proofId, err.Error()),
 			}, nil
 		}
-		_, ok := s.activeJobs.Load(proofId)
+		_, ok := s.activeApps.Load(proofId)
 		if !ok {
 			go s.buildInputAndProve(proofId, proveRequest, requestProto)
 		}
@@ -312,7 +341,7 @@ func (s *server) GetProof(ctx context.Context, req *sdkproto.GetProofRequest) (r
 				Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to unmarshal app circuit info, proof ID %s: internal err %s", proofId, err.Error()),
 			}, nil
 		}
-		_, ok := s.activeJobs.Load(proofId)
+		_, ok := s.activeApps.Load(proofId)
 		if !ok {
 			go s.continueProve(proofId, proveRequest)
 		}
@@ -347,21 +376,19 @@ func (s *server) DeleteProof(ctx context.Context, req *sdkproto.DeleteProofReque
 	return &sdkproto.DeleteProofResponse{}, nil
 }
 
-func (s *server) buildInput(req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.AppCircuit, string, *sdkproto.Err) {
+func (s *server) buildInput(brevisApp *sdk.BrevisApp, req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.AppCircuit, string, *sdkproto.Err) {
 	makeErr := func(code sdkproto.ErrCode, format string, args ...any) (*sdk.CircuitInput, sdk.AppCircuit, string, *sdkproto.Err) {
 		log.Errorf(format, args...)
 		log.Errorln()
 		return nil, nil, "", newErr(code, format, args...)
 	}
 
-	s.brevisApp.ResetInput()
-
 	for _, receipt := range req.Receipts {
 		sdkReceipt, err := convertProtoReceiptToSdkReceipt(receipt.Data)
 		if err != nil {
 			return makeErr(sdkproto.ErrCode_ERROR_INVALID_INPUT, "invalid sdk receipt: %+v, %s", receipt.Data, err.Error())
 		}
-		s.brevisApp.AddReceipt(sdkReceipt, int(receipt.Index))
+		brevisApp.AddReceipt(sdkReceipt, int(receipt.Index))
 	}
 
 	for _, storage := range req.Storages {
@@ -369,7 +396,7 @@ func (s *server) buildInput(req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.
 		if err != nil {
 			return makeErr(sdkproto.ErrCode_ERROR_INVALID_INPUT, "invalid sdk storage: %+v, %s", storage.Data, err.Error())
 		}
-		s.brevisApp.AddStorage(sdkStorage, int(storage.Index))
+		brevisApp.AddStorage(sdkStorage, int(storage.Index))
 	}
 
 	for _, transaction := range req.Transactions {
@@ -377,8 +404,7 @@ func (s *server) buildInput(req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.
 		if err != nil {
 			return makeErr(sdkproto.ErrCode_ERROR_INVALID_INPUT, "invalid sdk transaction: %+v, %s", transaction.Data, err.Error())
 		}
-
-		s.brevisApp.AddTransaction(sdkTx, int(transaction.Index))
+		brevisApp.AddTransaction(sdkTx, int(transaction.Index))
 	}
 
 	guest, err := assignCustomInput(s.appCircuit, req.CustomInput)
@@ -386,7 +412,7 @@ func (s *server) buildInput(req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.
 		return makeErr(sdkproto.ErrCode_ERROR_INVALID_CUSTOM_INPUT, "invalid custom input %s\n", err.Error())
 	}
 
-	input, err := s.brevisApp.BuildCircuitInput(guest)
+	input, err := brevisApp.BuildCircuitInput(guest)
 	if err != nil {
 		return makeErr(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, "failed to build circuit input: %+v, %s", req, err.Error())
 	}
@@ -416,10 +442,10 @@ func (s *server) genWitness(input *sdk.CircuitInput, guest sdk.AppCircuit) (witn
 }
 
 func (s *server) prove(witness witness.Witness) (string, error) {
-	proveProcessorLock.Lock()
+	proveLock.Lock()
 	proof, err := sdk.Prove(s.ccs, s.pk, witness)
 	goruntime.GC()
-	proveProcessorLock.Unlock()
+	proveLock.Unlock()
 	if err != nil {
 		return "", fmt.Errorf("failed to prove: %w", err)
 	}
@@ -432,11 +458,29 @@ func (s *server) prove(witness witness.Witness) (string, error) {
 	return hexutil.Encode(buf.Bytes()), nil
 }
 
-func (s *server) buildInputAndProve(proofId string, proveRequest *proveRequest, proveRequestProto *sdkproto.ProveRequest) {
-	s.activeJobs.Store(proofId, true)
-	defer s.activeJobs.Delete(proofId)
+func (s *server) buildInputAndProve(proofId string, proveRequest *ProveRequest, requestProto *sdkproto.ProveRequest) {
+	srcChainId := requestProto.SrcChainId
+	appTemplate, ok := s.appTemplates[srcChainId]
+	if !ok {
+		s.markProofFailed(proofId, proveRequest, fmt.Errorf("unsupported chain ID: %d", srcChainId))
+		return
+	}
+	brevisApp, err := sdk.NewBrevisAppWithDependencies(
+		appTemplate.GetGatewayClient(), appTemplate.GetEthClient(), appTemplate.GetBrevisRequest(), srcChainId, appTemplate.GetDataStore(), appTemplate.BrevisHashInfo)
+	if err != nil {
+		s.markProofFailed(proofId, proveRequest, fmt.Errorf("failed to create BrevisApp: %w", err))
+		return
+	}
+	s.activeApps.Store(proofId, brevisApp)
+	defer func() {
+		s.activeApps.Delete(proofId)
+		err := brevisApp.CloseDataStore()
+		if err != nil {
+			log.Errorf("failed to close dataStore: %s", err.Error())
+		}
+	}()
 
-	input, guest, witnessStr, protoErr := s.buildInput(proveRequestProto)
+	input, guest, witnessStr, protoErr := s.buildInput(brevisApp, requestProto)
 	if protoErr != nil {
 		s.markProofFailed(proofId, proveRequest, errors.New(protoErr.String()))
 		return
@@ -467,9 +511,27 @@ func (s *server) buildInputAndProve(proofId string, proveRequest *proveRequest, 
 	s.doProveHelper(proofId, proveRequest, witness)
 }
 
-func (s *server) continueProve(proofId string, proveRequest *proveRequest) {
-	s.activeJobs.Store(proofId, true)
-	defer s.activeJobs.Delete(proofId)
+func (s *server) continueProve(proofId string, proveRequest *ProveRequest) {
+	srcChainId := proveRequest.SrcChainId
+	appTemplate, ok := s.appTemplates[srcChainId]
+	if !ok {
+		s.markProofFailed(proofId, proveRequest, fmt.Errorf("unsupported chain ID: %d", srcChainId))
+		return
+	}
+	brevisApp, err := sdk.NewBrevisAppWithDependencies(
+		appTemplate.GetGatewayClient(), appTemplate.GetEthClient(), appTemplate.GetBrevisRequest(), srcChainId, appTemplate.GetDataStore(), appTemplate.BrevisHashInfo)
+	if err != nil {
+		s.markProofFailed(proofId, proveRequest, fmt.Errorf("failed to create BrevisApp: %w", err))
+		return
+	}
+	s.activeApps.Store(proofId, brevisApp)
+	defer func() {
+		s.activeApps.Delete(proofId)
+		err := brevisApp.CloseDataStore()
+		if err != nil {
+			log.Errorf("failed to close dataStore: %s", err.Error())
+		}
+	}()
 
 	// Unmarshal witnesses
 	witness, err := witness.New(ecc.BN254.ScalarField())
@@ -486,7 +548,7 @@ func (s *server) continueProve(proofId string, proveRequest *proveRequest) {
 	s.doProveHelper(proofId, proveRequest, witness)
 }
 
-func (s *server) doProveHelper(proofId string, proveRequest *proveRequest, witness witness.Witness) {
+func (s *server) doProveHelper(proofId string, proveRequest *ProveRequest, witness witness.Witness) {
 	proof, err := s.prove(witness)
 	if err != nil {
 		s.markProofFailed(proofId, proveRequest, err)
@@ -501,7 +563,7 @@ func (s *server) doProveHelper(proofId string, proveRequest *proveRequest, witne
 	log.Infof("prove success, proof ID: %s\n", proofId)
 }
 
-func (s *server) setProveRequest(id string, req *proveRequest) error {
+func (s *server) setProveRequest(id string, req *ProveRequest) error {
 	log.Debugf("set prove request, ID: %s\n", id)
 	setErr := s.store.Set(id, *req)
 	if setErr != nil {
@@ -510,9 +572,9 @@ func (s *server) setProveRequest(id string, req *proveRequest) error {
 	return nil
 }
 
-func (s *server) getProveRequest(id string) (bool, *proveRequest, error) {
+func (s *server) getProveRequest(id string) (bool, *ProveRequest, error) {
 	log.Debugf("get prove request, ID: %s\n", id)
-	var req proveRequest
+	var req ProveRequest
 	found, err := s.store.Get(id, &req)
 	if err != nil {
 		return false, nil, fmt.Errorf("store.Get err: %w", err)
@@ -522,7 +584,7 @@ func (s *server) getProveRequest(id string) (bool, *proveRequest, error) {
 
 func (s *server) deleteProveRequest(id string) error {
 	log.Debugf("delete prove request, ID: %s\n", id)
-	s.activeJobs.Delete(id)
+	s.activeApps.Delete(id)
 	err := s.store.Delete(id)
 	if err != nil {
 		return fmt.Errorf("store.Delete err: %w", err)
@@ -530,7 +592,7 @@ func (s *server) deleteProveRequest(id string) error {
 	return nil
 }
 
-func (s *server) markProofFailed(proofId string, request *proveRequest, err error) {
+func (s *server) markProofFailed(proofId string, request *ProveRequest, err error) {
 	request.Status = ProveStatusFailed
 	request.Err = err.Error()
 	setProofErr := s.setProveRequest(proofId, request)

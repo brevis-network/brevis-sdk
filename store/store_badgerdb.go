@@ -1,5 +1,5 @@
 // Implements a local kv store using an embedded BadgerDB
-package prover
+package store
 
 import (
 	"encoding/json"
@@ -9,16 +9,16 @@ import (
 	"github.com/philippgille/gokv/badgerdb"
 )
 
-type badgerDbStoreOptions struct {
+type BadgerDbStoreOptions struct {
 	Dir   string `json:"dir"`
 	Codec string `json:"codec"`
 }
 
-func newBadgerDBStore(optionsJSON string) (gokv.Store, error) {
+func NewBadgerDBStore(optionsJSON string) (gokv.Store, error) {
 	if optionsJSON == "" {
 		return createBadgerDBStore(badgerdb.DefaultOptions)
 	}
-	var options badgerDbStoreOptions
+	var options BadgerDbStoreOptions
 	err := json.Unmarshal([]byte(optionsJSON), &options)
 	if err != nil {
 		return nil, fmt.Errorf("json.Unmarshal err: %w", err)

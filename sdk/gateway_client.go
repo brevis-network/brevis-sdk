@@ -9,7 +9,10 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 )
+
+const defaultGatewayUrl = "appsdkv3.brevis.network:443"
 
 type GatewayClient struct {
 	c gwproto.GatewayClient
@@ -19,14 +22,15 @@ func NewGatewayClient(url ...string) (*GatewayClient, error) {
 	if len(url) > 1 {
 		panic("must supply at most one url")
 	}
+	gatewayUrl := defaultGatewayUrl
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{}))}
-	gatewayUrl := "appsdkv3.brevis.network:443"
 	if len(url) > 0 {
 		gatewayUrl = url[0]
-		// if ovveride, if rpc use http, not https, use WithInsecure
-		opts = []grpc.DialOption{grpc.WithInsecure()}
+		// TODO: Fix
+		// if override, if rpc use http, not https, use insecure
+		opts = []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	}
-	conn, err := grpc.Dial(gatewayUrl, opts...)
+	conn, err := grpc.NewClient(gatewayUrl, opts...)
 	if err != nil {
 		return nil, err
 	}

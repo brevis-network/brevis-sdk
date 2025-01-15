@@ -12,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gowebpki/jcs"
-	"github.com/philippgille/gokv/encoding"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -132,20 +131,6 @@ func convertProtoTxToSdkTx(in *sdkproto.TransactionData) (sdk.TransactionData, e
 	return sdk.TransactionData{
 		Hash: hex2Hash(in.Hash),
 	}, nil
-}
-
-func getStoreCodec(codec string) (encoding.Codec, error) {
-	switch codec {
-	case "":
-		// Allowed, as gokv will pick its default Codec
-		return nil, nil
-	case "json":
-		return encoding.Gob, nil
-	case "gob":
-		return encoding.JSON, nil
-	default:
-		return nil, fmt.Errorf("unsupported codec %s", codec)
-	}
 }
 
 func getProofId(vkHash string, req *sdkproto.ProveRequest) (string, error) {
