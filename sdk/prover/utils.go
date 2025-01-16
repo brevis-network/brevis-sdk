@@ -36,7 +36,7 @@ func hex2Hash(s string) common.Hash {
 	return common.BytesToHash(hex2Bytes(s))
 }
 
-func buildAppCircuitInfo(app sdk.AppCircuit, in sdk.CircuitInput, vk, vkHash, witness string) *commonproto.AppCircuitInfo {
+func buildFullAppCircuitInfo(app sdk.AppCircuit, in sdk.CircuitInput, vk, vkHash, witness string) *commonproto.AppCircuitInfo {
 	inputCommitments := make([]string, len(in.InputCommitments))
 	for i, value := range in.InputCommitments {
 		inputCommitments[i] = fmt.Sprintf("0x%x", value)
@@ -64,6 +64,25 @@ func buildAppCircuitInfo(app sdk.AppCircuit, in sdk.CircuitInput, vk, vkHash, wi
 		MaxStorage:           uint32(maxStorage),
 		MaxTx:                uint32(maxTxs),
 		MaxNumDataPoints:     uint32(dataPoints),
+	}
+}
+
+func buildPartialAppCircuitInfoForGatewayRequest(app sdk.AppCircuit, in *sdk.CircuitInput, vkHash string) *commonproto.AppCircuitInfo {
+	toggles := make([]bool, len(in.Toggles()))
+	for i, value := range in.Toggles() {
+		toggles[i] = fmt.Sprintf("%x", value) == "1"
+	}
+
+	maxReceipts, maxStorage, maxTxs := app.Allocate()
+	dataPoints := sdk.DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
+
+	return &commonproto.AppCircuitInfo{
+		Toggles:          toggles,
+		VkHash:           vkHash,
+		MaxReceipts:      uint32(maxReceipts),
+		MaxStorage:       uint32(maxStorage),
+		MaxTx:            uint32(maxTxs),
+		MaxNumDataPoints: uint32(dataPoints),
 	}
 }
 
@@ -143,4 +162,8 @@ func getProofId(vkHash string, req *sdkproto.ProveRequest) (string, error) {
 		return "", fmt.Errorf("jcs.Transform err: %w", err)
 	}
 	return crypto.Keccak256Hash(append([]byte(vkHash), canonJsonBytes...)).Hex(), nil
+}
+
+func getActiveJobsKey(vkHash string) string {
+	return fmt.Sprintf("%s-%s", activeJobsKeyPrefix, vkHash)
 }

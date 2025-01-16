@@ -319,21 +319,20 @@ func newBrevisApp(
 	}, nil
 }
 
-// NewBrevisAppWithConfig creates a BrevisApp with existing dependencies
+// NewBrevisAppFromExisting creates a fresh BrevisApp from an existing one
 // Best used when the dependencies are shared across multiple BrevisApp instances
-func NewBrevisAppWithDependencies(
-	gc *GatewayClient, ec *ethclient.Client, brevisRequest *abi.ABI, srcChainId uint64,
-	dataStore gokv.Store, hashInfo *BrevisHashInfo) (*BrevisApp, error) {
+func NewBrevisAppFromExisting(existing *BrevisApp) (*BrevisApp, error) {
 	return &BrevisApp{
-		gc:             gc,
-		ec:             ec,
-		brevisRequest:  brevisRequest,
-		srcChainId:     srcChainId,
-		receipts:       rawData[ReceiptData]{},
-		storageVals:    rawData[StorageData]{},
-		txs:            rawData[TransactionData]{},
-		dataStore:      dataStore,
-		BrevisHashInfo: hashInfo,
+		gc:                   existing.gc,
+		ec:                   existing.ec,
+		brevisRequest:        existing.brevisRequest,
+		srcChainId:           existing.srcChainId,
+		receipts:             rawData[ReceiptData]{},
+		storageVals:          rawData[StorageData]{},
+		txs:                  rawData[TransactionData]{},
+		dataStore:            existing.dataStore,
+		concurrentFetchLimit: existing.concurrentFetchLimit,
+		BrevisHashInfo:       existing.BrevisHashInfo,
 	}, nil
 }
 
@@ -434,10 +433,20 @@ func (q *BrevisApp) AddMockTransaction(data TransactionData, index ...int) {
 // into circuit assignment (the DataInput struct) The provided ctx is used
 // when performing network calls to the provided blockchain RPC.
 func (q *BrevisApp) BuildCircuitInput(app AppCircuit) (CircuitInput, error) {
+	in, err := q.BuildCircuitInputStage1(app)
+	if err != nil {
+		return CircuitInput{}, fmt.Errorf("BuildCircuitInputStage1 err: %w", err)
+	}
+	in, err = q.BuildCircuitInputStage2(app, in)
+	if err != nil {
+		return CircuitInput{}, fmt.Errorf("BuildCircuitInputStage2 err: %w", err)
+	}
+	return in, nil
+}
 
-	// 1. mimc hash data at each position to generate and assign input commitments and toggles commitment
-	// 2. dry-run user circuit to generate output and output commitment
-
+// BuildCircuitInputStage1 assigns the number of data points, sets toggles and adds mock data if specified.
+// This does not involve on-chain queries.
+func (q *BrevisApp) BuildCircuitInputStage1(app AppCircuit) (CircuitInput, error) {
 	q.maxReceipts, q.maxStorage, q.maxTxs = app.Allocate()
 	err := q.checkAllocations(app)
 	if err != nil {
@@ -447,6 +456,37 @@ func (q *BrevisApp) BuildCircuitInput(app AppCircuit) (CircuitInput, error) {
 	q.dataPoints = DataPointsNextPowerOf2(q.maxReceipts + q.maxStorage + q.maxTxs)
 	in := defaultCircuitInput(q.maxReceipts, q.maxStorage, q.maxTxs, q.dataPoints)
 
+	q.setReceiptsToggles(&in)
+	q.setStorageSlotsToggles(&in)
+	q.setTransactionsToggles(&in)
+
+	if q.realDataLength() > 0 && q.mockDataLength() > 0 {
+		return CircuitInput{}, fmt.Errorf("you cannot add real data and mock data at the same time")
+	}
+	err = q.assignMockReceipts(&in)
+	if err != nil {
+		return buildCircuitInputErr("failed to assign in from receipt queries", err)
+	}
+
+	// storage
+	err = q.assignMockStorageSlots(&in)
+	if err != nil {
+		return buildCircuitInputErr("failed to assign in from storage queries", err)
+	}
+
+	// transaction
+	err = q.assignMockTransactions(&in)
+	if err != nil {
+		return buildCircuitInputErr("failed to assign in from transaction queries", err)
+	}
+
+	return in, nil
+}
+
+// BuildCircuitInputStage2 populates CircuitInput with raw data, dry-runs the user circuit and assigns commitments.
+// This involves on-chain queries, gateway query and dry-run so should preferably be deferred.
+// NOTE: "in" needs to be the CircuitInput returned from BuildCircuitInputStage1.
+func (q *BrevisApp) BuildCircuitInputStage2(app AppCircuit, in CircuitInput) (CircuitInput, error) {
 	var errG errgroup.Group
 	errG.SetLimit(q.concurrentFetchLimit)
 	// receipt
@@ -469,36 +509,16 @@ func (q *BrevisApp) BuildCircuitInput(app AppCircuit) (CircuitInput, error) {
 
 	// transaction
 	errG.Go(func() error {
-		err = q.assignTransactions(&in)
+		err := q.assignTransactions(&in)
 		if err != nil {
 			return fmt.Errorf("failed to assign in from transaction queries: %w", err)
 		}
 		return nil
 	})
 
-	err = errG.Wait()
+	err := errG.Wait()
 	if err != nil {
 		return buildCircuitInputErr("failed to build input", err)
-	}
-
-	if q.realDataLength() > 0 && q.mockDataLength() > 0 {
-		return CircuitInput{}, fmt.Errorf("you cannot add real data and mock data at the same time")
-	}
-	err = q.assignMockReceipts(&in)
-	if err != nil {
-		return buildCircuitInputErr("failed to assign in from receipt queries", err)
-	}
-
-	// storage
-	err = q.assignMockStorageSlots(&in)
-	if err != nil {
-		return buildCircuitInputErr("failed to assign in from storage queries", err)
-	}
-
-	// transaction
-	err = q.assignMockTransactions(&in)
-	if err != nil {
-		return buildCircuitInputErr("failed to assign in from transaction queries", err)
 	}
 
 	dummyResponse, err := q.gc.GetCircuitDummyInput(&gwproto.CircuitDummyInputRequest{
@@ -511,6 +531,9 @@ func (q *BrevisApp) BuildCircuitInput(app AppCircuit) (CircuitInput, error) {
 		len(dummyResponse.Storage) == 0 || len(dummyResponse.Tx) == 0 {
 		return CircuitInput{}, fmt.Errorf("failed to get dummy information from brevis gateway: %s", dummyResponse.Err.Msg)
 	}
+
+	// 1. mimc hash data at each position to generate and assign input commitments and toggles commitment
+	// 2. dry-run user circuit to generate output and output commitment
 
 	// commitment
 	q.assignInputCommitment(&in, dummyResponse)
@@ -1118,14 +1141,29 @@ func CalPoseidonBn254MerkleTree(leafs []*big.Int) (*big.Int, error) {
 	}
 }
 
+func (q *BrevisApp) setReceiptsToggles(in *CircuitInput) {
+	for i := range q.receipts.special {
+		in.Receipts.Toggles[i] = 1
+	}
+	j := 0
+	for range q.receipts.ordered {
+		for in.Receipts.Toggles[j] == 1 {
+			j++
+		}
+		in.Receipts.Toggles[j] = 1
+		j++
+	}
+}
+
 func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
 	var errG errgroup.Group
 	errG.SetLimit(q.concurrentFetchLimit)
+	processedIndices := make(map[int]bool)
 	// assigning user appointed receipts at specific indices
 	for i, r := range q.receipts.special {
 		index := i
 		receiptData := r
-		in.Receipts.Toggles[index] = 1
+		processedIndices[index] = true
 
 		errG.Go(func() error {
 			receipt, err := q.buildReceipt(receiptData)
@@ -1141,10 +1179,10 @@ func (q *BrevisApp) assignReceipts(in *CircuitInput) error {
 	j := 0
 	for _, r := range q.receipts.ordered {
 		receiptData := r
-		for in.Receipts.Toggles[j] == 1 {
+		for processedIndices[j] {
 			j++
 		}
-		in.Receipts.Toggles[j] = 1
+		processedIndices[j] = true
 
 		index := j
 		errG.Go(func() error {
@@ -1202,14 +1240,29 @@ func (q *BrevisApp) buildReceipt(r ReceiptData) (Receipt, error) {
 	return convertReceiptDataToReceipt(&data), nil
 }
 
-func (q *BrevisApp) assignStorageSlots(in *CircuitInput) (err error) {
+func (q *BrevisApp) setStorageSlotsToggles(in *CircuitInput) {
+	for i := range q.storageVals.special {
+		in.StorageSlots.Toggles[i] = 1
+	}
+	j := 0
+	for range q.storageVals.ordered {
+		for in.StorageSlots.Toggles[j] == 1 {
+			j++
+		}
+		in.StorageSlots.Toggles[j] = 1
+		j++
+	}
+}
+
+func (q *BrevisApp) assignStorageSlots(in *CircuitInput) error {
 	var errG errgroup.Group
 	errG.SetLimit(q.concurrentFetchLimit)
+	processedIndices := make(map[int]bool)
 	// assigning user appointed data at specific indices
 	for i, s := range q.storageVals.special {
 		index := i
 		storageData := s
-		in.StorageSlots.Toggles[index] = 1
+		processedIndices[index] = true
 
 		errG.Go(func() error {
 			storage, err := q.buildStorageSlot(storageData)
@@ -1225,10 +1278,10 @@ func (q *BrevisApp) assignStorageSlots(in *CircuitInput) (err error) {
 	j := 0
 	for _, s := range q.storageVals.ordered {
 		storageData := s
-		for in.StorageSlots.Toggles[j] == 1 {
+		for processedIndices[j] {
 			j++
 		}
-		in.StorageSlots.Toggles[j] = 1
+		processedIndices[j] = true
 
 		index := j
 		errG.Go(func() error {
@@ -1287,14 +1340,29 @@ func (q *BrevisApp) buildStorageSlot(s StorageData) (StorageSlot, error) {
 	return convertStorageDataToStorage(&data), nil
 }
 
-func (q *BrevisApp) assignTransactions(in *CircuitInput) (err error) {
+func (q *BrevisApp) setTransactionsToggles(in *CircuitInput) {
+	for i := range q.txs.special {
+		in.Transactions.Toggles[i] = 1
+	}
+	j := 0
+	for range q.txs.ordered {
+		for in.Transactions.Toggles[j] == 1 {
+			j++
+		}
+		in.Transactions.Toggles[j] = 1
+		j++
+	}
+}
+
+func (q *BrevisApp) assignTransactions(in *CircuitInput) error {
 	var errG errgroup.Group
 	errG.SetLimit(q.concurrentFetchLimit)
+	processedIndices := make(map[int]bool)
 	// assigning user appointed data at specific indices
 	for i, t := range q.txs.special {
 		index := i
 		txData := t
-		in.Transactions.Toggles[index] = 1
+		processedIndices[index] = true
 
 		errG.Go(func() error {
 			tx, err := q.buildTx(txData)
@@ -1309,10 +1377,10 @@ func (q *BrevisApp) assignTransactions(in *CircuitInput) (err error) {
 	j := 0
 	for _, t := range q.txs.ordered {
 		txData := t
-		for in.Transactions.Toggles[j] == 1 {
+		for processedIndices[j] {
 			j++
 		}
-		in.Transactions.Toggles[j] = 1
+		processedIndices[j] = true
 
 		index := j
 		errG.Go(func() error {
@@ -1397,22 +1465,6 @@ func (q *BrevisApp) mockDataLength() int {
 func allocationIndexErr(name string, pinnedIndex, maxCount int) error {
 	return fmt.Errorf("# of pinned entry index (%d) must not exceed the allocated max %s (%d), check your AppCircuit.Allocate() method",
 		pinnedIndex, name, maxCount)
-}
-
-func (q *BrevisApp) GetGatewayClient() *GatewayClient {
-	return q.gc
-}
-
-func (q *BrevisApp) GetEthClient() *ethclient.Client {
-	return q.ec
-}
-
-func (q *BrevisApp) GetBrevisRequest() *abi.ABI {
-	return q.brevisRequest
-}
-
-func (q *BrevisApp) GetDataStore() gokv.Store {
-	return q.dataStore
 }
 
 func (q *BrevisApp) CloseDataStore() error {

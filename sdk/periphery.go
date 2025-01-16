@@ -3,9 +3,9 @@ package sdk
 import (
 	"fmt"
 	"io"
+	"math/bits"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/brevis-network/brevis-sdk/common/utils"
@@ -260,15 +260,14 @@ func ReadProofFrom(path string) (plonk.Proof, error) {
 	return proof, err
 }
 
-// The minimum dataPoints should be 64
 func DataPointsNextPowerOf2(value int) int {
-	if CheckNumberPowerOfTwo(value) {
-		if value >= 64 {
-			return value
-		} else {
-			return 64
-		}
+	// Currently, the minimum dataPoints needs to be 64
+	if value == 0 {
+		return 64
 	}
-
-	return 1 << len(strconv.FormatInt(int64(value), 2))
+	po2 := 1 << bits.Len32(uint32(value)-1)
+	if po2 < 64 {
+		return 64
+	}
+	return po2
 }
