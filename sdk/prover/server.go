@@ -3,12 +3,14 @@ package prover
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"os/signal"
+	"path/filepath"
 	goruntime "runtime"
 	"sync"
 	"syscall"
@@ -44,7 +46,7 @@ const (
 )
 
 const (
-	activeJobsKeyPrefix = "aj"
+	activeJobsKeyPrefix = "aj-1"
 )
 
 type Service struct {
@@ -78,7 +80,8 @@ type server struct {
 
 	grpcServer *grpc.Server
 
-	store gokv.Store
+	proofStore      gokv.Store
+	activeJobsStore gokv.Store
 
 	proveAsyncSingleFlight singleflight.Group
 	activeJobsLock         sync.Mutex
@@ -121,8 +124,9 @@ func (s *Service) Serve(bind string, grpcPort, restPort uint) error {
 
 	log.Infoln("Shutting down...")
 	s.svr.grpcServer.GracefulStop()
-	storeCloseErr := s.svr.store.Close()
-	return errors.Join(err, storeCloseErr)
+	proofStoreCloseErr := s.svr.proofStore.Close()
+	activeJobsStoreCloseErr := s.svr.activeJobsStore.Close()
+	return errors.Join(err, proofStoreCloseErr, activeJobsStoreCloseErr)
 }
 
 func (s *Service) serveGrpc(bind string, port uint) error {
@@ -190,7 +194,19 @@ func newServer(appCircuit sdk.AppCircuit, config ServiceConfig, srcChainConfigs 
 	if persistenceType == "" {
 		persistenceType = "syncmap"
 	}
-	store, err := store.InitStore(persistenceType, config.ProofPersistenceOptions)
+	proofStore, err := store.InitStore(persistenceType, config.ProofPersistenceOptions)
+	if err != nil {
+		return nil, fmt.Errorf("InitStore error: %w", err)
+	}
+
+	// TODO: Make configurable
+	activeJobsPersistenceOptionsStruct := store.FileStoreOptions{Directory: filepath.Join(config.SetupDir, "jobs")}
+	activeJobsPersistenceOptionsBytes, err := json.Marshal(activeJobsPersistenceOptionsStruct)
+	if err != nil {
+		return nil, fmt.Errorf("json.Marshal err: %w", err)
+	}
+	activeJobsPersistenceOptions := string(activeJobsPersistenceOptionsBytes)
+	activeJobsStore, err := store.InitStore("file", activeJobsPersistenceOptions)
 	if err != nil {
 		return nil, fmt.Errorf("InitStore error: %w", err)
 	}
@@ -221,7 +237,8 @@ func newServer(appCircuit sdk.AppCircuit, config ServiceConfig, srcChainConfigs 
 		ccs:                    ccs,
 		vkString:               hexutil.Encode(buf.Bytes()),
 		vkHash:                 hexutil.Encode(vkHash),
-		store:                  store,
+		proofStore:             proofStore,
+		activeJobsStore:        activeJobsStore,
 		proveAsyncSingleFlight: singleflight.Group{},
 		activeJobsLock:         sync.Mutex{},
 	}, nil
@@ -333,6 +350,8 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (*s
 
 		go s.buildInputStage2AndProve(proofId, brevisApp, proveRequest, req, inputStage1)
 
+		log.Infof("accepted job proof ID: %s", proofId)
+
 		return resp, nil
 	})
 	return res.(*sdkproto.ProveAsyncResponse), err
@@ -392,7 +411,13 @@ func (s *server) DeleteProof(ctx context.Context, req *sdkproto.DeleteProofReque
 	return &sdkproto.DeleteProofResponse{}, nil
 }
 
-func (s *server) buildInputStage1(brevisApp *sdk.BrevisApp, req *sdkproto.ProveRequest) (*sdk.CircuitInput, error) {
+func (s *server) buildInputStage1(brevisApp *sdk.BrevisApp, req *sdkproto.ProveRequest) (input *sdk.CircuitInput, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic, recovered value: %v", r)
+		}
+	}()
+
 	// Add data
 	for _, receipt := range req.Receipts {
 		sdkReceipt, err := convertProtoReceiptToSdkReceipt(receipt.Data)
@@ -607,7 +632,7 @@ func (s *server) newBrevisApp(srcChainId uint64) (*sdk.BrevisApp, error) {
 
 func (s *server) resumeJobs() error {
 	var activeJobs []string
-	ok, err := s.store.Get(getActiveJobsKey(s.vkHash), &activeJobs)
+	ok, err := s.activeJobsStore.Get(getActiveJobsKey(s.vkHash), &activeJobs)
 	if err != nil {
 		return fmt.Errorf("store.Get err: %w", err)
 	}
@@ -652,12 +677,12 @@ func (s *server) addJob(proofId string) error {
 
 	activeJobsKey := getActiveJobsKey(s.vkHash)
 	var activeJobs []string
-	_, err := s.store.Get(activeJobsKey, &activeJobs)
+	_, err := s.activeJobsStore.Get(activeJobsKey, &activeJobs)
 	if err != nil {
 		return fmt.Errorf("store.Get err: %w", err)
 	}
 	activeJobs = append(activeJobs, proofId)
-	err = s.store.Set(activeJobsKey, activeJobs)
+	err = s.activeJobsStore.Set(activeJobsKey, activeJobs)
 	if err != nil {
 		return fmt.Errorf("store.Set err: %w", err)
 	}
@@ -671,7 +696,7 @@ func (s *server) removeJob(proofId string) error {
 
 	activeJobsKey := getActiveJobsKey(s.vkHash)
 	var activeJobs []string
-	ok, err := s.store.Get(activeJobsKey, &activeJobs)
+	ok, err := s.activeJobsStore.Get(activeJobsKey, &activeJobs)
 	if err != nil {
 		return fmt.Errorf("store.Get err: %w", err)
 	}
@@ -685,7 +710,7 @@ func (s *server) removeJob(proofId string) error {
 			newActiveJobs = append(newActiveJobs, currId)
 		}
 	}
-	err = s.store.Set(activeJobsKey, newActiveJobs)
+	err = s.activeJobsStore.Set(activeJobsKey, newActiveJobs)
 	if err != nil {
 		return fmt.Errorf("store.Set err: %w", err)
 	}
@@ -694,7 +719,7 @@ func (s *server) removeJob(proofId string) error {
 
 func (s *server) setProveRequest(id string, req *ProveRequest) error {
 	log.Debugf("set prove request, ID: %s\n", id)
-	setErr := s.store.Set(id, *req)
+	setErr := s.proofStore.Set(id, *req)
 	if setErr != nil {
 		return fmt.Errorf("store.Set err: %w", setErr)
 	}
@@ -704,7 +729,7 @@ func (s *server) setProveRequest(id string, req *ProveRequest) error {
 func (s *server) getProveRequest(id string) (bool, *ProveRequest, error) {
 	log.Debugf("get prove request, ID: %s\n", id)
 	var req ProveRequest
-	found, err := s.store.Get(id, &req)
+	found, err := s.proofStore.Get(id, &req)
 	if err != nil {
 		return false, nil, fmt.Errorf("store.Get err: %w", err)
 	}
@@ -714,7 +739,7 @@ func (s *server) getProveRequest(id string) (bool, *ProveRequest, error) {
 func (s *server) deleteProveRequest(id string) error {
 	log.Debugf("delete prove request, ID: %s\n", id)
 
-	err := s.store.Delete(id)
+	err := s.proofStore.Delete(id)
 	if err != nil {
 		return fmt.Errorf("store.Delete err: %w", err)
 	}
