@@ -48,7 +48,7 @@ func TestCircuit(t *testing.T) {
 
 func TestE2E(t *testing.T) {
 	// The compiled circuit, proving key, and verifying key are saved to outDir,,
-	// query data will be stored in outDir/input/data.json and
+	// query data will be stored under outDir/input and
 	// the downloaded SRS in the process is saved to srsDir
 	outDir := "$HOME/circuitOut/myBrevisApp"
 	srsDir := "$HOME/kzgsrs"
