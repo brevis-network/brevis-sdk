@@ -10,9 +10,6 @@ import (
 	"github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/gowebpki/jcs"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // hex2Addr accepts hex string with or without 0x prefix and return Addr
@@ -152,18 +149,9 @@ func convertProtoTxToSdkTx(in *sdkproto.TransactionData) (sdk.TransactionData, e
 	}, nil
 }
 
-func getProofId(vkHash string, req *sdkproto.ProveRequest) (string, error) {
-	jsonBytes, err := protojson.Marshal(req)
-	if err != nil {
-		return "", fmt.Errorf("protojson.Marshal err: %w", err)
+func newErr(code sdkproto.ErrCode, format string, args ...any) *sdkproto.Err {
+	return &sdkproto.Err{
+		Code: code,
+		Msg:  fmt.Sprintf(format, args...),
 	}
-	canonJsonBytes, err := jcs.Transform(jsonBytes)
-	if err != nil {
-		return "", fmt.Errorf("jcs.Transform err: %w", err)
-	}
-	return crypto.Keccak256Hash(append([]byte(vkHash), canonJsonBytes...)).Hex(), nil
-}
-
-func getActiveJobsKey(vkHash string) string {
-	return fmt.Sprintf("%s-%s", activeJobsKeyPrefix, vkHash)
 }

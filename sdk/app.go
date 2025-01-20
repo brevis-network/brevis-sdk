@@ -123,20 +123,20 @@ func (q *rawData[T]) list(max int) []T {
 }
 
 type BrevisAppConfig struct {
-	SrcChainId uint64 `mapstructure:"src_chain_id"`
-	RpcUrl     string `mapstructure:"rpc_url"`
-	GatewayUrl string `mapstructure:"gateway_url"`
-	OutDir     string `mapstructure:"out_dir"`
+	SrcChainId uint64 `mapstructure:"src_chain_id" json:"src_chain_id"`
+	RpcUrl     string `mapstructure:"rpc_url" json:"rpc_url"`
+	GatewayUrl string `mapstructure:"gateway_url" json:"gateway_url"`
+	OutDir     string `mapstructure:"out_dir" json:"out_dir"`
 
 	// Persistence type, currently supporting "syncmap", "file", "badgerdb" and "s3".
 	// Defaults to "file" under {outDir}/input
-	PersistenceType string `mapstructure:"persistence_type"`
+	PersistenceType string `mapstructure:"persistence_type" json:"persistence_type"`
 
 	// Persistence options as JSON string. See implementations for details.
-	PersistenceOptions string `mapstructure:"persistence_options"`
+	PersistenceOptions string `mapstructure:"persistence_options" json:"persistence_options"`
 
 	// ConcurrentFetchLimit limits the number of concurrent on-chain fetches
-	ConcurrentFetchLimit int `mapstructure:"concurrent_fetch_limit"`
+	ConcurrentFetchLimit int `mapstructure:"concurrent_fetch_limit" json:"concurrent_fetch_limit"`
 }
 
 // BrevisHashInfo contains Brevis circuit hashes

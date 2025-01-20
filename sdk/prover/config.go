@@ -3,6 +3,9 @@ package prover
 import "os"
 
 type ServiceConfig struct {
+	// ProverId is a unique identifier for this prover, defaults to hostname
+	ProverId string `mapstructure:"prover_id" json:"prover_id"`
+
 	// SetupDir saves the circuit compilation outputs (proving key, verifying key,
 	// verifying key hash)
 	SetupDir string `mapstructure:"setup_dir" json:"setup_dir"`
@@ -32,6 +35,12 @@ type ServiceConfig struct {
 
 	// DataPersistenceOptions as JSON string. See implementations for details.
 	DataPersistenceOptions string `mapstructure:"data_persistence_options" json:"data_persistence_options"`
+
+	// ConcurrentFetchLimit limits the number of concurrent on-chain fetches, defaults to 20
+	ConcurrentFetchLimit int `mapstructure:"concurrent_fetch_limit" json:"concurrent_fetch_limit"`
+
+	// ConcurrentProveLimit limits the number of concurrent prove actions, defaults to 1
+	ConcurrentProveLimit int `mapstructure:"concurrent_prove_limit" json:"concurrent_prove_limit"`
 }
 
 func (c ServiceConfig) GetSetupDir() string {

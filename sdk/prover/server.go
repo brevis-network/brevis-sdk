@@ -3,14 +3,13 @@ package prover
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"os/signal"
-	"path/filepath"
 	goruntime "runtime"
 	"sync"
 	"syscall"
@@ -19,14 +18,17 @@ import (
 	"github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto"
 	"github.com/brevis-network/brevis-sdk/store"
 	"github.com/celer-network/goutils/log"
+	"github.com/gowebpki/jcs"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/rs/cors"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/singleflight"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/brevis-network/brevis-sdk/sdk"
 
@@ -43,10 +45,9 @@ const (
 	ProveStatusInProgress
 	ProveStatusSuccess
 	ProveStatusFailed
-)
 
-const (
-	activeJobsKeyPrefix = "aj-1"
+	jobsKeyPrefix               = "j"
+	defaultConcurrentProveLimit = 1
 )
 
 type Service struct {
@@ -66,6 +67,9 @@ type ProveRequest struct {
 type server struct {
 	sdkproto.UnimplementedProverServer
 
+	// A unique identifier for this server, defaults to hostname
+	proverId string
+
 	appCircuit sdk.AppCircuit
 	// chain ID => *BrevisApp
 	// Placeholder for common dependencies shared by all BrevisApp instances
@@ -80,15 +84,14 @@ type server struct {
 
 	grpcServer *grpc.Server
 
-	proofStore      gokv.Store
-	activeJobsStore gokv.Store
+	proofStore gokv.Store
 
 	proveAsyncSingleFlight singleflight.Group
-	activeJobsLock         sync.Mutex
-}
+	jobsLock               sync.Mutex
 
-// package level singleton to ensure only one prove action is running at a time
-var proveLock sync.Mutex
+	// rate limiter to ensure only a limited number of prove actions can run at a time
+	proveRateLimiter chan struct{}
+}
 
 // NewService creates a new prover server instance that automatically manages
 // compilation & setup, and serves as a GRPC server that interoperates with
@@ -125,8 +128,7 @@ func (s *Service) Serve(bind string, grpcPort, restPort uint) error {
 	log.Infoln("Shutting down...")
 	s.svr.grpcServer.GracefulStop()
 	proofStoreCloseErr := s.svr.proofStore.Close()
-	activeJobsStoreCloseErr := s.svr.activeJobsStore.Close()
-	return errors.Join(err, proofStoreCloseErr, activeJobsStoreCloseErr)
+	return errors.Join(err, proofStoreCloseErr)
 }
 
 func (s *Service) serveGrpc(bind string, port uint) error {
@@ -168,6 +170,15 @@ func serveGrpcGateway(bind string, grpcPort, restPort uint) error {
 }
 
 func newServer(appCircuit sdk.AppCircuit, config ServiceConfig, srcChainConfigs SourceChainConfigs) (*server, error) {
+	var err error
+	proverId := config.ProverId
+	if proverId == "" {
+		proverId, err = os.Hostname()
+		if err != nil {
+			return nil, fmt.Errorf("os.Hostname err: %w", err)
+		}
+	}
+
 	hashInfo, err := sdk.NewBrevisHashInfo(config.GatewayUrl)
 	if err != nil {
 		return nil, fmt.Errorf("NewBrevisHashInfo err: %w", err)
@@ -199,29 +210,18 @@ func newServer(appCircuit sdk.AppCircuit, config ServiceConfig, srcChainConfigs 
 		return nil, fmt.Errorf("InitStore error: %w", err)
 	}
 
-	// TODO: Make configurable
-	activeJobsPersistenceOptionsStruct := store.FileStoreOptions{Directory: filepath.Join(config.SetupDir, "jobs")}
-	activeJobsPersistenceOptionsBytes, err := json.Marshal(activeJobsPersistenceOptionsStruct)
-	if err != nil {
-		return nil, fmt.Errorf("json.Marshal err: %w", err)
-	}
-	activeJobsPersistenceOptions := string(activeJobsPersistenceOptionsBytes)
-	activeJobsStore, err := store.InitStore("file", activeJobsPersistenceOptions)
-	if err != nil {
-		return nil, fmt.Errorf("InitStore error: %w", err)
-	}
-
 	// Create BrevisApp templates for each source chain
 	appTemplates := make(map[uint64]*sdk.BrevisApp)
 	for _, srcChainConfig := range srcChainConfigs {
 		srcChainId := srcChainConfig.ChainId
 		appConfig := &sdk.BrevisAppConfig{
-			SrcChainId:         srcChainId,
-			RpcUrl:             srcChainConfig.RpcUrl,
-			GatewayUrl:         config.GatewayUrl,
-			OutDir:             config.SetupDir,
-			PersistenceType:    config.DataPersistenceType,
-			PersistenceOptions: config.DataPersistenceOptions,
+			SrcChainId:           srcChainId,
+			RpcUrl:               srcChainConfig.RpcUrl,
+			GatewayUrl:           config.GatewayUrl,
+			OutDir:               config.SetupDir,
+			PersistenceType:      config.DataPersistenceType,
+			PersistenceOptions:   config.DataPersistenceOptions,
+			ConcurrentFetchLimit: config.ConcurrentFetchLimit,
 		}
 		template, err := sdk.NewBrevisAppWithConfig(appConfig)
 		if err != nil {
@@ -229,7 +229,14 @@ func newServer(appCircuit sdk.AppCircuit, config ServiceConfig, srcChainConfigs 
 		}
 		appTemplates[srcChainId] = template
 	}
+
+	concurrentProveLimit := config.ConcurrentProveLimit
+	if concurrentProveLimit <= 0 {
+		concurrentProveLimit = defaultConcurrentProveLimit
+	}
+
 	return &server{
+		proverId:               proverId,
 		appCircuit:             appCircuit,
 		appTemplates:           appTemplates,
 		pk:                     pk,
@@ -238,9 +245,9 @@ func newServer(appCircuit sdk.AppCircuit, config ServiceConfig, srcChainConfigs 
 		vkString:               hexutil.Encode(buf.Bytes()),
 		vkHash:                 hexutil.Encode(vkHash),
 		proofStore:             proofStore,
-		activeJobsStore:        activeJobsStore,
 		proveAsyncSingleFlight: singleflight.Group{},
-		activeJobsLock:         sync.Mutex{},
+		jobsLock:               sync.Mutex{},
+		proveRateLimiter:       make(chan struct{}, concurrentProveLimit),
 	}, nil
 }
 
@@ -290,7 +297,7 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (*s
 	errRes := func(protoErr *sdkproto.Err) (*sdkproto.ProveAsyncResponse, error) {
 		return &sdkproto.ProveAsyncResponse{Err: protoErr, ProofId: ""}, nil
 	}
-	proofId, err := getProofId(s.vkHash, req)
+	proofId, err := s.getProofId(req)
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to generate proof ID: %s", err.Error()))
 	}
@@ -500,10 +507,10 @@ func (s *server) genWitness(input *sdk.CircuitInput, guest sdk.AppCircuit) (witn
 }
 
 func (s *server) prove(witness witness.Witness) (string, error) {
-	proveLock.Lock()
+	s.proveRateLimiter <- struct{}{}
 	proof, err := sdk.Prove(s.ccs, s.pk, witness)
 	goruntime.GC()
-	proveLock.Unlock()
+	<-s.proveRateLimiter
 	if err != nil {
 		return "", fmt.Errorf("failed to prove: %w", err)
 	}
@@ -630,15 +637,15 @@ func (s *server) newBrevisApp(srcChainId uint64) (*sdk.BrevisApp, error) {
 }
 
 func (s *server) resumeJobs() error {
-	var activeJobs []string
-	ok, err := s.activeJobsStore.Get(getActiveJobsKey(s.vkHash), &activeJobs)
+	var jobs []string
+	ok, err := s.proofStore.Get(s.getJobsKey(), &jobs)
 	if err != nil {
 		return fmt.Errorf("store.Get err: %w", err)
 	}
 	if !ok {
 		return nil
 	}
-	for _, proofId := range activeJobs {
+	for _, proofId := range jobs {
 		found, proveRequest, err := s.getProveRequest(proofId)
 		if err != nil {
 			return fmt.Errorf("getProveRequest err: %w", err)
@@ -671,17 +678,17 @@ func (s *server) resumeJobs() error {
 
 // addJob adds a proof job
 func (s *server) addJob(proofId string) error {
-	s.activeJobsLock.Lock()
-	defer s.activeJobsLock.Unlock()
+	s.jobsLock.Lock()
+	defer s.jobsLock.Unlock()
 
-	activeJobsKey := getActiveJobsKey(s.vkHash)
-	var activeJobs []string
-	_, err := s.activeJobsStore.Get(activeJobsKey, &activeJobs)
+	jobsKey := s.getJobsKey()
+	var jobs []string
+	_, err := s.proofStore.Get(jobsKey, &jobs)
 	if err != nil {
 		return fmt.Errorf("store.Get err: %w", err)
 	}
-	activeJobs = append(activeJobs, proofId)
-	err = s.activeJobsStore.Set(activeJobsKey, activeJobs)
+	jobs = append(jobs, proofId)
+	err = s.proofStore.Set(jobsKey, jobs)
 	if err != nil {
 		return fmt.Errorf("store.Set err: %w", err)
 	}
@@ -690,12 +697,12 @@ func (s *server) addJob(proofId string) error {
 
 // removeJob removes a proof job, no-op if nonexistent
 func (s *server) removeJob(proofId string) error {
-	s.activeJobsLock.Lock()
-	defer s.activeJobsLock.Unlock()
+	s.jobsLock.Lock()
+	defer s.jobsLock.Unlock()
 
-	activeJobsKey := getActiveJobsKey(s.vkHash)
-	var activeJobs []string
-	ok, err := s.activeJobsStore.Get(activeJobsKey, &activeJobs)
+	jobsKey := s.getJobsKey()
+	var jobs []string
+	ok, err := s.proofStore.Get(jobsKey, &jobs)
 	if err != nil {
 		return fmt.Errorf("store.Get err: %w", err)
 	}
@@ -703,13 +710,13 @@ func (s *server) removeJob(proofId string) error {
 		// No-op
 		return nil
 	}
-	var newActiveJobs []string
-	for _, currId := range activeJobs {
+	var newJobs []string
+	for _, currId := range jobs {
 		if currId != proofId {
-			newActiveJobs = append(newActiveJobs, currId)
+			newJobs = append(newJobs, currId)
 		}
 	}
-	err = s.activeJobsStore.Set(activeJobsKey, newActiveJobs)
+	err = s.proofStore.Set(jobsKey, newJobs)
 	if err != nil {
 		return fmt.Errorf("store.Set err: %w", err)
 	}
@@ -765,9 +772,18 @@ func (s *server) markProofFailed(proofId string, request *ProveRequest, err erro
 	}
 }
 
-func newErr(code sdkproto.ErrCode, format string, args ...any) *sdkproto.Err {
-	return &sdkproto.Err{
-		Code: code,
-		Msg:  fmt.Sprintf(format, args...),
+func (s *server) getProofId(req *sdkproto.ProveRequest) (string, error) {
+	jsonBytes, err := protojson.Marshal(req)
+	if err != nil {
+		return "", fmt.Errorf("protojson.Marshal err: %w", err)
 	}
+	canonJsonBytes, err := jcs.Transform(jsonBytes)
+	if err != nil {
+		return "", fmt.Errorf("jcs.Transform err: %w", err)
+	}
+	return crypto.Keccak256Hash(append([]byte(s.vkHash), canonJsonBytes...)).Hex(), nil
+}
+
+func (s *server) getJobsKey() string {
+	return fmt.Sprintf("%s-%s-%s", jobsKeyPrefix, s.proverId, s.vkHash)
 }
