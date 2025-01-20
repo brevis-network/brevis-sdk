@@ -316,6 +316,18 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (*s
 			resp.CircuitInfo = appCircuitInfo
 			return resp, nil
 		}
+		// Build partial AppCircuitInfo
+		brevisApp, err := s.newBrevisApp(req.SrcChainId)
+		if err != nil {
+			return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to build circuit input stage 1: %s", err.Error()))
+		}
+		inputStage1, err := s.buildInputStage1(brevisApp, req)
+		if err != nil {
+			return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to build circuit input stage 1: %s", err.Error()))
+		}
+		appCircuitInfo := buildPartialAppCircuitInfoForGatewayRequest(s.appCircuit, inputStage1, s.vkHash)
+		resp.CircuitInfo = appCircuitInfo
+
 		requestBytes, err := proto.Marshal(req)
 		if err != nil {
 			return &sdkproto.ProveAsyncResponse{
@@ -336,22 +348,9 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (*s
 			return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "proof ID %s, failed to add proof job: %s", proofId, err.Error()))
 		}
 
-		// Build partial AppCircuitInfo
-		brevisApp, err := s.newBrevisApp(req.SrcChainId)
-		if err != nil {
-			return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to build circuit input stage 1: %s", err.Error()))
-		}
-		inputStage1, err := s.buildInputStage1(brevisApp, req)
-		if err != nil {
-			return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to build circuit input stage 1: %s", err.Error()))
-		}
-		appCircuitInfo := buildPartialAppCircuitInfoForGatewayRequest(s.appCircuit, inputStage1, s.vkHash)
-		resp.CircuitInfo = appCircuitInfo
-
 		go s.buildInputStage2AndProve(proofId, brevisApp, proveRequest, req, inputStage1)
 
 		log.Infof("accepted job proof ID: %s", proofId)
-
 		return resp, nil
 	})
 	return res.(*sdkproto.ProveAsyncResponse), err
