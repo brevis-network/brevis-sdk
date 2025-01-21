@@ -2,6 +2,7 @@ package prover
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math/big"
 
@@ -108,6 +109,23 @@ func parseBig(encoded string) (*big.Int, error) {
 }
 
 func convertProtoReceiptToSdkReceipt(in *sdkproto.ReceiptData) (sdk.ReceiptData, error) {
+	if in.ReceiptDataJsonHex != "" {
+		bytes, decodeErr := hexutil.Decode(in.ReceiptDataJsonHex)
+		if decodeErr != nil {
+			fmt.Printf("Error decoding receipt %s data: %s\n", in.ReceiptDataJsonHex, decodeErr.Error())
+			// try to use origin logic
+		} else {
+			var data sdk.ReceiptData
+			err := json.Unmarshal(bytes, &data)
+			if err != nil {
+				fmt.Printf("Error decoding receipt %s data: %s\n", in.ReceiptDataJsonHex, err.Error())
+				// try to use origin logic
+			} else {
+				return data, nil
+			}
+		}
+	}
+
 	fields := make([]sdk.LogFieldData, len(in.Fields))
 	if len(in.Fields) == 0 {
 		return sdk.ReceiptData{}, fmt.Errorf("invalid log field")
@@ -136,6 +154,22 @@ func convertProtoFieldToSdkLogField(in *sdkproto.Field) (sdk.LogFieldData, error
 }
 
 func convertProtoStorageToSdkStorage(in *sdkproto.StorageData) (sdk.StorageData, error) {
+	if in.StorageDataJsonHex != "" {
+		bytes, decodeErr := hexutil.Decode(in.StorageDataJsonHex)
+		if decodeErr != nil {
+			fmt.Printf("Error decoding storage %s data: %s\n", in.StorageDataJsonHex, decodeErr.Error())
+			// try to use origin logic
+		} else {
+			var data sdk.StorageData
+			err := json.Unmarshal(bytes, &data)
+			if err != nil {
+				fmt.Printf("Error decoding storage %s data: %s\n", in.StorageDataJsonHex, err.Error())
+				// try to use origin logic
+			} else {
+				return data, nil
+			}
+		}
+	}
 	return sdk.StorageData{
 		BlockNum: new(big.Int).SetUint64(in.BlockNum),
 		Address:  hex2Addr(in.Address),
@@ -144,6 +178,22 @@ func convertProtoStorageToSdkStorage(in *sdkproto.StorageData) (sdk.StorageData,
 }
 
 func convertProtoTxToSdkTx(in *sdkproto.TransactionData) (sdk.TransactionData, error) {
+	if in.TransactionDataJsonHex != "" {
+		bytes, decodeErr := hexutil.Decode(in.TransactionDataJsonHex)
+		if decodeErr != nil {
+			fmt.Printf("Error decoding transaction %s data: %s\n", in.TransactionDataJsonHex, decodeErr.Error())
+			// try to use origin logic
+		} else {
+			var data sdk.TransactionData
+			err := json.Unmarshal(bytes, &data)
+			if err != nil {
+				fmt.Printf("Error decoding transaction %s data: %s\n", in.TransactionDataJsonHex, err.Error())
+				// try to use origin logic
+			} else {
+				return data, nil
+			}
+		}
+	}
 	return sdk.TransactionData{
 		Hash: hex2Hash(in.Hash),
 	}, nil
