@@ -301,6 +301,7 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (*s
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to generate proof ID: %s", err.Error()))
 	}
+	log.Infof("start do proofId %s", proofId)
 	res, err, _ := s.proveAsyncSingleFlight.Do(proofId, func() (interface{}, error) {
 		found, proveRequest, err := s.getProveRequest(proofId)
 		if err != nil {

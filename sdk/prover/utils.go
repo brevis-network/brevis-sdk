@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/celer-network/goutils/log"
 	"math/big"
 
 	"github.com/brevis-network/brevis-sdk/sdk"
@@ -121,10 +122,12 @@ func convertProtoReceiptToSdkReceipt(in *sdkproto.ReceiptData) (sdk.ReceiptData,
 				fmt.Printf("Error decoding receipt %s data: %s\n", in.ReceiptDataJsonHex, err.Error())
 				// try to use origin logic
 			} else {
+				log.Infof("receipt data is ready, no need to call rpc")
 				return data, nil
 			}
 		}
 	}
+	log.Infof("receipt data not ready, call rpc now")
 
 	fields := make([]sdk.LogFieldData, len(in.Fields))
 	if len(in.Fields) == 0 {
@@ -166,10 +169,12 @@ func convertProtoStorageToSdkStorage(in *sdkproto.StorageData) (sdk.StorageData,
 				fmt.Printf("Error decoding storage %s data: %s\n", in.StorageDataJsonHex, err.Error())
 				// try to use origin logic
 			} else {
+				log.Infof("storage data is ready, no need to call rpc")
 				return data, nil
 			}
 		}
 	}
+	log.Infof("storage data not ready, call rpc now")
 	return sdk.StorageData{
 		BlockNum: new(big.Int).SetUint64(in.BlockNum),
 		Address:  hex2Addr(in.Address),
@@ -190,10 +195,12 @@ func convertProtoTxToSdkTx(in *sdkproto.TransactionData) (sdk.TransactionData, e
 				fmt.Printf("Error decoding transaction %s data: %s\n", in.TransactionDataJsonHex, err.Error())
 				// try to use origin logic
 			} else {
+				log.Infof("receipt data is ready, no need to call rpc")
 				return data, nil
 			}
 		}
 	}
+	log.Infof("transaction data not ready, call rpc now")
 	return sdk.TransactionData{
 		Hash: hex2Hash(in.Hash),
 	}, nil
