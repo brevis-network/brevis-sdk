@@ -761,10 +761,12 @@ func (s *server) deleteProveRequest(id string) error {
 
 func (s *server) markProofFailed(proofId string, request *ProveRequest, err error) {
 	request.Status = ProveStatusFailed
-	request.Err = err.Error()
+	errStr := err.Error()
+	request.Err = errStr
+	log.Errorf("markProofFailed, proof ID: %s, err: %s\n", proofId, errStr)
 	setProofErr := s.setProveRequest(proofId, request)
 	if setProofErr != nil {
-		log.Errorf("failed to set proof, err: %s, original err: %s", setProofErr.Error(), err.Error())
+		log.Errorf("failed to set proof, err: %s, original err: %s", setProofErr.Error(), errStr)
 	}
 
 	removeJobErr := s.removeJob(proofId)
