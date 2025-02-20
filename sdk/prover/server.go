@@ -409,6 +409,10 @@ func (s *server) GetProof(ctx context.Context, req *sdkproto.GetProofRequest) (r
 	}
 }
 
+func (s *server) Health(context.Context, *sdkproto.HealthRequest) (*sdkproto.HealthResponse, error) {
+	return &sdkproto.HealthResponse{}, nil
+}
+
 func (s *server) DeleteProof(ctx context.Context, req *sdkproto.DeleteProofRequest) (res *sdkproto.DeleteProofResponse, err error) {
 	id := req.ProofId
 	err = s.deleteProveRequest(id)
