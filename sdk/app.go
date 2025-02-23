@@ -926,7 +926,7 @@ func doHash(hasher *utils.PoseidonBn254Hasher, packed []*big.Int) (*big.Int, err
 	return ret, nil
 }
 
-// To reduce toggles commitment constraint comsumption,
+// To reduce toggles commitment constraint consumption,
 // hash 32 toggles into one value which is used as merkle tree leaf.
 func (q *BrevisApp) assignToggleCommitment(in *CircuitInput) {
 	var err error
