@@ -1,5 +1,5 @@
 // Implements an in-memory kv store using sync.Map
-package prover
+package store
 
 import (
 	"encoding/json"
@@ -9,15 +9,15 @@ import (
 	"github.com/philippgille/gokv/syncmap"
 )
 
-type syncMapStoreOptions struct {
+type SyncMapStoreOptions struct {
 	Codec string `json:"codec"`
 }
 
-func newSyncMapStore(optionsJSON string) (gokv.Store, error) {
+func NewSyncMapStore(optionsJSON string) (gokv.Store, error) {
 	if optionsJSON == "" {
 		return syncmap.NewStore(syncmap.DefaultOptions), nil
 	}
-	var options syncMapStoreOptions
+	var options SyncMapStoreOptions
 	err := json.Unmarshal([]byte(optionsJSON), &options)
 	if err != nil {
 		return nil, fmt.Errorf("json.Unmarshal err: %w", err)

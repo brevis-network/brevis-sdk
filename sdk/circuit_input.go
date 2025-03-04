@@ -222,6 +222,14 @@ func (r Receipt) NumVars() uint32 {
 	return sum
 }
 
+func (r Receipt) GetOrderableMptKeyPath(api *CircuitAPI) Uint32 {
+	return api.Uint32.Select(
+		api.Uint32.IsEqual(r.MptKeyPath, ConstUint32(0x80)),
+		ConstUint32(0),
+		r.MptKeyPath,
+	)
+}
+
 func (r Receipt) String() string { return "Receipt" }
 
 // LogField represents a single field of an event.
@@ -596,6 +604,14 @@ func (t Transaction) NumVars() uint32 {
 		sum += f.NumVars()
 	}
 	return sum
+}
+
+func (t Transaction) GetOrderableMptKeyPath(api *CircuitAPI) Uint32 {
+	return api.Uint32.Select(
+		api.Uint32.IsEqual(t.MptKeyPath, ConstUint32(0x80)),
+		ConstUint32(0),
+		t.MptKeyPath,
+	)
 }
 
 func (t Transaction) String() string { return "Transaction" }

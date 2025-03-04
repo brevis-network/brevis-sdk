@@ -1,15 +1,15 @@
 // Implements a remote kv store using an AWS s3 bucket
-package prover
+package store
 
 import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/brevis-network/brevis-sdk/sdk/prover/s3"
+	"github.com/brevis-network/brevis-sdk/store/s3"
 	"github.com/philippgille/gokv"
 )
 
-type s3StoreOptions struct {
+type S3StoreOptions struct {
 	BucketName             string `json:"bucket_name"`
 	KeyPrefix              string `json:"key_prefix"`
 	Region                 string `json:"region"`
@@ -19,11 +19,11 @@ type s3StoreOptions struct {
 	Codec                  string `json:"codec"`
 }
 
-func newS3Store(optionsJSON string) (gokv.Store, error) {
+func NewS3Store(optionsJSON string) (gokv.Store, error) {
 	if optionsJSON == "" {
 		return nil, fmt.Errorf("options cannot be empty, need at least BucketName")
 	}
-	var options s3StoreOptions
+	var options S3StoreOptions
 	err := json.Unmarshal([]byte(optionsJSON), &options)
 	if err != nil {
 		return nil, fmt.Errorf("json.Unmarshal err: %w", err)

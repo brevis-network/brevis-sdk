@@ -3,33 +3,44 @@ package prover
 import "os"
 
 type ServiceConfig struct {
+	// ProverId is a unique identifier for this prover, defaults to hostname
+	ProverId string `mapstructure:"prover_id" json:"prover_id"`
+
 	// SetupDir saves the circuit compilation outputs (proving key, verifying key,
 	// verifying key hash)
-	// On-chain query data will be stored in SetupDir/input/data.json. It will
-	// save rpc usage for developers.
-	SetupDir string
+	SetupDir string `mapstructure:"setup_dir" json:"setup_dir"`
 
 	// SrsDir saves the SRS files that will be automatically downloaded. These files
 	// can be shared across different circuits. So the best practice is to have them
 	// in a shared directory for all projects. Default to use the same dir as
 	// SetupDir if not specified
-	SrsDir string
+	SrsDir string `mapstructure:"srs_dir" json:"srs_dir"`
 
-	// RpcURL will be used to query on-chain data by sending rpc call.
-	RpcURL string
+	// GatewayUrl is the Brevis gateway URL, defaults to appsdkv3.brevis.network:443
+	GatewayUrl string `mapstructure:"gateway_url" json:"gateway_url"`
 
-	// Source chain id.
-	ChainId int
+	// DirectLoad indicates whether the setup process will parallel compile ccs and load pk vk, without digest check
+	DirectLoad bool `mapstructure:"direct_load" json:"direct_load"`
 
-	// default false. if true, it will parallel compile ccs and load pk vk, without digest check
-	DirectLoad bool
+	// ProofPersistenceType currently supporting "syncmap", "file", "badgerdb" and "s3".
+	// Defaults to "syncmap".
+	ProofPersistenceType string `mapstructure:"proof_persistence_type" json:"proof_persistence_type"`
 
-	// Persistence type, currently supporting "syncmap", "badgerdb" and "s3".
-	// Default to "syncmap".
-	PersistenceType string
+	// ProofPersistenceOptions as JSON string. See implementations for details.
+	ProofPersistenceOptions string `mapstructure:"proof_persistence_options" json:"proof_persistence_options"`
 
-	// Persistence options as JSON string. See implementations for details.
-	PersistenceOptions string
+	// PersistenceType currently supporting "syncmap", "file", "badgerdb" and "s3".
+	// Defaults to "file" under {setupDir}/input.
+	DataPersistenceType string `mapstructure:"data_persistence_type" json:"data_persistence_type"`
+
+	// DataPersistenceOptions as JSON string. See implementations for details.
+	DataPersistenceOptions string `mapstructure:"data_persistence_options" json:"data_persistence_options"`
+
+	// ConcurrentFetchLimit limits the number of concurrent on-chain fetches, defaults to 20
+	ConcurrentFetchLimit int `mapstructure:"concurrent_fetch_limit" json:"concurrent_fetch_limit"`
+
+	// ConcurrentProveLimit limits the number of concurrent prove actions, defaults to 1
+	ConcurrentProveLimit int `mapstructure:"concurrent_prove_limit" json:"concurrent_prove_limit"`
 }
 
 func (c ServiceConfig) GetSetupDir() string {
@@ -42,3 +53,12 @@ func (c ServiceConfig) GetSrsDir() string {
 	}
 	return os.ExpandEnv(c.SrsDir)
 }
+
+type SourceChainConfig struct {
+	// ChainId the chain ID
+	ChainId uint64 `mapstructure:"chain_id" json:"chain_id"`
+	// RpcUrl will be used to query on-chain data by sending rpc call.
+	RpcUrl string `mapstructure:"rpc_url" json:"rpc_url"`
+}
+
+type SourceChainConfigs []*SourceChainConfig

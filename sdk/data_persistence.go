@@ -1,13 +1,11 @@
 package sdk
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"math/big"
-	"os"
+	"strings"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -21,13 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/ethereum/go-ethereum/triedb"
 )
-
-// To reduce rpc requests for developers, save data into local storage for future reference
-type DataPersistence struct {
-	Receipts map[string]*ReceiptData     `json:"receipts,omitempty"`
-	Storages map[string]*StorageData     `json:"storage_slots,omitempty"`
-	Txs      map[string]*TransactionData `json:"txs,omitempty"`
-}
 
 type ReceiptPos struct {
 	TxHash common.Hash   `json:"tx_hash,omitempty"`
@@ -83,78 +74,31 @@ func (q *TransactionData) isReadyToSave() bool {
 }
 
 func generateReceiptKey(receipt ReceiptData, srcChainId uint64) string {
-	data, err := json.Marshal(convertReceiptDataToReceiptPos(receipt))
-	data = append(data, new(big.Int).SetUint64(srcChainId).Bytes()...)
-	if err != nil {
-		panic("failed to generate receipt data persistence key")
+	key := fmt.Sprintf("r-%d-%s", srcChainId, receipt.TxHash.Hex()[2:])
+	for _, logFieldPos := range receipt.Fields {
+		var isTopicStr string
+		if logFieldPos.IsTopic {
+			isTopicStr = "t"
+		} else {
+			isTopicStr = "f"
+		}
+		key = fmt.Sprintf("%s-%d%s%d", key, logFieldPos.LogPos, isTopicStr, logFieldPos.FieldIndex)
 	}
-	return crypto.Keccak256Hash(data).Hex()
+	return key
 }
 
 func generateStorageKey(storage StorageData, srcChainId uint64) string {
-	data, err := json.Marshal(convertStorageDataToStoragePos(storage))
-	data = append(data, new(big.Int).SetUint64(srcChainId).Bytes()...)
-	if err != nil {
-		panic("failed to generate storage data persistence key")
-	}
-	return crypto.Keccak256Hash(data).Hex()
+	return fmt.Sprintf(
+		"s-%d-%d-%s-%s",
+		srcChainId,
+		storage.BlockNum.Uint64(),
+		strings.ToLower(storage.Address.Hex())[2:],
+		storage.Slot.Hex()[2:],
+	)
 }
 
 func generateTxKey(tx TransactionData, srcChainId uint64) string {
-	data, err := json.Marshal(convertTxDataToTxPos(tx))
-	data = append(data, new(big.Int).SetUint64(srcChainId).Bytes()...)
-	if err != nil {
-		panic("failed to generate tx data persistence key")
-	}
-	return crypto.Keccak256Hash(data).Hex()
-}
-
-func readDataFromLocalStorage(path string) *DataPersistence {
-	fmt.Printf(">> scan local storage: %s\n", path)
-	empty := &DataPersistence{
-		Receipts: map[string]*ReceiptData{},
-		Storages: map[string]*StorageData{},
-		Txs:      map[string]*TransactionData{},
-	}
-	path = os.ExpandEnv(path)
-	data, err := os.ReadFile(path)
-	if err != nil {
-		fmt.Printf(">> no local storage record: %s \n", err.Error())
-		return empty
-	}
-	result := DataPersistence{
-		Receipts: map[string]*ReceiptData{},
-		Storages: map[string]*StorageData{},
-		Txs:      map[string]*TransactionData{},
-	}
-	err = json.Unmarshal(data, &result)
-	if err != nil {
-		fmt.Printf(">> no local storage record: %s \n", err.Error())
-		return empty
-	}
-	fmt.Printf(">> finish scan local storage: %s\n", path)
-	return &result
-}
-
-func (q *BrevisApp) writeDataIntoLocalStorage() {
-	fmt.Printf(">> write input data into local storage: %s\n", q.localInputDataPath)
-
-	data, err := json.Marshal(q.localInputData)
-	if err != nil {
-		fmt.Printf(">> write input data into local storage failed: %s\n", err.Error())
-	}
-
-	buf := new(bytes.Buffer)
-	_, err = buf.Write(data)
-	if err != nil {
-		fmt.Printf(">> write input data into local storage failed: %s\n", err.Error())
-	}
-	writer := io.WriterTo(buf)
-	err = WriteTo(writer, q.localInputDataPath)
-	if err != nil {
-		fmt.Printf(">> write input data into local storage failed: %s\n", err.Error())
-	}
-	fmt.Printf(">>finish write\n")
+	return fmt.Sprintf("t-%d-%s", srcChainId, tx.Hash.Hex()[2:])
 }
 
 func buildLogFieldsData(fs []LogFieldData, receipt *types.Receipt) (fields []LogFieldData, err error) {
@@ -337,39 +281,6 @@ func convertTxDataToTransaction(data *TransactionData) Transaction {
 		MptKeyPath:     newU32(data.MptKeyPath),
 		LeafHash:       ConstFromBigEndianBytes(data.LeafHash.Bytes()),
 		BlockTimestamp: newU248(data.BlockTimestamp),
-	}
-}
-
-func convertReceiptDataToReceiptPos(data ReceiptData) ReceiptPos {
-	fields := make([]LogFieldPos, len(data.Fields))
-	for i, fieldData := range data.Fields {
-		fields[i] = convertLogFieldDataToLogFieldPos(fieldData)
-	}
-	return ReceiptPos{
-		TxHash: data.TxHash,
-		Fields: fields,
-	}
-}
-
-func convertLogFieldDataToLogFieldPos(data LogFieldData) LogFieldPos {
-	return LogFieldPos{
-		LogPos:     data.LogPos,
-		IsTopic:    data.IsTopic,
-		FieldIndex: data.FieldIndex,
-	}
-}
-
-func convertStorageDataToStoragePos(data StorageData) StoragePos {
-	return StoragePos{
-		BlockNum: data.BlockNum,
-		Address:  data.Address,
-		Slot:     data.Slot,
-	}
-}
-
-func convertTxDataToTxPos(data TransactionData) TransactionPos {
-	return TransactionPos{
-		Hash: data.Hash,
 	}
 }
 
