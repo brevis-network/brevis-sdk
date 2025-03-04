@@ -5,30 +5,28 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math/big"
 	"path/filepath"
 	"time"
 
 	pgoldilocks "github.com/OpenAssetStandards/poseidon-goldilocks-go"
-	"github.com/consensys/gnark/frontend"
-	"github.com/philippgille/gokv"
-	"golang.org/x/sync/errgroup"
-
+	"github.com/brevis-network/brevis-sdk/sdk/eth"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/commonproto"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/gwproto"
 	"github.com/brevis-network/brevis-sdk/store"
-
-	"github.com/brevis-network/brevis-sdk/sdk/eth"
 	"github.com/brevis-network/zk-hash/utils"
+	"github.com/celer-network/goutils/log"
 	bn254_fr "github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/consensys/gnark/backend/plonk"
 	"github.com/consensys/gnark/backend/witness"
+	"github.com/consensys/gnark/frontend"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/philippgille/gokv"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -1208,7 +1206,9 @@ func (q *BrevisApp) buildReceipt(r ReceiptData) (Receipt, error) {
 	var data ReceiptData
 	ok, err := q.dataStore.Get(key, &data)
 	if err != nil {
-		return Receipt{}, fmt.Errorf("dataStore Get err: %w", err)
+		// log error and continue
+		// TODO: Debug
+		log.Errorf("dataStore Get key: %s, err: %s", key, err)
 	}
 	if !ok {
 		if r.isReadyToSave() {
@@ -1234,7 +1234,9 @@ func (q *BrevisApp) buildReceipt(r ReceiptData) (Receipt, error) {
 		}
 		err = q.dataStore.Set(key, &data)
 		if err != nil {
-			return Receipt{}, fmt.Errorf("dataStore Set err: %w", err)
+			// log error and continue
+			// TODO: Debug
+			log.Errorf("dataStore Set key: %s, err: %s", key, err)
 		}
 	}
 	return convertReceiptDataToReceipt(&data), nil
@@ -1307,7 +1309,9 @@ func (q *BrevisApp) buildStorageSlot(s StorageData) (StorageSlot, error) {
 	var data StorageData
 	ok, err := q.dataStore.Get(key, &data)
 	if err != nil {
-		return StorageSlot{}, fmt.Errorf("dataStore Get err: %w", err)
+		// log error and continue
+		// TODO: Debug
+		log.Errorf("dataStore Get key: %s, err: %s", key, err)
 	}
 	if !ok {
 		if s.isReadyToSave() {
@@ -1334,7 +1338,9 @@ func (q *BrevisApp) buildStorageSlot(s StorageData) (StorageSlot, error) {
 		}
 		err = q.dataStore.Set(key, &data)
 		if err != nil {
-			return StorageSlot{}, fmt.Errorf("dataStore Set err: %w", err)
+			// log error and continue
+			// TODO: Debug
+			log.Errorf("dataStore Set key: %s, err: %s", key, err)
 		}
 	}
 	return convertStorageDataToStorage(&data), nil
@@ -1406,7 +1412,9 @@ func (q *BrevisApp) buildTx(t TransactionData) (Transaction, error) {
 	var data TransactionData
 	ok, err := q.dataStore.Get(key, &data)
 	if err != nil {
-		return Transaction{}, fmt.Errorf("dataStore Get err: %w", err)
+		// log error and continue
+		// TODO: Debug
+		log.Errorf("dataStore Get key: %s, err: %s", key, err)
 	}
 	if !ok {
 		if t.isReadyToSave() {
@@ -1428,7 +1436,9 @@ func (q *BrevisApp) buildTx(t TransactionData) (Transaction, error) {
 		}
 		err = q.dataStore.Set(key, &data)
 		if err != nil {
-			return Transaction{}, fmt.Errorf("dataStore Set err: %w", err)
+			// log error and continue
+			// TODO: Debug
+			log.Errorf("dataStore Set key: %s, err: %s", key, err)
 		}
 	}
 	return convertTxDataToTransaction(&data), nil
