@@ -31,7 +31,7 @@ var (
 	MiddleNodeVkHash = utils.Hex2BigInt(MiddleNodeVkHashHex)
 )
 
-func CalBrevisCircuitDigest(receiptCount, storageCount, transactionCount int, appVk plonk.VerifyingKey, brevisApp *BrevisApp) (*big.Int, error) {
+func CalcBrevisCircuitDigest(receiptCount, storageCount, transactionCount int, appVk plonk.VerifyingKey, hashInfo *BrevisHashInfo) (*big.Int, error) {
 	reVk, err := replonk.ValueOfVerifyingKey[sw_bn254.ScalarField, sw_bn254.G1Affine, sw_bn254.G2Affine](appVk)
 	if err != nil {
 		return nil, err
@@ -40,12 +40,12 @@ func CalBrevisCircuitDigest(receiptCount, storageCount, transactionCount int, ap
 	appVkHashBytes := utils.CalculateAppVkHashForBn254(reVk)
 	appVkHashBigInt := new(big.Int).SetBytes(appVkHashBytes)
 
-	hash2HashDigest, err := GetHash2HashCircuitDigest(receiptCount, storageCount, transactionCount, brevisApp)
+	hash2HashDigest, err := GetHash2HashCircuitDigest(receiptCount, storageCount, transactionCount, hashInfo)
 	if err != nil {
 		return nil, err
 	}
 
-	plonky2RootFromBn128Digest, isRecursionOnLeaf, isRecursionRecursionOfLeaf, err := GetPlonky2CircuitDigestFromRootNodeSelf(receiptCount, storageCount, transactionCount, brevisApp)
+	plonky2RootFromBn128Digest, isRecursionOnLeaf, isRecursionRecursionOfLeaf, err := GetPlonky2CircuitDigestFromRootNodeSelf(receiptCount, storageCount, transactionCount, hashInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ type Hash2HashDigestNode struct {
 	VkHash        *big.Int
 }
 
-func GetHash2HashCircuitDigest(receiptCount, storageCount, transactionCount int, brevisApp *BrevisApp) (*big.Int, error) {
+func GetHash2HashCircuitDigest(receiptCount, storageCount, transactionCount int, hashInfo *BrevisHashInfo) (*big.Int, error) {
 	receiptLeafCount, storageLeafCount, transactionLeafCount, totalLeafCount, err := GetAndCheckLeafCount(receiptCount, storageCount, transactionCount)
 	if err != nil {
 		return nil, err
@@ -85,17 +85,17 @@ func GetHash2HashCircuitDigest(receiptCount, storageCount, transactionCount int,
 
 	ReceiptNode := Hash2HashDigestNode{
 		CircuitDigest: ReceiptD,
-		VkHash:        utils.Hex2BigInt(brevisApp.gnarkReceiptVk),
+		VkHash:        utils.Hex2BigInt(hashInfo.gnarkReceiptVkHash),
 	}
 
 	StorageNode := Hash2HashDigestNode{
 		CircuitDigest: StorageD,
-		VkHash:        utils.Hex2BigInt(brevisApp.gnarkStorageVk),
+		VkHash:        utils.Hex2BigInt(hashInfo.gnarkStorageVkHash),
 	}
 
 	TransactionNode := Hash2HashDigestNode{
 		CircuitDigest: TransactionD,
-		VkHash:        utils.Hex2BigInt(brevisApp.gnarkTxVk),
+		VkHash:        utils.Hex2BigInt(hashInfo.gnarkTxVkHash),
 	}
 
 	var totalLeafs []Hash2HashDigestNode
@@ -148,8 +148,8 @@ type Plonky2DigestNode struct {
 	IsRecursionRecursionOfLeaf bool
 }
 
-func GetPlonky2CircuitDigestFromRootNodeSelf(receiptCount, storageCount, transactionCount int, brevisApp *BrevisApp) (*pgoldilocks.HashOut256, bool, bool, error) {
-	plonky2RootNode, err := GetPlonky2CircuitDigest(receiptCount, storageCount, transactionCount, brevisApp)
+func GetPlonky2CircuitDigestFromRootNodeSelf(receiptCount, storageCount, transactionCount int, hashInfo *BrevisHashInfo) (*pgoldilocks.HashOut256, bool, bool, error) {
+	plonky2RootNode, err := GetPlonky2CircuitDigest(receiptCount, storageCount, transactionCount, hashInfo)
 	if err != nil {
 		return nil, false, false, err
 	}
@@ -166,7 +166,7 @@ func GetPlonky2CircuitDigestFromRootNodeSelf(receiptCount, storageCount, transac
 	return hashRes, plonky2RootNode.IsRecursionOfLeaf, plonky2RootNode.IsRecursionRecursionOfLeaf, nil
 }
 
-func GetPlonky2CircuitDigest(receiptCount, storageCount, transactionCount int, brevisApp *BrevisApp) (*Plonky2DigestNode, error) {
+func GetPlonky2CircuitDigest(receiptCount, storageCount, transactionCount int, hashInfo *BrevisHashInfo) (*Plonky2DigestNode, error) {
 	receiptLeafCount, storageLeafCount, transactionLeafCount, totalLeafCount, err := GetAndCheckLeafCount(receiptCount, storageCount, transactionCount)
 	if err != nil {
 		return nil, err
@@ -175,19 +175,19 @@ func GetPlonky2CircuitDigest(receiptCount, storageCount, transactionCount int, b
 	var totalLeafs []Plonky2DigestNode
 	for i := 0; i < receiptLeafCount; i++ {
 		totalLeafs = append(totalLeafs, Plonky2DigestNode{
-			CurCircuitDigest: brevisApp.receiptCircuitDigestHash,
+			CurCircuitDigest: hashInfo.receiptCircuitDigestHash,
 			IsLeafNode:       true,
 		})
 	}
 	for i := 0; i < storageLeafCount; i++ {
 		totalLeafs = append(totalLeafs, Plonky2DigestNode{
-			CurCircuitDigest: brevisApp.storageCircuitDigestHash,
+			CurCircuitDigest: hashInfo.storageCircuitDigestHash,
 			IsLeafNode:       true,
 		})
 	}
 	for i := 0; i < transactionLeafCount; i++ {
 		totalLeafs = append(totalLeafs, Plonky2DigestNode{
-			CurCircuitDigest: brevisApp.txCircuitDigestHash,
+			CurCircuitDigest: hashInfo.txCircuitDigestHash,
 			IsLeafNode:       true,
 		})
 	}
