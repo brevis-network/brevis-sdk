@@ -17,9 +17,9 @@ import (
 )
 
 var testHashInfo = &BrevisHashInfo{
-	receiptCircuitDigestHash: &pgoldilocks.HashOut256{17996561756193319820, 8980630437335591722, 9122961916495130738, 10142517542627101229},
-	storageCircuitDigestHash: &pgoldilocks.HashOut256{3568882391461234058, 14936808234931181849, 15089276379577470236, 10371820311878429064},
-	txCircuitDigestHash:      &pgoldilocks.HashOut256{15153155867950515743, 11132023200088999656, 10234366714538403336, 10983752963612260249},
+	ReceiptCircuitDigestHash: &pgoldilocks.HashOut256{17996561756193319820, 8980630437335591722, 9122961916495130738, 10142517542627101229},
+	StorageCircuitDigestHash: &pgoldilocks.HashOut256{3568882391461234058, 14936808234931181849, 15089276379577470236, 10371820311878429064},
+	TxCircuitDigestHash:      &pgoldilocks.HashOut256{15153155867950515743, 11132023200088999656, 10234366714538403336, 10983752963612260249},
 }
 
 func TestHash2HashCircuitDigest(t *testing.T) {
@@ -33,14 +33,14 @@ func TestHash2HashCircuitDigest(t *testing.T) {
 func TestGlPoseidonOnDigest(t *testing.T) {
 	assert := test.NewAssert(t)
 	var left, right, middle1, middle2, middle3 []uint64
-	left = append(left, testHashInfo.receiptCircuitDigestHash[:]...)
-	left = append(left, testHashInfo.storageCircuitDigestHash[:]...)
+	left = append(left, testHashInfo.ReceiptCircuitDigestHash[:]...)
+	left = append(left, testHashInfo.StorageCircuitDigestHash[:]...)
 	hashLeft, err := pgoldilocks.HashNoPadU64Array(left)
 	assert.NoError(err)
 	log.Infof("hash digest of receipt + storage: %d %d %d %d", hashLeft[0], hashLeft[1], hashLeft[2], hashLeft[3])
 
-	right = append(right, testHashInfo.txCircuitDigestHash[:]...)
-	right = append(right, testHashInfo.txCircuitDigestHash[:]...)
+	right = append(right, testHashInfo.TxCircuitDigestHash[:]...)
+	right = append(right, testHashInfo.TxCircuitDigestHash[:]...)
 	hashRight, err := pgoldilocks.HashNoPadU64Array(right)
 	assert.NoError(err)
 	log.Infof("hash digest of transaction + transaction : %d %d %d %d", hashRight[0], hashRight[1], hashRight[2], hashRight[3])

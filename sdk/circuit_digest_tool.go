@@ -85,17 +85,17 @@ func GetHash2HashCircuitDigest(receiptCount, storageCount, transactionCount int,
 
 	ReceiptNode := Hash2HashDigestNode{
 		CircuitDigest: ReceiptD,
-		VkHash:        utils.Hex2BigInt(hashInfo.gnarkReceiptVkHash),
+		VkHash:        utils.Hex2BigInt(hashInfo.GnarkReceiptVkHash),
 	}
 
 	StorageNode := Hash2HashDigestNode{
 		CircuitDigest: StorageD,
-		VkHash:        utils.Hex2BigInt(hashInfo.gnarkStorageVkHash),
+		VkHash:        utils.Hex2BigInt(hashInfo.GnarkStorageVkHash),
 	}
 
 	TransactionNode := Hash2HashDigestNode{
 		CircuitDigest: TransactionD,
-		VkHash:        utils.Hex2BigInt(hashInfo.gnarkTxVkHash),
+		VkHash:        utils.Hex2BigInt(hashInfo.GnarkTxVkHash),
 	}
 
 	var totalLeafs []Hash2HashDigestNode
@@ -175,19 +175,19 @@ func GetPlonky2CircuitDigest(receiptCount, storageCount, transactionCount int, h
 	var totalLeafs []Plonky2DigestNode
 	for i := 0; i < receiptLeafCount; i++ {
 		totalLeafs = append(totalLeafs, Plonky2DigestNode{
-			CurCircuitDigest: hashInfo.receiptCircuitDigestHash,
+			CurCircuitDigest: hashInfo.ReceiptCircuitDigestHash,
 			IsLeafNode:       true,
 		})
 	}
 	for i := 0; i < storageLeafCount; i++ {
 		totalLeafs = append(totalLeafs, Plonky2DigestNode{
-			CurCircuitDigest: hashInfo.storageCircuitDigestHash,
+			CurCircuitDigest: hashInfo.StorageCircuitDigestHash,
 			IsLeafNode:       true,
 		})
 	}
 	for i := 0; i < transactionLeafCount; i++ {
 		totalLeafs = append(totalLeafs, Plonky2DigestNode{
-			CurCircuitDigest: hashInfo.txCircuitDigestHash,
+			CurCircuitDigest: hashInfo.TxCircuitDigestHash,
 			IsLeafNode:       true,
 		})
 	}
