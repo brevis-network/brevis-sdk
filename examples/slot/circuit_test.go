@@ -17,7 +17,7 @@ func TestCircuit(t *testing.T) {
 	check(err)
 
 	account := common.HexToAddress("0x5427FEFA711Eff984124bFBB1AB6fbf5E3DA1820")
-	// By specifying the optional parameter index = 1, the app will pin the stroage
+	// By specifying the optional parameter index = 1, the app will pin the storage
 	// data at a fixed spot in the DataInput. This allows us to later directly
 	// access this "special" data in circuit.
 	app.AddStorage(sdk.StorageData{
@@ -57,7 +57,7 @@ func TestE2E(t *testing.T) {
 	check(err)
 
 	account := common.HexToAddress("0x5427FEFA711Eff984124bFBB1AB6fbf5E3DA1820")
-	// By specifying the optional parameter index = 1, the app will pin the stroage
+	// By specifying the optional parameter index = 1, the app will pin the storage
 	// data at a fixed spot in the DataInput. This allows us to later directly
 	// access this "special" data in circuit.
 	app.AddStorage(sdk.StorageData{

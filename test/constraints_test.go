@@ -30,16 +30,16 @@ func TestBn254VkHash(t *testing.T) {
 		OutputCommitment:     [2]frontend.Variable{100, 100},
 	}
 
-	assigment := &CustomPlonkCircuit{
+	assignment := &CustomPlonkCircuit{
 		InputCommitmentsRoot: 100,
 		TogglesCommitment:    100,
 		OutputCommitment:     [2]frontend.Variable{100, 100},
 	}
 
-	err := test.IsSolved(circuit, assigment, ecc.BN254.ScalarField())
+	err := test.IsSolved(circuit, assignment, ecc.BN254.ScalarField())
 	assert.NoError(err)
 
-	witnessFull, err := frontend.NewWitness(assigment, ecc.BN254.ScalarField())
+	witnessFull, err := frontend.NewWitness(assignment, ecc.BN254.ScalarField())
 	assert.NoError(err)
 
 	witnessPublic, err := witnessFull.Public()
