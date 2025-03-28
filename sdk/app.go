@@ -381,6 +381,13 @@ func (q *BrevisApp) AddReceipt(data ReceiptData, index ...int) {
 	if len(data.Fields) > NumMaxLogFields {
 		panic(fmt.Sprintf("maximum number of log fields in one receipt is %d", NumMaxLogFields))
 	}
+	var lastLogPos uint = 0
+	for _, field := range data.Fields {
+		if lastLogPos > field.LogPos {
+			panic("fields in ReceiptData not sorted by LogPos")
+		}
+		lastLogPos = field.LogPos
+	}
 	q.receipts.add(data, index...)
 }
 
@@ -390,6 +397,13 @@ func (q *BrevisApp) AddReceipt(data ReceiptData, index ...int) {
 func (q *BrevisApp) AddMockReceipt(data ReceiptData, index ...int) {
 	if len(data.Fields) > NumMaxLogFields {
 		panic(fmt.Sprintf("maximum number of log fields in one receipt is %d", NumMaxLogFields))
+	}
+	var lastLogPos uint = 0
+	for _, field := range data.Fields {
+		if lastLogPos > field.LogPos {
+			panic("fields in ReceiptData not sorted by LogPos")
+		}
+		lastLogPos = field.LogPos
 	}
 	q.mockReceipts.add(data, index...)
 }
