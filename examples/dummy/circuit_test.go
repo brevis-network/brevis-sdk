@@ -1,7 +1,6 @@
 package dummy
 
 import (
-	"math/big"
 	"testing"
 
 	"github.com/brevis-network/brevis-sdk/sdk"
@@ -10,23 +9,18 @@ import (
 )
 
 func TestCircuit(t *testing.T) {
-	rpc := "RPC_URL"
+	rpc := "https://eth-mainnet.nodereal.io/v1/0af795b55d124a61b86836461ece1dee"
 	outDir := "$HOME/circuitOut/myBrevisApp"
 	app, err := sdk.NewBrevisApp(1, rpc, outDir)
 	check(err)
 
 	app.AddReceipt(sdk.ReceiptData{
-		TxHash: common.HexToHash("53b37ec7975d217295f4bdadf8043b261fc49dccc16da9b9fc8b9530845a5794"),
+		TxHash: common.HexToHash("7a129f9da761960a9209de1215b08709715cac842c34d9237a8d85de7da47da9"),
 		Fields: []sdk.LogFieldData{
 			{LogPos: 3, IsTopic: false, FieldIndex: 0},
 			{LogPos: 3, IsTopic: true, FieldIndex: 2},
 			{LogPos: 2, IsTopic: true, FieldIndex: 1},
 		},
-	})
-	app.AddStorage(sdk.StorageData{
-		BlockNum: big.NewInt(19526368),
-		Address:  common.HexToAddress("0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc"),
-		Slot:     common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000008"),
 	})
 
 	appCircuit := DefaultAppCircuit()
