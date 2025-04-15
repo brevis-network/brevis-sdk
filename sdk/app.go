@@ -268,7 +268,7 @@ func newBrevisApp(
 	if resp.Err != nil {
 		return nil, fmt.Errorf("GetCircuitDigest responded with err: %s", resp.Err)
 	}
-	if len(resp.HashesLimbs) != 12 {
+	if len(resp.HashesLimbs) != 4 {
 		return nil, fmt.Errorf("invalid circuit digest hashes number of limbs: %d", len(resp.HashesLimbs))
 	}
 
