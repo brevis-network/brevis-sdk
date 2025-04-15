@@ -176,19 +176,19 @@ func GetPlonky2CircuitDigest(receiptCount, storageCount, transactionCount int, h
 	var totalLeafs []Plonky2DigestNode
 	for i := 0; i < receiptLeafCount; i++ {
 		totalLeafs = append(totalLeafs, Plonky2DigestNode{
-			CurCircuitDigest: hashInfo.ReceiptCircuitDigestHash,
+			CurCircuitDigest: &pgoldilocks.HashOut256Zero,
 			IsLeafNode:       true,
 		})
 	}
 	for i := 0; i < storageLeafCount; i++ {
 		totalLeafs = append(totalLeafs, Plonky2DigestNode{
-			CurCircuitDigest: hashInfo.StorageCircuitDigestHash,
+			CurCircuitDigest: &pgoldilocks.HashOut256Zero,
 			IsLeafNode:       true,
 		})
 	}
 	for i := 0; i < transactionLeafCount; i++ {
 		totalLeafs = append(totalLeafs, Plonky2DigestNode{
-			CurCircuitDigest: hashInfo.TxCircuitDigestHash,
+			CurCircuitDigest: &pgoldilocks.HashOut256Zero,
 			IsLeafNode:       true,
 		})
 	}
