@@ -26,7 +26,7 @@ var (
 
 	P2AggRecursionMiddleFormMiddleLeafCircuitDigestHash  = &pgoldilocks.HashOut256{14561383570925761150, 12116100132768392867, 2216989100987824959, 11720816772597981334}
 	P2AggRecursionNoLeafCircuitDigestHash                = &pgoldilocks.HashOut256{14007309231803840793, 2325011900429631668, 6598512353030159473, 12456847712279341912}
-	P2Bn128WrapCircuitDigestHashForOnlyFromLeafRecursion = utils.Hex2BigInt("0x08e1f454d096c46ebf2e1f40ff4858ce8188f86cc9623242ea605b774aee12aa") // for from P2AggRecursionMiddleFormMiddleLeafCircuitDigestHash
+	P2Bn128WrapCircuitDigestHashForOnlyFromLeafRecursion = utils.Hex2BigInt("0x298036b96c4e7f4402f2063f8977fddbd4cb3714ae993f7b49b3f2ed36d37017") // for from P2AggRecursionMiddleFormMiddleLeafCircuitDigestHash
 	P2Bn128WrapCircuitDigestHash                         = utils.Hex2BigInt("0x1E24794162210326BC751EB2FB4AFB6CB76B2CD94E6CEAFB9191A18B6E24A9D1") // for from P2AggRecursionNoLeafCircuitDigestHash
 
 	MiddleNodeVkHash = utils.Hex2BigInt(MiddleNodeVkHashHex)
