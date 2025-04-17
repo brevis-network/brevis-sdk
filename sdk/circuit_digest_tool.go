@@ -21,11 +21,12 @@ var (
 	AggAllVkHash        = "0x078ab850e8148fc412016972abf837fddbc8c7f87d049e337fcdfdc1a47caca2"
 
 	// LegacyP2AggRecursionLeafCircuitDigestHash      = &pgoldilocks.HashOut256{6297162860691876658, 7207440660511781486, 956392925008767441, 15443083968980057808}
-	P2AggRecursionLeafCircuitDigestHash      = &pgoldilocks.HashOut256{1078357945662125939, 11125382360789400779, 9487867888809203084, 9671853012039726562}
-	P2Bn128WrapCircuitDigestHashForOnly2Leaf = utils.Hex2BigInt("0x298036b96c4e7f4402f2063f8977fddbd4cb3714ae993f7b49b3f2ed36d37017") // for from P2AggRecursionLeafCircuitDigestHash
+	P2AggRecursionLeafCircuitDigestHash = &pgoldilocks.HashOut256{1078357945662125939, 11125382360789400779, 9487867888809203084, 9671853012039726562}
 
-	P2AggRecursionMiddleFormMiddleLeafCircuitDigestHash  = &pgoldilocks.HashOut256{14561383570925761150, 12116100132768392867, 2216989100987824959, 11720816772597981334}
-	P2AggRecursionNoLeafCircuitDigestHash                = &pgoldilocks.HashOut256{14007309231803840793, 2325011900429631668, 6598512353030159473, 12456847712279341912}
+	P2AggRecursionMiddleFormMiddleLeafCircuitDigestHash = &pgoldilocks.HashOut256{14561383570925761150, 12116100132768392867, 2216989100987824959, 11720816772597981334}
+	P2AggRecursionNoLeafCircuitDigestHash               = &pgoldilocks.HashOut256{14007309231803840793, 2325011900429631668, 6598512353030159473, 12456847712279341912}
+
+	P2Bn128WrapCircuitDigestHashForOnly2Leaf             = utils.Hex2BigInt("0x298036b96c4e7f4402f2063f8977fddbd4cb3714ae993f7b49b3f2ed36d37017") // for from P2AggRecursionLeafCircuitDigestHash
 	P2Bn128WrapCircuitDigestHashForOnlyFromLeafRecursion = utils.Hex2BigInt("0x08e1f454d096c46ebf2e1f40ff4858ce8188f86cc9623242ea605b774aee12aa") // for from P2AggRecursionMiddleFormMiddleLeafCircuitDigestHash
 	P2Bn128WrapCircuitDigestHash                         = utils.Hex2BigInt("0x1E24794162210326BC751EB2FB4AFB6CB76B2CD94E6CEAFB9191A18B6E24A9D1") // for from P2AggRecursionNoLeafCircuitDigestHash
 
