@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	commonutils "github.com/brevis-network/brevis-sdk/common/utils"
 	"math/big"
 	"path/filepath"
 	"time"
@@ -139,11 +140,18 @@ type BrevisAppConfig struct {
 
 // BrevisHashInfo contains Brevis circuit hashes
 type BrevisHashInfo struct {
-	P2AggRecursionLeafCircuitDigestHash *pgoldilocks.HashOut256
+	P2AggRecursionLeafCircuitDigestHash                 *pgoldilocks.HashOut256
+	P2AggRecursionMiddleFormMiddleLeafCircuitDigestHash *pgoldilocks.HashOut256
+	P2AggRecursionNoLeafCircuitDigestHash               *pgoldilocks.HashOut256
 
-	GnarkReceiptVkHash string
-	GnarkStorageVkHash string
-	GnarkTxVkHash      string
+	P2Bn128WrapCircuitDigestHashForOnly2Leaf             *big.Int // for from P2AggRecursionLeafCircuitDigestHash // usually change
+	P2Bn128WrapCircuitDigestHashForOnlyFromLeafRecursion *big.Int // for from P2AggRecursionMiddleFormMiddleLeafCircuitDigestHash
+	P2Bn128WrapCircuitDigestHash                         *big.Int // for from P2AggRecursionNoLeafCircuitDigestHash
+
+	GnarkReceiptVkHash    *big.Int
+	GnarkStorageVkHash    *big.Int
+	GnarkTxVkHash         *big.Int
+	GnarkMiddleNodeVkHash *big.Int
 }
 
 func NewBrevisHashInfo(gatewayUrlOverride string) (*BrevisHashInfo, error) {
@@ -164,14 +172,22 @@ func NewBrevisHashInfo(gatewayUrlOverride string) (*BrevisHashInfo, error) {
 	if resp.Err != nil {
 		return nil, fmt.Errorf("GetCircuitDigest responded with err: %s", resp.Err)
 	}
-	if len(resp.HashesLimbs) != 4 {
+	if len(resp.HashesLimbs) != 12 {
 		return nil, fmt.Errorf("invalid circuit digest hashes number of limbs: %d", len(resp.HashesLimbs))
 	}
 	return &BrevisHashInfo{
-		P2AggRecursionLeafCircuitDigestHash: &pgoldilocks.HashOut256{resp.HashesLimbs[0], resp.HashesLimbs[1], resp.HashesLimbs[2], resp.HashesLimbs[3]},
-		GnarkReceiptVkHash:                  resp.GnarkVks[0],
-		GnarkStorageVkHash:                  resp.GnarkVks[1],
-		GnarkTxVkHash:                       resp.GnarkVks[2],
+		P2AggRecursionLeafCircuitDigestHash:                 &pgoldilocks.HashOut256{resp.HashesLimbs[0], resp.HashesLimbs[1], resp.HashesLimbs[2], resp.HashesLimbs[3]},
+		P2AggRecursionMiddleFormMiddleLeafCircuitDigestHash: &pgoldilocks.HashOut256{resp.HashesLimbs[4], resp.HashesLimbs[5], resp.HashesLimbs[6], resp.HashesLimbs[7]},
+		P2AggRecursionNoLeafCircuitDigestHash:               &pgoldilocks.HashOut256{resp.HashesLimbs[8], resp.HashesLimbs[9], resp.HashesLimbs[10], resp.HashesLimbs[11]},
+
+		GnarkReceiptVkHash:    commonutils.Hex2BigInt(resp.GnarkVks[0]),
+		GnarkStorageVkHash:    commonutils.Hex2BigInt(resp.GnarkVks[1]),
+		GnarkTxVkHash:         commonutils.Hex2BigInt(resp.GnarkVks[2]),
+		GnarkMiddleNodeVkHash: commonutils.Hex2BigInt(resp.GnarkVks[3]),
+
+		P2Bn128WrapCircuitDigestHashForOnly2Leaf:             commonutils.Hex2BigInt(resp.GnarkVks[4]),
+		P2Bn128WrapCircuitDigestHashForOnlyFromLeafRecursion: commonutils.Hex2BigInt(resp.GnarkVks[5]),
+		P2Bn128WrapCircuitDigestHash:                         commonutils.Hex2BigInt(resp.GnarkVks[6]),
 	}, nil
 }
 
@@ -268,7 +284,7 @@ func newBrevisApp(
 	if resp.Err != nil {
 		return nil, fmt.Errorf("GetCircuitDigest responded with err: %s", resp.Err)
 	}
-	if len(resp.HashesLimbs) != 4 {
+	if len(resp.HashesLimbs) != 12 {
 		return nil, fmt.Errorf("invalid circuit digest hashes number of limbs: %d", len(resp.HashesLimbs))
 	}
 
@@ -303,10 +319,18 @@ func newBrevisApp(
 		concurrentFetchLimit: concurrentFetchLimit,
 		dataStore:            dataStore,
 		BrevisHashInfo: &BrevisHashInfo{
-			P2AggRecursionLeafCircuitDigestHash: &pgoldilocks.HashOut256{resp.HashesLimbs[0], resp.HashesLimbs[1], resp.HashesLimbs[2], resp.HashesLimbs[3]},
-			GnarkReceiptVkHash:                  resp.GnarkVks[0],
-			GnarkStorageVkHash:                  resp.GnarkVks[1],
-			GnarkTxVkHash:                       resp.GnarkVks[2],
+			P2AggRecursionLeafCircuitDigestHash:                 &pgoldilocks.HashOut256{resp.HashesLimbs[0], resp.HashesLimbs[1], resp.HashesLimbs[2], resp.HashesLimbs[3]},
+			P2AggRecursionMiddleFormMiddleLeafCircuitDigestHash: &pgoldilocks.HashOut256{resp.HashesLimbs[4], resp.HashesLimbs[5], resp.HashesLimbs[6], resp.HashesLimbs[7]},
+			P2AggRecursionNoLeafCircuitDigestHash:               &pgoldilocks.HashOut256{resp.HashesLimbs[8], resp.HashesLimbs[9], resp.HashesLimbs[10], resp.HashesLimbs[11]},
+
+			GnarkReceiptVkHash:    commonutils.Hex2BigInt(resp.GnarkVks[0]),
+			GnarkStorageVkHash:    commonutils.Hex2BigInt(resp.GnarkVks[1]),
+			GnarkTxVkHash:         commonutils.Hex2BigInt(resp.GnarkVks[2]),
+			GnarkMiddleNodeVkHash: commonutils.Hex2BigInt(resp.GnarkVks[3]),
+
+			P2Bn128WrapCircuitDigestHashForOnly2Leaf:             commonutils.Hex2BigInt(resp.GnarkVks[4]),
+			P2Bn128WrapCircuitDigestHashForOnlyFromLeafRecursion: commonutils.Hex2BigInt(resp.GnarkVks[5]),
+			P2Bn128WrapCircuitDigestHash:                         commonutils.Hex2BigInt(resp.GnarkVks[6]),
 		},
 	}, nil
 }
@@ -330,17 +354,24 @@ func NewBrevisAppFromExisting(existing *BrevisApp) (*BrevisApp, error) {
 
 // set digests directly
 func NewBrevisAppWithDigestsSetOnly(
-	p2AggRecursionLeafCircuitDigestHash *pgoldilocks.HashOut256,
-	gnarkReceiptVk,
-	gnarkStorageVk,
-	gnarkTxVk string,
+	p2AggRecursionLeafCircuitDigestHash, P2AggRecursionMiddleFormMiddleLeafCircuitDigestHash, P2AggRecursionNoLeafCircuitDigestHash *pgoldilocks.HashOut256,
+	gnarkReceiptVk, gnarkStorageVk, gnarkTxVk, GnarkMiddleNodeVk string,
+	P2Bn128WrapCircuitDigestHashForOnly2Leaf, P2Bn128WrapCircuitDigestHashForOnlyFromLeafRecursion, P2Bn128WrapCircuitDigestHash string,
 ) *BrevisApp {
 	return &BrevisApp{
 		BrevisHashInfo: &BrevisHashInfo{
-			P2AggRecursionLeafCircuitDigestHash: p2AggRecursionLeafCircuitDigestHash,
-			GnarkReceiptVkHash:                  gnarkReceiptVk,
-			GnarkStorageVkHash:                  gnarkStorageVk,
-			GnarkTxVkHash:                       gnarkTxVk,
+			P2AggRecursionLeafCircuitDigestHash:                 p2AggRecursionLeafCircuitDigestHash,
+			P2AggRecursionMiddleFormMiddleLeafCircuitDigestHash: P2AggRecursionMiddleFormMiddleLeafCircuitDigestHash,
+			P2AggRecursionNoLeafCircuitDigestHash:               P2AggRecursionNoLeafCircuitDigestHash,
+
+			GnarkReceiptVkHash:    commonutils.Hex2BigInt(gnarkReceiptVk),
+			GnarkStorageVkHash:    commonutils.Hex2BigInt(gnarkStorageVk),
+			GnarkTxVkHash:         commonutils.Hex2BigInt(gnarkTxVk),
+			GnarkMiddleNodeVkHash: commonutils.Hex2BigInt(GnarkMiddleNodeVk),
+
+			P2Bn128WrapCircuitDigestHashForOnly2Leaf:             commonutils.Hex2BigInt(P2Bn128WrapCircuitDigestHashForOnly2Leaf),
+			P2Bn128WrapCircuitDigestHashForOnlyFromLeafRecursion: commonutils.Hex2BigInt(P2Bn128WrapCircuitDigestHashForOnlyFromLeafRecursion),
+			P2Bn128WrapCircuitDigestHash:                         commonutils.Hex2BigInt(P2Bn128WrapCircuitDigestHash),
 		},
 	}
 }
