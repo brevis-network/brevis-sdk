@@ -314,6 +314,7 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (*s
 			ProofId: proofId,
 		}
 		if found {
+			log.Infof("found proof id %s", proofId)
 			appCircuitInfo := &commonproto.AppCircuitInfo{}
 			err := proto.Unmarshal(proveRequest.AppCircuitInfo, appCircuitInfo)
 			if err != nil {
@@ -322,6 +323,7 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (*s
 				}, nil
 			}
 			resp.CircuitInfo = appCircuitInfo
+			log.Infof("reuse circuit info on store, circuit info: %+v", appCircuitInfo)
 			return resp, nil
 		}
 		// Build partial AppCircuitInfo
