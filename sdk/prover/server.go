@@ -344,10 +344,17 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (*s
 				Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "proof ID %s, proto.Marshal err: %s", proofId, err.Error()),
 			}, nil
 		}
+		appCircuitInfoBytes, err := proto.Marshal(appCircuitInfo)
+		if err != nil {
+			return &sdkproto.ProveAsyncResponse{
+				Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "proof ID %s, proto.Marshal for circuit info err: %s", proofId, err.Error()),
+			}, nil
+		}
 		proveRequest = &ProveRequest{
-			Status:     ProveStatusInit,
-			SrcChainId: req.SrcChainId,
-			Request:    requestBytes,
+			Status:         ProveStatusInit,
+			SrcChainId:     req.SrcChainId,
+			Request:        requestBytes,
+			AppCircuitInfo: appCircuitInfoBytes,
 		}
 		err = s.setProveRequest(proofId, proveRequest)
 		if err != nil {
