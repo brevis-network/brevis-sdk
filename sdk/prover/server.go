@@ -132,7 +132,9 @@ func (s *Service) Serve(bind string, grpcPort, restPort uint) error {
 }
 
 func (s *Service) serveGrpc(bind string, port uint) error {
-	s.svr.grpcServer = grpc.NewServer()
+	size := 1024 * 1024 * 100
+	s.svr.grpcServer = grpc.NewServer(grpc.MaxSendMsgSize(size),
+		grpc.MaxRecvMsgSize(size))
 	sdkproto.RegisterProverServer(s.svr.grpcServer, s.svr)
 	address := fmt.Sprintf("%s:%d", bind, port)
 	lis, err := net.Listen("tcp", address)
