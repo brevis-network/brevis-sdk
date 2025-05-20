@@ -369,7 +369,7 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (*s
 
 		go s.buildInputStage2AndProve(proofId, brevisApp, proveRequest, req, inputStage1)
 
-		log.Infof("accepted job proof ID: %s, CircuitInfo: %+v", proofId, resp.CircuitInfo)
+		log.Infof("accepted job proof ID: %s", proofId)
 		return resp, nil
 	})
 	finalResp := res.(*sdkproto.ProveAsyncResponse)
@@ -378,7 +378,6 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (*s
 		finalResp.Err = newErr(sdkproto.ErrCode_ERROR_DEFAULT, "proof ID %s, err: %s", proofId, err.Error())
 		return finalResp, nil
 	}
-	log.Infof("finalResp, circuit info; %+v", finalResp.CircuitInfo)
 	return finalResp, nil
 }
 
