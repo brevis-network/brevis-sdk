@@ -132,7 +132,9 @@ func (s *Service) Serve(bind string, grpcPort, restPort uint) error {
 }
 
 func (s *Service) serveGrpc(bind string, port uint) error {
-	s.svr.grpcServer = grpc.NewServer()
+	size := 1024 * 1024 * 100
+	s.svr.grpcServer = grpc.NewServer(grpc.MaxSendMsgSize(size),
+		grpc.MaxRecvMsgSize(size))
 	sdkproto.RegisterProverServer(s.svr.grpcServer, s.svr)
 	address := fmt.Sprintf("%s:%d", bind, port)
 	lis, err := net.Listen("tcp", address)
@@ -314,6 +316,7 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (*s
 			ProofId: proofId,
 		}
 		if found {
+			log.Infof("found proof id %s", proofId)
 			appCircuitInfo := &commonproto.AppCircuitInfo{}
 			err := proto.Unmarshal(proveRequest.AppCircuitInfo, appCircuitInfo)
 			if err != nil {
@@ -322,6 +325,7 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (*s
 				}, nil
 			}
 			resp.CircuitInfo = appCircuitInfo
+			log.Infof("reuse circuit info on store, circuit info: %+v", appCircuitInfo)
 			return resp, nil
 		}
 		// Build partial AppCircuitInfo
@@ -342,10 +346,17 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (*s
 				Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "proof ID %s, proto.Marshal err: %s", proofId, err.Error()),
 			}, nil
 		}
+		appCircuitInfoBytes, err := proto.Marshal(appCircuitInfo)
+		if err != nil {
+			return &sdkproto.ProveAsyncResponse{
+				Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "proof ID %s, proto.Marshal for circuit info err: %s", proofId, err.Error()),
+			}, nil
+		}
 		proveRequest = &ProveRequest{
-			Status:     ProveStatusInit,
-			SrcChainId: req.SrcChainId,
-			Request:    requestBytes,
+			Status:         ProveStatusInit,
+			SrcChainId:     req.SrcChainId,
+			Request:        requestBytes,
+			AppCircuitInfo: appCircuitInfoBytes,
 		}
 		err = s.setProveRequest(proofId, proveRequest)
 		if err != nil {
@@ -361,7 +372,13 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (*s
 		log.Infof("accepted job proof ID: %s", proofId)
 		return resp, nil
 	})
-	return res.(*sdkproto.ProveAsyncResponse), err
+	finalResp := res.(*sdkproto.ProveAsyncResponse)
+	if err != nil {
+		log.Errorf("fail to asyc prove this resp finalResp: %+v, err; %v", finalResp, err)
+		finalResp.Err = newErr(sdkproto.ErrCode_ERROR_DEFAULT, "proof ID %s, err: %s", proofId, err.Error())
+		return finalResp, nil
+	}
+	return finalResp, nil
 }
 
 // GetProofs returns the status, app circuit info and proof associated with a proof ID
