@@ -196,7 +196,7 @@ func fromInterface(input interface{}) *big.Int {
 }
 
 // Inspired by https://github.com/Consensys/gnark/blob/429616e33c97ed21113dd87787c043e8fb43720c/frontend/cs/scs/api.go#L523
-// To reduce constraints comsumption, use predefined number of variable's bits.
+// To reduce constraints consumption, use predefined number of variable's bits.
 // func Cmp(api frontend.API, i1, i2 frontend.Variable, nbBits int) frontend.Variable {
 // 	bi1 := bits.ToBinary(api, i1, bits.WithNbDigits(nbBits))
 // 	bi2 := bits.ToBinary(api, i2, bits.WithNbDigits(nbBits))
