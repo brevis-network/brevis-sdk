@@ -59,6 +59,11 @@ func (c *AppCircuit) Allocate() (maxReceipts, maxStorage, maxTransactions int) {
     return 32, 32, 64
 }
 
+func ParseEventID(eventIDHex string) sdk.Bytes32 {
+    // Implementation of event ID parsing
+    return sdk.ConstBytes32([]byte{})
+}
+
 var ConstEventID = ParseEventID(/* 0x123456... */)
 
 func (c *AppCircuit) Define(api *sdk.CircuitAPI, input sdk.DataInput) error {
@@ -69,7 +74,7 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, input sdk.DataInput) error {
     // In this example, by checking these, you are proving to your 
     // contract that you have checked that all events have a certain
     // event ID
-    sdk.AssertEach(receipts, func(receipt sdk.Receipt) Variable {
+    sdk.AssertEach(receipts, func(receipt sdk.Receipt) sdk.Variable {
     return api.Equal(receipt.Fields[0].EventID, ConstEventID)
     })
 
@@ -85,9 +90,17 @@ func (c *AppCircuit) Define(api *sdk.CircuitAPI, input sdk.DataInput) error {
     })
     sum := sdk.Sum(values)
 
-    // sdk.Reduce(...)
-    // sdk.GroupBy(...)
-    // and more ...
+    // Example of Reduce
+    sdk.Reduce(values, sdk.ConstUint248(0), func(acc, val sdk.Uint248) sdk.Uint248 {
+        return api.Add(acc, val)
+    })
+    
+    // Example of GroupBy
+    sdk.GroupBy(receipts, func(r sdk.Receipt) sdk.Bytes32 {
+        return r.TxHash
+    }, func(group []sdk.Receipt) sdk.Uint248 {
+        return sdk.ConstUint248(uint64(len(group)))
+    })
 
     // You can output any number of computation results using sdk.OutputXXX APIs 
     // These results will be available for use in your contract when the proof 
@@ -113,6 +126,12 @@ import (
 )
 
 func TestAppCircuit(t *testing.T) {
+    // Create a Brevis app
+    app := sdk.NewBrevisApp(1, "RPC_URL", "OutputDir")
+    
+    // Add necessary data
+    app.AddReceipt(sdk.ReceiptData{/*...*/})
+    
     appCircuit := DefaultAppCircuit()
     appCircuitAssignment := &AppCircuit{
         MyInput: sdk.ConstUint248(123),
@@ -121,6 +140,9 @@ func TestAppCircuit(t *testing.T) {
     // BuildAppCircuit fetches additional data required to generate proofs from the
     // ETH RPC you provided and package the actual queried data into sdk.CircuitInput
     circuitInput, err := app.BuildCircuitInput(appCircuitAssignment)
+    if err != nil {
+        t.Fatalf("Failed to build circuit input: %v", err)
+    }
 
     // brevis-sdk/test package 
 
