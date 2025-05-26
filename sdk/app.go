@@ -5,10 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	commonutils "github.com/brevis-network/brevis-sdk/common/utils"
 	"math/big"
 	"path/filepath"
 	"time"
+
+	commonutils "github.com/brevis-network/brevis-sdk/common/utils"
 
 	pgoldilocks "github.com/OpenAssetStandards/poseidon-goldilocks-go"
 	"github.com/brevis-network/brevis-sdk/sdk/eth"
@@ -1245,7 +1246,7 @@ func (q *BrevisApp) buildReceipt(r ReceiptData) (Receipt, error) {
 		// TODO: Debug
 		log.Errorf("dataStore Get key: %s, err: %s", key, err)
 	}
-	if !ok {
+	if !ok || err != nil {
 		if r.isReadyToSave() {
 			data = r
 		} else {
@@ -1349,7 +1350,7 @@ func (q *BrevisApp) buildStorageSlot(s StorageData) (StorageSlot, error) {
 		// TODO: Debug
 		log.Errorf("dataStore Get key: %s, err: %s", key, err)
 	}
-	if !ok {
+	if !ok || err != nil {
 		if s.isReadyToSave() {
 			data = s
 		} else {
@@ -1453,7 +1454,7 @@ func (q *BrevisApp) buildTx(t TransactionData) (Transaction, error) {
 		// TODO: Debug
 		log.Errorf("dataStore Get key: %s, err: %s", key, err)
 	}
-	if !ok {
+	if !ok || err != nil {
 		if t.isReadyToSave() {
 			data = t
 		} else {
