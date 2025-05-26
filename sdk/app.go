@@ -1272,6 +1272,7 @@ func (q *BrevisApp) buildReceipt(r ReceiptData) (Receipt, error) {
 			// log error and continue
 			// TODO: Debug
 			log.Errorf("dataStore Set key: %s, err: %s", key, err)
+			q.dataStore.Delete(key)
 		}
 	}
 	return convertReceiptDataToReceipt(&data), nil
@@ -1376,6 +1377,7 @@ func (q *BrevisApp) buildStorageSlot(s StorageData) (StorageSlot, error) {
 			// log error and continue
 			// TODO: Debug
 			log.Errorf("dataStore Set key: %s, err: %s", key, err)
+			q.dataStore.Delete(key)
 		}
 	}
 	return convertStorageDataToStorage(&data), nil
@@ -1474,6 +1476,7 @@ func (q *BrevisApp) buildTx(t TransactionData) (Transaction, error) {
 			// log error and continue
 			// TODO: Debug
 			log.Errorf("dataStore Set key: %s, err: %s", key, err)
+			q.dataStore.Delete(key)
 		}
 	}
 	return convertTxDataToTransaction(&data), nil
