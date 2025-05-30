@@ -15,7 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/ethereum/go-ethereum/triedb"
 )
@@ -157,15 +156,6 @@ func (q *BrevisApp) getReceiptInfos(txHash common.Hash) (receipt *types.Receipt,
 	header, _, err := GetHeaderAndTxHashes(q.ec, context.Background(), receipt.BlockNumber)
 	if err != nil {
 		return nil, nil, nil, nil, 0, fmt.Errorf("cannot get block with wrong tx hash %s: %s", txHash.Hex(), err.Error())
-	}
-
-	receipts, err := q.ec.BlockReceipts(context.Background(), rpc.BlockNumberOrHashWithNumber(rpc.BlockNumber(receipt.BlockNumber.Int64())))
-	if err != nil {
-		return nil, nil, nil, nil, 0, fmt.Errorf("unsupported block for tx %s: %s", txHash.Hex(), err.Error())
-	}
-	_, _, _, err = GetReceiptProof(types.NewBlockWithHeader(header), receipts, int(receipt.TransactionIndex))
-	if err != nil {
-		return nil, nil, nil, nil, 0, fmt.Errorf("unsupported block for tx %s: %s", txHash.Hex(), err.Error())
 	}
 
 	baseFee = header.BaseFee
