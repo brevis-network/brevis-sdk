@@ -20,7 +20,8 @@ func (u *AppCircuitInfo) Scan(value any) error {
 	return protojson.Unmarshal(value.([]byte), u)
 }
 
-func (c *AppCircuitInfo) ToInfoWithProof(proof string) *AppCircuitInfoWithProof {
+// callback can be empty string
+func (c *AppCircuitInfo) ToInfoWithProof(proof, callback string) *AppCircuitInfoWithProof {
 	return &AppCircuitInfoWithProof{
 		OutputCommitment:     c.OutputCommitment,
 		VkHash:               c.VkHash,
@@ -34,5 +35,6 @@ func (c *AppCircuitInfo) ToInfoWithProof(proof string) *AppCircuitInfoWithProof 
 		MaxTx:                c.MaxTx,
 		MaxNumDataPoints:     c.MaxNumDataPoints,
 		Proof:                proof,
+		CallbackAddr:         callback,
 	}
 }
