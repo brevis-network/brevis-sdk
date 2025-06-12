@@ -8,13 +8,12 @@ import (
 
 // helper funcs
 
-// impl db required interface for AppCircuitInfo
+// impl db required interface for AppCircuitInfo. need pointer type b/c protobuf discourage copy value
 func (c *AppCircuitInfo) Value() (driver.Value, error) {
 	return protojson.Marshal(c)
 }
 
-// tried double pointer but not work
-func (u *AppCircuitInfo) Scan(value interface{}) error {
+func (u *AppCircuitInfo) Scan(value any) error {
 	if u == nil {
 		u = new(AppCircuitInfo)
 	}

@@ -6,13 +6,12 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-// impl db required interface for AppCircuitInfo
+// impl db required interface
 func (c *GetQueryStatusResponse) Value() (driver.Value, error) {
 	return protojson.Marshal(c)
 }
 
-// tried double pointer but not work
-func (u *GetQueryStatusResponse) Scan(value interface{}) error {
+func (u *GetQueryStatusResponse) Scan(value any) error {
 	if u == nil {
 		u = new(GetQueryStatusResponse)
 	}
