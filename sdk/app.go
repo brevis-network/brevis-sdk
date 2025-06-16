@@ -658,7 +658,7 @@ func (q *BrevisApp) PrepareRequest(
 func (q *BrevisApp) buildSendRequestCalldata(args ...interface{}) ([]byte, error) {
 	sendRequest, ok := q.brevisRequest.Methods["sendRequest"]
 	if !ok {
-		return nil, fmt.Errorf("method sendRequest not fonud in abi")
+		return nil, fmt.Errorf("method sendRequest not found in abi")
 	}
 	inputs, err := sendRequest.Inputs.Pack(args...)
 	if err != nil {
