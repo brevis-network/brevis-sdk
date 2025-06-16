@@ -27,6 +27,8 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 
@@ -62,6 +64,7 @@ type ProveRequest struct {
 	Proof          string `json:"proof"`
 	AppCircuitInfo []byte `json:"app_circuit_info"`
 	Err            string `json:"err"`
+	UseMockProof   *bool  `json:"use_mock_proof,omitempty"`
 }
 
 type server struct {
@@ -596,7 +599,11 @@ func (s *server) buildInputStage2AndProve(proofId string, brevisApp *sdk.BrevisA
 	if setProofErr != nil {
 		log.Errorln("failed to set proof:", setProofErr.Error())
 	}
-	s.doProveHelper(proofId, proveRequest, witness)
+	if proveRequest.UseMockProof != nil && *proveRequest.UseMockProof {
+		s.genMockProof(proofId, proveRequest)
+	} else {
+		s.doProveHelper(proofId, proveRequest, witness)
+	}
 }
 
 func (s *server) continueProve(proofId string, proveRequest *ProveRequest) {
@@ -624,15 +631,57 @@ func (s *server) continueProve(proofId string, proveRequest *ProveRequest) {
 		return
 	}
 
-	s.doProveHelper(proofId, proveRequest, witness)
+	if proveRequest.UseMockProof != nil && *proveRequest.UseMockProof {
+		s.genMockProof(proofId, proveRequest)
+	} else {
+		s.doProveHelper(proofId, proveRequest, witness)
+	}
+
+}
+
+func (s *server) genMockProof(proofId string, proveRequest *ProveRequest) {
+	// Generate a mock proof
+	appCircuitInfo := &commonproto.AppCircuitInfo{}
+	err := proto.Unmarshal(proveRequest.AppCircuitInfo, appCircuitInfo)
+	if err != nil {
+		log.Errorf("failed to unmarshal app circuit info: %s", err)
+		return
+	}
+
+	ty, _ := abi.NewType("bytes32", "", nil)
+	args := abi.Arguments{
+		{Type: ty},
+		{Type: ty},
+	}
+	appCommitHash := common.HexToHash(appCircuitInfo.OutputCommitment)
+	appVkHash := common.HexToHash(s.vkHash)
+	proofBytes, err := args.Pack(appCommitHash, appVkHash)
+	if err != nil {
+		log.Errorf("failed to pack mock proof: %s", err)
+		return
+	}
+	proof := hexutil.Encode(proofBytes)
+	proveRequest.Status = ProveStatusSuccess
+	proveRequest.Proof = proof
+	err = s.setProveRequest(proofId, proveRequest)
+	if err != nil {
+		log.Errorln("failed to set proof:", err.Error())
+	}
+	err = s.removeJob(proofId)
+	if err != nil {
+		log.Errorln("removeJob err:", err.Error())
+	}
+	log.Infof("prove success, proof ID: %s\n", proofId)
 }
 
 func (s *server) doProveHelper(proofId string, proveRequest *ProveRequest, witness witness.Witness) {
+
 	proof, err := s.prove(witness)
 	if err != nil {
 		s.markProofFailed(proofId, proveRequest, err)
 		return
 	}
+
 	proveRequest.Status = ProveStatusSuccess
 	proveRequest.Proof = proof
 	err = s.setProveRequest(proofId, proveRequest)
