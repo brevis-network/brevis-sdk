@@ -64,7 +64,6 @@ type ProveRequest struct {
 	Proof          string `json:"proof"`
 	AppCircuitInfo []byte `json:"app_circuit_info"`
 	Err            string `json:"err"`
-	UseMockProof   *bool  `json:"use_mock_proof,omitempty"`
 }
 
 type server struct {
@@ -94,6 +93,8 @@ type server struct {
 
 	// rate limiter to ensure only a limited number of prove actions can run at a time
 	proveRateLimiter chan struct{}
+
+	useMockProof bool
 }
 
 // NewService creates a new prover server instance that automatically manages
@@ -253,6 +254,7 @@ func newServer(appCircuit sdk.AppCircuit, config ServiceConfig, srcChainConfigs 
 		proveAsyncSingleFlight: singleflight.Group{},
 		jobsLock:               sync.Mutex{},
 		proveRateLimiter:       make(chan struct{}, concurrentProveLimit),
+		useMockProof:           config.UseMockProof,
 	}, nil
 }
 
@@ -599,7 +601,7 @@ func (s *server) buildInputStage2AndProve(proofId string, brevisApp *sdk.BrevisA
 	if setProofErr != nil {
 		log.Errorln("failed to set proof:", setProofErr.Error())
 	}
-	if proveRequest.UseMockProof != nil && *proveRequest.UseMockProof {
+	if s.useMockProof {
 		s.genMockProof(proofId, proveRequest)
 	} else {
 		s.doProveHelper(proofId, proveRequest, witness)
@@ -631,7 +633,7 @@ func (s *server) continueProve(proofId string, proveRequest *ProveRequest) {
 		return
 	}
 
-	if proveRequest.UseMockProof != nil && *proveRequest.UseMockProof {
+	if s.useMockProof {
 		s.genMockProof(proofId, proveRequest)
 	} else {
 		s.doProveHelper(proofId, proveRequest, witness)
