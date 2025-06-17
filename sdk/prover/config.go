@@ -41,9 +41,6 @@ type ServiceConfig struct {
 
 	// ConcurrentProveLimit limits the number of concurrent prove actions, defaults to 1
 	ConcurrentProveLimit int `mapstructure:"concurrent_prove_limit" json:"concurrent_prove_limit"`
-
-	// UseMockProof indicates whether to use mock proof for testing purposes.
-	UseMockProof bool `mapstructure:"use_mock_proof" json:"use_mock_proof"`
 }
 
 func (c ServiceConfig) GetSetupDir() string {

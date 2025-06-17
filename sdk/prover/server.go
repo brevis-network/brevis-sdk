@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"os"
@@ -27,8 +26,6 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 
@@ -93,8 +90,6 @@ type server struct {
 
 	// rate limiter to ensure only a limited number of prove actions can run at a time
 	proveRateLimiter chan struct{}
-
-	useMockProof bool
 }
 
 // NewService creates a new prover server instance that automatically manages
@@ -254,7 +249,6 @@ func newServer(appCircuit sdk.AppCircuit, config ServiceConfig, srcChainConfigs 
 		proveAsyncSingleFlight: singleflight.Group{},
 		jobsLock:               sync.Mutex{},
 		proveRateLimiter:       make(chan struct{}, concurrentProveLimit),
-		useMockProof:           config.UseMockProof,
 	}, nil
 }
 
@@ -277,12 +271,12 @@ func (s *server) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkpro
 			log.Errorf("failed to close dataStore: %s", err.Error())
 		}
 	}()
-	input, guest, witnessStr, protoErr := s.buildInput(brevisApp, req)
+	input, guest, witnessStr, protoErr := buildInput(s.appCircuit, brevisApp, req)
 	if protoErr != nil {
 		return errRes(protoErr)
 	}
 
-	witness, _, err := s.genWitness(input, guest)
+	witness, _, err := genWitness(input, guest)
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_INVALID_INPUT, "failed to generate witness: %s", err.Error()))
 	}
@@ -338,7 +332,7 @@ func (s *server) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest) (*s
 		if err != nil {
 			return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to build circuit input stage 1: %s", err.Error()))
 		}
-		inputStage1, err := s.buildInputStage1(brevisApp, req)
+		inputStage1, err := buildInputStage1(s.appCircuit, brevisApp, req)
 		if err != nil {
 			return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to build circuit input stage 1: %s", err.Error()))
 		}
@@ -444,95 +438,6 @@ func (s *server) DeleteProof(ctx context.Context, req *sdkproto.DeleteProofReque
 	return &sdkproto.DeleteProofResponse{}, nil
 }
 
-func (s *server) buildInputStage1(brevisApp *sdk.BrevisApp, req *sdkproto.ProveRequest) (input *sdk.CircuitInput, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("panic, recovered value: %v", r)
-		}
-	}()
-
-	// Add data
-	for _, receipt := range req.Receipts {
-		sdkReceipt, err := convertProtoReceiptToSdkReceipt(receipt.Data)
-		if err != nil {
-			return nil, fmt.Errorf("convertProtoReceiptToSdkReceipt err: %w", err)
-		}
-		brevisApp.AddReceipt(sdkReceipt, int(receipt.Index))
-	}
-	for _, storage := range req.Storages {
-		sdkStorage, err := convertProtoStorageToSdkStorage(storage.Data)
-		if err != nil {
-			return nil, fmt.Errorf("convertProtoReceiptToSdkReceipt err: %w", err)
-		}
-		brevisApp.AddStorage(sdkStorage, int(storage.Index))
-	}
-	for _, transaction := range req.Transactions {
-		sdkTx, err := convertProtoTxToSdkTx(transaction.Data)
-		if err != nil {
-			return nil, fmt.Errorf("convertProtoTxToSdkTx err: %w", err)
-		}
-		brevisApp.AddTransaction(sdkTx, int(transaction.Index))
-	}
-	inputStage1, err := brevisApp.BuildCircuitInputStage1(s.appCircuit)
-	if err != nil {
-		return nil, fmt.Errorf("BuildCircuitInputStage1 err: %w", err)
-	}
-	return &inputStage1, nil
-}
-
-func (s *server) buildInputStage2(brevisApp *sdk.BrevisApp, req *sdkproto.ProveRequest, inputStage1 *sdk.CircuitInput) (*sdk.CircuitInput, sdk.AppCircuit, string, error) {
-	guest, err := assignCustomInput(s.appCircuit, req.CustomInput)
-	if err != nil {
-		return nil, nil, "", fmt.Errorf("assignCustomInput err: %w", err)
-	}
-
-	input, err := brevisApp.BuildCircuitInputStage2(guest, *inputStage1)
-	if err != nil {
-		return nil, nil, "", fmt.Errorf("BuildCircuitInputStage2 err: %w", err)
-	}
-
-	_, publicWitness, err := sdk.NewFullWitness(guest, input)
-	if err != nil {
-		return nil, nil, "", fmt.Errorf("NewFullWitness err: %w", err)
-	}
-
-	var witnessBuffer bytes.Buffer
-	witnessData := io.Writer(&witnessBuffer)
-	_, err = publicWitness.WriteTo(witnessData)
-	if err != nil {
-		return nil, nil, "", fmt.Errorf("publicWitness.WriteTo err: %w", err)
-	}
-	witness := fmt.Sprintf("0x%x", witnessBuffer.Bytes())
-
-	return &input, guest, witness, nil
-}
-
-func (s *server) buildInput(brevisApp *sdk.BrevisApp, req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.AppCircuit, string, *sdkproto.Err) {
-	makeErr := func(code sdkproto.ErrCode, format string, args ...any) (*sdk.CircuitInput, sdk.AppCircuit, string, *sdkproto.Err) {
-		log.Errorf(format, args...)
-		log.Errorln()
-		return nil, nil, "", newErr(code, format, args...)
-	}
-
-	inputStage1, err := s.buildInputStage1(brevisApp, req)
-	if err != nil {
-		return makeErr(sdkproto.ErrCode_ERROR_INVALID_INPUT, "buildInputStage1 err: %s", err.Error())
-	}
-	input, appCircuit, witness, err := s.buildInputStage2(brevisApp, req, inputStage1)
-	if err != nil {
-		return makeErr(sdkproto.ErrCode_ERROR_INVALID_INPUT, "buildInputStage2 err: %s", err.Error())
-	}
-	return input, appCircuit, witness, nil
-}
-
-func (s *server) genWitness(input *sdk.CircuitInput, guest sdk.AppCircuit) (witness.Witness, witness.Witness, error) {
-	witness, publicWitness, err := sdk.NewFullWitness(guest, *input)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get full witness: %w", err)
-	}
-	return witness, publicWitness, nil
-}
-
 func (s *server) prove(witness witness.Witness) (string, error) {
 	s.proveRateLimiter <- struct{}{}
 	proof, err := sdk.Prove(s.ccs, s.pk, witness)
@@ -556,7 +461,7 @@ func (s *server) buildInputAndProve(proofId string, proveRequest *ProveRequest, 
 		s.markProofFailed(proofId, proveRequest, err)
 		return
 	}
-	inputStage1, err := s.buildInputStage1(brevisApp, requestProto)
+	inputStage1, err := buildInputStage1(s.appCircuit, brevisApp, requestProto)
 	if err != nil {
 		s.markProofFailed(proofId, proveRequest, err)
 		return
@@ -572,12 +477,12 @@ func (s *server) buildInputStage2AndProve(proofId string, brevisApp *sdk.BrevisA
 		}
 	}()
 
-	input, guest, witnessStr, err := s.buildInputStage2(brevisApp, requestProto, inputStage1)
+	input, guest, witnessStr, err := buildInputStage2(s.appCircuit, brevisApp, requestProto, inputStage1)
 	if err != nil {
 		s.markProofFailed(proofId, proveRequest, err)
 		return
 	}
-	witness, _, err := s.genWitness(input, guest)
+	witness, _, err := genWitness(input, guest)
 	if err != nil {
 		s.markProofFailed(proofId, proveRequest, err)
 		return
@@ -601,11 +506,7 @@ func (s *server) buildInputStage2AndProve(proofId string, brevisApp *sdk.BrevisA
 	if setProofErr != nil {
 		log.Errorln("failed to set proof:", setProofErr.Error())
 	}
-	if s.useMockProof {
-		s.genMockProof(proofId, proveRequest)
-	} else {
-		s.doProveHelper(proofId, proveRequest, witness)
-	}
+	s.doProveHelper(proofId, proveRequest, witness)
 }
 
 func (s *server) continueProve(proofId string, proveRequest *ProveRequest) {
@@ -632,48 +533,7 @@ func (s *server) continueProve(proofId string, proveRequest *ProveRequest) {
 		s.markProofFailed(proofId, proveRequest, err)
 		return
 	}
-
-	if s.useMockProof {
-		s.genMockProof(proofId, proveRequest)
-	} else {
-		s.doProveHelper(proofId, proveRequest, witness)
-	}
-
-}
-
-func (s *server) genMockProof(proofId string, proveRequest *ProveRequest) {
-	// Generate a mock proof
-	appCircuitInfo := &commonproto.AppCircuitInfo{}
-	err := proto.Unmarshal(proveRequest.AppCircuitInfo, appCircuitInfo)
-	if err != nil {
-		log.Errorf("failed to unmarshal app circuit info: %s", err)
-		return
-	}
-
-	ty, _ := abi.NewType("bytes32", "", nil)
-	args := abi.Arguments{
-		{Type: ty},
-		{Type: ty},
-	}
-	appCommitHash := common.HexToHash(appCircuitInfo.OutputCommitment)
-	appVkHash := common.HexToHash(s.vkHash)
-	proofBytes, err := args.Pack(appCommitHash, appVkHash)
-	if err != nil {
-		log.Errorf("failed to pack mock proof: %s", err)
-		return
-	}
-	proof := hexutil.Encode(proofBytes)
-	proveRequest.Status = ProveStatusSuccess
-	proveRequest.Proof = proof
-	err = s.setProveRequest(proofId, proveRequest)
-	if err != nil {
-		log.Errorln("failed to set proof:", err.Error())
-	}
-	err = s.removeJob(proofId)
-	if err != nil {
-		log.Errorln("removeJob err:", err.Error())
-	}
-	log.Infof("prove success, proof ID: %s\n", proofId)
+	s.doProveHelper(proofId, proveRequest, witness)
 }
 
 func (s *server) doProveHelper(proofId string, proveRequest *ProveRequest, witness witness.Witness) {
