@@ -2,8 +2,12 @@ package prover
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/brevis-network/brevis-sdk/sdk"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/commonproto"
@@ -12,9 +16,10 @@ import (
 	"github.com/celer-network/goutils/log"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/philippgille/gokv"
-	"golang.org/x/sync/singleflight"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 )
@@ -37,10 +42,7 @@ type mockServer struct {
 	vkString string
 	vkHash   string
 
-	proveAsyncSingleFlight singleflight.Group
-
 	grpcServer *grpc.Server
-
 	proofStore gokv.Store
 }
 
@@ -65,10 +67,8 @@ func newMockServer(appCircuit sdk.AppCircuit, config ServiceConfig, srcChainConf
 			return nil, fmt.Errorf("os.Hostname err: %w", err)
 		}
 	}
-	persistenceType := config.ProofPersistenceType
-	if persistenceType == "" {
-		persistenceType = "syncmap"
-	}
+	// Enfore mock use file type to store proofs
+	persistenceType := "file"
 	proofStore, err := store.InitStore(persistenceType, config.ProofPersistenceOptions)
 	if err != nil {
 		return nil, fmt.Errorf("InitStore error: %w", err)
@@ -100,13 +100,12 @@ func newMockServer(appCircuit sdk.AppCircuit, config ServiceConfig, srcChainConf
 	}
 
 	return &mockServer{
-		proverId:               proverId,
-		appCircuit:             appCircuit,
-		appTemplates:           appTemplates,
-		vkString:               "0x0000000000000000000000000000000000000000000000000000000000000000",
-		vkHash:                 "0x0000000000000000000000000000000000000000000000000000000000000000", // hardcode mock vk hash
-		proveAsyncSingleFlight: singleflight.Group{},
-		proofStore:             proofStore,
+		proverId:     proverId,
+		appCircuit:   appCircuit,
+		appTemplates: appTemplates,
+		vkString:     "0x0000000000000000000000000000000000000000000000000000000000000000",
+		vkHash:       "0x0000000000000000000000000000000000000000000000000000000000000000", // hardcode mock vk hash
+		proofStore:   proofStore,
 	}, nil
 }
 
@@ -213,7 +212,54 @@ func (s *mockServer) getProof(proveRequest *ProveRequest) ([]byte, error) {
 // Prove synchronously proves an app and returns the proof. This can be a long blocking call so use with caution.
 // ProveAsync should be used in most cases.
 func (s *mockServer) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sdkproto.ProveResponse, error) {
-	return nil, nil
+	log.Debugln("received synchronous prove request", req.String())
+
+	errRes := func(protoErr *sdkproto.Err) (*sdkproto.ProveResponse, error) {
+		return &sdkproto.ProveResponse{Err: protoErr, CircuitInfo: nil}, nil
+	}
+
+	brevisApp, err := s.newBrevisApp(req.SrcChainId)
+	if err != nil {
+		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to create BrevisApp: %s", err.Error()))
+	}
+	defer func() {
+		err := brevisApp.CloseDataStore()
+		if err != nil {
+			log.Errorf("failed to close dataStore: %s", err.Error())
+		}
+	}()
+	input, _, witnessStr, protoErr := buildInput(s.appCircuit, brevisApp, req)
+	if protoErr != nil {
+		return errRes(protoErr)
+	}
+
+	reqBytes, err := proto.Marshal(req)
+	if err != nil {
+		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "proto.Marshal err: %s", err.Error()))
+	}
+	appCircuitInfo := buildPartialAppCircuitInfoForGatewayRequest(s.appCircuit, input, s.vkHash)
+	appCircuitInfoBytes, err := proto.Marshal(appCircuitInfo)
+	if err != nil {
+		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "proto.Marshal for circuit info err: %s", err.Error()))
+	}
+
+	proveRequest := &ProveRequest{
+		Status:         ProveStatusInProgress,
+		SrcChainId:     req.SrcChainId,
+		Request:        reqBytes,
+		AppCircuitInfo: appCircuitInfoBytes,
+	}
+
+	proof, err := s.getProof(proveRequest)
+	if err != nil {
+		return errRes(newErr(sdkproto.ErrCode_ERROR_FAILED_TO_PROVE, "failed to prove: %s", err.Error()))
+	}
+
+	proofHex := hexutil.Encode(proof)
+	return &sdkproto.ProveResponse{
+		Proof:       proofHex,
+		CircuitInfo: buildFullAppCircuitInfo(s.appCircuit, *input, s.vkString, s.vkHash, witnessStr),
+	}, nil
 }
 
 // ProveAsync returns a proof ID and triggers a prove action asynchronously. The status, app circuit info and proof can be
@@ -325,10 +371,43 @@ func (s *mockServer) deleteProveRequest(id string) error {
 	if err != nil {
 		return fmt.Errorf("store.Delete err: %w", err)
 	}
+	return nil
+}
 
-	if err != nil {
-		return fmt.Errorf("removeJob err: %w", err)
+func (s *MockService) Serve(bind string, grpcPort, restPort uint) error {
+	stopCtx, done := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer done()
+	errG, errGCtx := errgroup.WithContext(context.Background())
+
+	errG.Go(func() error { return s.serveGrpc(bind, grpcPort) })
+	errG.Go(func() error { return serveGrpcGateway(bind, grpcPort, restPort) })
+
+	var err error
+	select {
+	case <-errGCtx.Done():
+		err = errGCtx.Err()
+	case <-stopCtx.Done():
 	}
 
+	log.Infoln("Shutting down...")
+	s.svr.grpcServer.GracefulStop()
+	proofStoreCloseErr := s.svr.proofStore.Close()
+	return errors.Join(err, proofStoreCloseErr)
+}
+
+func (s *MockService) serveGrpc(bind string, port uint) error {
+	size := 1024 * 1024 * 100
+	s.svr.grpcServer = grpc.NewServer(grpc.MaxSendMsgSize(size),
+		grpc.MaxRecvMsgSize(size))
+	sdkproto.RegisterProverServer(s.svr.grpcServer, s.svr)
+	address := fmt.Sprintf("%s:%d", bind, port)
+	lis, err := net.Listen("tcp", address)
+	if err != nil {
+		return fmt.Errorf("failed to start prover server: %w", err)
+	}
+	log.Infoln(">> serving prover gRPC at port", port)
+	if err = s.svr.grpcServer.Serve(lis); err != nil {
+		return fmt.Errorf("grpc server crashed: %w", err)
+	}
 	return nil
 }
