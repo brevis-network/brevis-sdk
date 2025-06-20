@@ -121,16 +121,41 @@ func packBitsToInt(bits []uint, bitSize int) []*big.Int {
 }
 
 // flips the order of the groups of groupSize. e.g. [1,2,3,4,5,6] with groupSize 2 is flipped to [5,6,3,4,1,2]
+// Optimized version that avoids unnecessary copying and more efficiently handles large arrays
 func flipByGroups[T any](in []T, groupSize int) []T {
-	res := make([]T, len(in))
-	copy(res, in)
-	for i := 0; i < len(res)/groupSize/2; i++ {
-		for j := 0; j < groupSize; j++ {
-			a := i*groupSize + j
-			b := len(res) - (i+1)*groupSize + j
-			res[a], res[b] = res[b], res[a]
-		}
+	// Input validation
+	if groupSize <= 0 {
+		return in
 	}
+	
+	length := len(in)
+	if length <= groupSize {
+		res := make([]T, length)
+		copy(res, in)
+		return res
+	}
+	
+	// Calculate number of complete groups
+	numGroups := length / groupSize
+	
+	// Create result array
+	res := make([]T, length)
+	
+	// Process complete groups
+	for i := 0; i < numGroups; i++ {
+		srcStartIdx := i * groupSize
+		dstStartIdx := (numGroups - i - 1) * groupSize
+		
+		// Copy entire group at once instead of element by element
+		copy(res[dstStartIdx:dstStartIdx+groupSize], in[srcStartIdx:srcStartIdx+groupSize])
+	}
+	
+	// Process remaining elements (if length is not a multiple of groupSize)
+	remainder := length % groupSize
+	if remainder > 0 {
+		copy(res[numGroups*groupSize:], in[numGroups*groupSize:])
+	}
+	
 	return res
 }
 
