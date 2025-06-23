@@ -68,8 +68,7 @@ func newMockServer(appCircuit sdk.AppCircuit, config ServiceConfig, srcChainConf
 		}
 	}
 	// Enfore mock use file type to store proofs
-	persistenceType := "file"
-	proofStore, err := store.InitStore(persistenceType, config.ProofPersistenceOptions)
+	proofStore, err := store.InitStore("file", config.ProofPersistenceOptions)
 	if err != nil {
 		return nil, fmt.Errorf("InitStore error: %w", err)
 	}
@@ -82,8 +81,7 @@ func newMockServer(appCircuit sdk.AppCircuit, config ServiceConfig, srcChainConf
 			SrcChainId:           srcChainId,
 			RpcUrl:               srcChainConfig.RpcUrl,
 			GatewayUrl:           config.GatewayUrl,
-			OutDir:               config.SetupDir,
-			PersistenceType:      config.DataPersistenceType,
+			PersistenceType:      "file",
 			PersistenceOptions:   config.DataPersistenceOptions,
 			ConcurrentFetchLimit: config.ConcurrentFetchLimit,
 		}
@@ -128,7 +126,7 @@ func (s *mockServer) getProveRequest(id string) (bool, *ProveRequest, error) {
 	return found, &req, nil
 }
 
-func (s *mockServer) buildInputStage2AndProve(brevisApp *sdk.BrevisApp, proveRequest *ProveRequest, requestProto *sdkproto.ProveRequest, inputStage1 *sdk.CircuitInput) {
+func (s *mockServer) buildInputStage2AndProve(brevisApp *sdk.BrevisApp, proveRequest *ProveRequest, requestProto *sdkproto.ProveRequest, inputStage1 *sdk.CircuitInput) (*string, error) {
 	defer func() {
 		err := brevisApp.CloseDataStore()
 		if err != nil {
@@ -138,21 +136,21 @@ func (s *mockServer) buildInputStage2AndProve(brevisApp *sdk.BrevisApp, proveReq
 
 	input, guest, witnessStr, err := buildInputStage2(s.appCircuit, brevisApp, requestProto, inputStage1)
 	if err != nil {
-		return
+		return nil, err
 	}
 	witness, _, err := genWitness(input, guest)
 	if err != nil {
-		return
+		return nil, err
 	}
 	witnessBytes, err := witness.MarshalBinary()
 	if err != nil {
-		return
+		return nil, err
 	}
 	proveRequest.Witness = witnessBytes
 	appCircuitInfo := buildFullAppCircuitInfo(s.appCircuit, *input, s.vkString, s.vkHash, witnessStr)
 	appCircuitInfoBytes, err := proto.Marshal(appCircuitInfo)
 	if err != nil {
-		return
+		return nil, fmt.Errorf("proto.Marshal for circuit info err: %w", err)
 	}
 	// Transition to ProveStatusInProgress once we have complete AppCircuitInfo
 	proveRequest.Status = ProveStatusInProgress
@@ -162,7 +160,7 @@ func (s *mockServer) buildInputStage2AndProve(brevisApp *sdk.BrevisApp, proveReq
 	proofBytes, err := s.getProof(proveRequest)
 	if err != nil {
 		log.Errorf("failed to get proof: %s", err.Error())
-		return
+		return nil, fmt.Errorf("failed to get proof: %w", err)
 	}
 	proof := common.Bytes2Hex(proofBytes)
 	proveRequest.Proof = proof
@@ -171,7 +169,9 @@ func (s *mockServer) buildInputStage2AndProve(brevisApp *sdk.BrevisApp, proveReq
 	setProofErr := s.setProveRequest(proofId, proveRequest)
 	if setProofErr != nil {
 		log.Errorln("failed to set proof:", setProofErr.Error())
+		return nil, fmt.Errorf("failed to set proof: %w", setProofErr)
 	}
+	return &proofId, nil
 }
 
 func (s *mockServer) newBrevisApp(srcChainId uint64) (*sdk.BrevisApp, error) {
@@ -301,8 +301,13 @@ func (s *mockServer) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest)
 		AppCircuitInfo: appCircuitInfoBytes,
 	}
 
-	go s.buildInputStage2AndProve(brevisApp, proveRequest, req, inputStage1)
+	proofId, err := s.buildInputStage2AndProve(brevisApp, proveRequest, req, inputStage1)
+	if err != nil {
+		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to build input stage 2 and prove: %s", err.Error()))
+	}
 
+	log.Debug("ProveAsync completed successfully, proof ID:", *proofId)
+	resp.ProofId = *proofId
 	return &resp, nil
 }
 
