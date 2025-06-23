@@ -11,6 +11,7 @@ import (
 	"github.com/brevis-network/brevis-sdk/sdk"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 func assignCustomInput(app sdk.AppCircuit, input *sdkproto.CustomInput) (sdk.AppCircuit, error) {
@@ -55,7 +56,7 @@ func assignCustomInput(app sdk.AppCircuit, input *sdkproto.CustomInput) (sdk.App
 	for k, raw := range customInput {
 		// capitalize the object key because all fields in an AppCircuit are exported
 		k = strings.ToUpper(fmt.Sprintf("%c", k[0])) + k[1:]
-
+		log.Debug("assigning custom input", "field", k, "value", raw)
 		field := appStruct.FieldByName(k)
 		if field == (reflect.Value{}) {
 			return makeErr(fmt.Sprintf("received custom input field that does not exist in %s: %s", structName, k))
