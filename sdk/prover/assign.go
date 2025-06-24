@@ -133,6 +133,8 @@ func convertType(expect, actual reflect.Value, name string) (reflect.Value, refl
 		actual = reflect.ValueOf(actual.Interface().(sdk.Uint32))
 	case sdk.Uint64Type:
 		actual = reflect.ValueOf(actual.Interface().(sdk.Uint64))
+	case sdk.OutputType:
+		actual = reflect.ValueOf(actual.Interface().(sdk.Output))
 	default:
 		return reflect.Value{}, reflect.Value{}, fmt.Errorf("mismatch types: json has %s but %s has %s", at, name, et)
 	}
