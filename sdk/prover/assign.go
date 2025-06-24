@@ -199,6 +199,34 @@ func parseCircuitValue(value interface{}) (interface{}, error) {
 	case sdk.Bytes32Type:
 		bytes := common.FromHex(data.(string))
 		return sdk.ConstFromBigEndianBytes(bytes), nil
+	case sdk.OutputType:
+		// data is expected to be a string like "{1080343079030255534001097595775312461949911275264 1707864}"
+		dataStr, ok := data.(string)
+		if !ok {
+			return nil, fmt.Errorf("invalid Output data format: %v", data)
+		}
+		// Remove braces and split
+		dataStr = strings.Trim(dataStr, "{}")
+		parts := strings.Fields(dataStr)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid Output data format: %v", data)
+		}
+
+		keyDecimal := new(big.Int)
+		_, ok = keyDecimal.SetString(parts[0], 10)
+		if !ok {
+			return nil, fmt.Errorf("invalid Output value[0]: %s", parts[0])
+		}
+
+		valueDecimal := new(big.Int)
+		_, ok = valueDecimal.SetString(parts[1], 10)
+		if !ok {
+			return nil, fmt.Errorf("invalid Output value[1]: %s", parts[1])
+		}
+		return sdk.Output{
+			Key:   sdk.ConstUint248(keyDecimal),
+			Value: sdk.ConstUint248(valueDecimal),
+		}, nil
 	default:
 		return nil, fmt.Errorf("unsupported circuit value type %s", typ)
 	}

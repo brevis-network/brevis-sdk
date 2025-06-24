@@ -15,6 +15,7 @@ const (
 	Bytes32Type = "Bytes32"
 	Uint32Type  = "Uint32"
 	Uint64Type  = "Uint64"
+	OutputType  = "Output"
 )
 
 // MaxUint248 is the largest safe number for uint248 type
