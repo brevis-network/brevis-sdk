@@ -11,6 +11,7 @@ import (
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/multicommit"
 	"github.com/consensys/gnark/test"
+	"github.com/labstack/gommon/log"
 )
 
 type AppCircuit interface {
@@ -359,6 +360,7 @@ func CalMerkleRoot(gapi frontend.API, datas []frontend.Variable) (frontend.Varia
 // GetCircuitName returns the circuit name. If the circuit implements CircuitNamer,
 // it uses the custom name; otherwise, it returns a default name.
 func GetCircuitName(circuit AppCircuit) string {
+	log.Debugf("GetCircuitName called for circuit: %T", circuit)
 	if namer, ok := circuit.(CircuitNamer); ok {
 		return namer.CircuitName()
 	}

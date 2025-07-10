@@ -231,6 +231,7 @@ func (s *mockServer) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sd
 
 	var appCircuit sdk.AppCircuit
 	for _, ac := range s.appCircuits {
+		log.Debugf("checking circuit: %s", sdk.GetCircuitName(ac))
 		if sdk.GetCircuitName(ac) == req.CircuitName {
 			appCircuit = ac
 			break
