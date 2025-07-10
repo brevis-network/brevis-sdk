@@ -18,6 +18,11 @@ type AppCircuit interface {
 	Allocate() (maxReceipts, maxStorage, maxTransactions int)
 }
 
+// CircuitNamer is an optional interface that can be implemented to provide a custom circuit name
+type CircuitNamer interface {
+	CircuitName() string
+}
+
 type HostCircuit struct {
 	api frontend.API
 
@@ -349,4 +354,14 @@ func CalMerkleRoot(gapi frontend.API, datas []frontend.Variable) (frontend.Varia
 		}
 		elementCount = elementCount / 2
 	}
+}
+
+// GetCircuitName returns the circuit name. If the circuit implements CircuitNamer,
+// it uses the custom name; otherwise, it returns a default name.
+func GetCircuitName(circuit AppCircuit) string {
+	if namer, ok := circuit.(CircuitNamer); ok {
+		return namer.CircuitName()
+	}
+	// Return a default name based on the type
+	return fmt.Sprintf("%T", circuit)
 }

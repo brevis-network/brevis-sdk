@@ -34,7 +34,7 @@ type mockServer struct {
 	// A unique identifier for this server, defaults to hostname
 	proverId string
 
-	appCircuit sdk.AppCircuit
+	appCircuits []sdk.AppCircuit
 	// chain ID => *BrevisApp
 	// Placeholder for common dependencies shared by all BrevisApp instances
 	appTemplates map[uint64]*sdk.BrevisApp
@@ -50,15 +50,15 @@ type mockServer struct {
 // compilation & setup, and serves as a GRPC server that interoperates with
 // brevis sdk in other languages.
 func NewMockService(
-	app sdk.AppCircuit, config ServiceConfig, srcChainConfigs SourceChainConfigs) (*MockService, error) {
-	svr, err := newMockServer(app, config, srcChainConfigs)
+	appCircuits []sdk.AppCircuit, config ServiceConfig, srcChainConfigs SourceChainConfigs) (*MockService, error) {
+	svr, err := newMockServer(appCircuits, config, srcChainConfigs)
 	if err != nil {
 		return nil, fmt.Errorf("newServer err: %w", err)
 	}
 	return &MockService{svr: svr}, nil
 }
 
-func newMockServer(appCircuit sdk.AppCircuit, config ServiceConfig, srcChainConfigs SourceChainConfigs) (*mockServer, error) {
+func newMockServer(appCircuits []sdk.AppCircuit, config ServiceConfig, srcChainConfigs SourceChainConfigs) (*mockServer, error) {
 	var err error
 	proverId := config.ProverId
 	if proverId == "" {
@@ -99,7 +99,7 @@ func newMockServer(appCircuit sdk.AppCircuit, config ServiceConfig, srcChainConf
 
 	return &mockServer{
 		proverId:     proverId,
-		appCircuit:   appCircuit,
+		appCircuits:  appCircuits,
 		appTemplates: appTemplates,
 		vkString:     "0x0000000000000000000000000000000000000000000000000000000000000000",
 		vkHash:       "0x0000000000000000000000000000000000000000000000000000000000000000", // hardcode mock vk hash
@@ -126,7 +126,7 @@ func (s *mockServer) getProveRequest(id string) (bool, *ProveRequest, error) {
 	return found, &req, nil
 }
 
-func (s *mockServer) buildInputStage2AndProve(brevisApp *sdk.BrevisApp, proveRequest *ProveRequest, requestProto *sdkproto.ProveRequest, inputStage1 *sdk.CircuitInput) (*string, error) {
+func (s *mockServer) buildInputStage2AndProve(brevisApp *sdk.BrevisApp, appCircuit sdk.AppCircuit, proveRequest *ProveRequest, requestProto *sdkproto.ProveRequest, inputStage1 *sdk.CircuitInput) (*string, error) {
 	defer func() {
 		err := brevisApp.CloseDataStore()
 		if err != nil {
@@ -134,7 +134,7 @@ func (s *mockServer) buildInputStage2AndProve(brevisApp *sdk.BrevisApp, proveReq
 		}
 	}()
 
-	input, guest, witnessStr, err := buildInputStage2(s.appCircuit, brevisApp, requestProto, inputStage1)
+	input, guest, witnessStr, err := buildInputStage2(appCircuit, brevisApp, requestProto, inputStage1)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +147,7 @@ func (s *mockServer) buildInputStage2AndProve(brevisApp *sdk.BrevisApp, proveReq
 		return nil, err
 	}
 	proveRequest.Witness = witnessBytes
-	appCircuitInfo := buildFullAppCircuitInfo(s.appCircuit, *input, s.vkString, s.vkHash, witnessStr)
+	appCircuitInfo := buildFullAppCircuitInfo(appCircuit, *input, s.vkString, s.vkHash, witnessStr)
 	appCircuitInfoBytes, err := proto.Marshal(appCircuitInfo)
 	if err != nil {
 		return nil, fmt.Errorf("proto.Marshal for circuit info err: %w", err)
@@ -228,7 +228,20 @@ func (s *mockServer) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sd
 			log.Errorf("failed to close dataStore: %s", err.Error())
 		}
 	}()
-	input, _, witnessStr, protoErr := buildInput(s.appCircuit, brevisApp, req)
+
+	var appCircuit sdk.AppCircuit
+	for _, ac := range s.appCircuits {
+		if sdk.GetCircuitName(ac) == req.CircuitName {
+			appCircuit = ac
+			break
+		}
+	}
+
+	if appCircuit == nil {
+		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "unknown circuit: %s", req.CircuitName))
+	}
+
+	input, _, witnessStr, protoErr := buildInput(appCircuit, brevisApp, req)
 	if protoErr != nil {
 		return errRes(protoErr)
 	}
@@ -237,7 +250,7 @@ func (s *mockServer) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sd
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "proto.Marshal err: %s", err.Error()))
 	}
-	appCircuitInfo := buildPartialAppCircuitInfoForGatewayRequest(s.appCircuit, input, s.vkHash)
+	appCircuitInfo := buildPartialAppCircuitInfoForGatewayRequest(appCircuit, input, s.vkHash)
 	appCircuitInfoBytes, err := proto.Marshal(appCircuitInfo)
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "proto.Marshal for circuit info err: %s", err.Error()))
@@ -258,7 +271,7 @@ func (s *mockServer) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sd
 	proofHex := hexutil.Encode(proof)
 	return &sdkproto.ProveResponse{
 		Proof:       proofHex,
-		CircuitInfo: buildFullAppCircuitInfo(s.appCircuit, *input, s.vkString, s.vkHash, witnessStr),
+		CircuitInfo: buildFullAppCircuitInfo(appCircuit, *input, s.vkString, s.vkHash, witnessStr),
 	}, nil
 }
 
@@ -273,11 +286,23 @@ func (s *mockServer) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest)
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to build circuit input stage 1: %s", err.Error()))
 	}
-	inputStage1, err := buildInputStage1(s.appCircuit, brevisApp, req)
+	var appCircuit sdk.AppCircuit
+	for _, ac := range s.appCircuits {
+		if sdk.GetCircuitName(ac) == req.CircuitName {
+			appCircuit = ac
+			break
+		}
+	}
+
+	if appCircuit == nil {
+		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "unknown circuit: %s", req.CircuitName))
+	}
+
+	inputStage1, err := buildInputStage1(appCircuit, brevisApp, req)
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to build circuit input stage 1: %s", err.Error()))
 	}
-	appCircuitInfo := buildPartialAppCircuitInfoForGatewayRequest(s.appCircuit, inputStage1, s.vkHash)
+	appCircuitInfo := buildPartialAppCircuitInfoForGatewayRequest(appCircuit, inputStage1, s.vkHash)
 	resp.CircuitInfo = appCircuitInfo
 
 	requestBytes, err := proto.Marshal(req)
@@ -301,7 +326,7 @@ func (s *mockServer) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest)
 		AppCircuitInfo: appCircuitInfoBytes,
 	}
 
-	proofId, err := s.buildInputStage2AndProve(brevisApp, proveRequest, req, inputStage1)
+	proofId, err := s.buildInputStage2AndProve(brevisApp, appCircuit, proveRequest, req, inputStage1)
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to build input stage 2 and prove: %s", err.Error()))
 	}
