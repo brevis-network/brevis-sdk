@@ -51,6 +51,7 @@ type mockServer struct {
 // brevis sdk in other languages.
 func NewMockService(
 	appCircuits []sdk.AppCircuit, config ServiceConfig, srcChainConfigs SourceChainConfigs) (*MockService, error) {
+	log.Debugf("New MockService called with %d app circuits", len(appCircuits))
 	svr, err := newMockServer(appCircuits, config, srcChainConfigs)
 	if err != nil {
 		return nil, fmt.Errorf("newServer err: %w", err)
@@ -287,8 +288,10 @@ func (s *mockServer) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest)
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to build circuit input stage 1: %s", err.Error()))
 	}
+	log.Debugf("appCircuits length: %d", len(s.appCircuits))
 	var appCircuit sdk.AppCircuit
 	for _, ac := range s.appCircuits {
+		log.Debugf("checking circuit: %s", sdk.GetCircuitName(ac))
 		if sdk.GetCircuitName(ac) == req.CircuitName {
 			appCircuit = ac
 			break
