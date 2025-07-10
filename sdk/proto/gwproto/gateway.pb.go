@@ -1754,6 +1754,7 @@ type SubmitVKRequest struct {
 	VkRaw         string                 `protobuf:"bytes,2,opt,name=vk_raw,json=vkRaw,proto3" json:"vk_raw,omitempty"`
 	ChainId       uint64                 `protobuf:"varint,3,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
 	TargetChainId uint64                 `protobuf:"varint,4,opt,name=target_chain_id,json=targetChainId,proto3" json:"target_chain_id,omitempty"`
+	ApiKey        string                 `protobuf:"bytes,5,opt,name=api_key,json=apiKey,proto3" json:"api_key,omitempty"` // authentication
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1814,6 +1815,13 @@ func (x *SubmitVKRequest) GetTargetChainId() uint64 {
 		return x.TargetChainId
 	}
 	return 0
+}
+
+func (x *SubmitVKRequest) GetApiKey() string {
+	if x != nil {
+		return x.ApiKey
+	}
+	return ""
 }
 
 type SubmitVKResponse struct {
@@ -1984,12 +1992,13 @@ const file_brevis_gateway_proto_rawDesc = "" +
 	"\x03err\x18\x01 \x01(\v2\x0e.brevis.ErrMsgR\x03err\x12\x18\n" +
 	"\areceipt\x18\x02 \x01(\tR\areceipt\x12\x18\n" +
 	"\astorage\x18\x03 \x01(\tR\astorage\x12\x0e\n" +
-	"\x02tx\x18\x04 \x01(\tR\x02tx\"\x84\x01\n" +
+	"\x02tx\x18\x04 \x01(\tR\x02tx\"\x9d\x01\n" +
 	"\x0fSubmitVKRequest\x12\x17\n" +
 	"\avk_hash\x18\x01 \x01(\tR\x06vkHash\x12\x15\n" +
 	"\x06vk_raw\x18\x02 \x01(\tR\x05vkRaw\x12\x19\n" +
 	"\bchain_id\x18\x03 \x01(\x04R\achainId\x12&\n" +
-	"\x0ftarget_chain_id\x18\x04 \x01(\x04R\rtargetChainId\"4\n" +
+	"\x0ftarget_chain_id\x18\x04 \x01(\x04R\rtargetChainId\x12\x17\n" +
+	"\aapi_key\x18\x05 \x01(\tR\x06apiKey\"4\n" +
 	"\x10SubmitVKResponse\x12 \n" +
 	"\x03err\x18\x01 \x01(\v2\x0e.brevis.ErrMsgR\x03err*\x8a\x01\n" +
 	"\aErrCode\x12\x18\n" +
