@@ -243,7 +243,11 @@ func NewBrevisApp(
 	outDir string,
 	gatewayUrlOverride ...string,
 ) (*BrevisApp, error) {
-	return newBrevisApp(srcChainId, rpcUrl, outDir, "", "", 0, gatewayUrlOverride[0])
+	gatewayUrl := ""
+	if len(gatewayUrlOverride) != 0 {
+		gatewayUrl = gatewayUrlOverride[0]
+	}
+	return newBrevisApp(srcChainId, rpcUrl, outDir, "", "", 0, gatewayUrl)
 }
 
 func newBrevisApp(
