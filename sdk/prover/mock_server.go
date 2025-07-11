@@ -50,16 +50,16 @@ type mockServer struct {
 // compilation & setup, and serves as a GRPC server that interoperates with
 // brevis sdk in other languages.
 func NewMockService(
-	appCircuits []sdk.AppCircuit, config ServiceConfig, srcChainConfigs SourceChainConfigs) (*MockService, error) {
+	appCircuits []sdk.AppCircuit, config ServiceConfig, srcChainConfigs SourceChainConfigs, mockVkhash string) (*MockService, error) {
 	log.Debugf("New MockService called with %d app circuits", len(appCircuits))
-	svr, err := newMockServer(appCircuits, config, srcChainConfigs)
+	svr, err := newMockServer(appCircuits, config, srcChainConfigs, mockVkhash)
 	if err != nil {
 		return nil, fmt.Errorf("newServer err: %w", err)
 	}
 	return &MockService{svr: svr}, nil
 }
 
-func newMockServer(appCircuits []sdk.AppCircuit, config ServiceConfig, srcChainConfigs SourceChainConfigs) (*mockServer, error) {
+func newMockServer(appCircuits []sdk.AppCircuit, config ServiceConfig, srcChainConfigs SourceChainConfigs, mockVkHash string) (*mockServer, error) {
 	var err error
 	proverId := config.ProverId
 	if proverId == "" {
@@ -102,8 +102,8 @@ func newMockServer(appCircuits []sdk.AppCircuit, config ServiceConfig, srcChainC
 		proverId:     proverId,
 		appCircuits:  appCircuits,
 		appTemplates: appTemplates,
-		vkString:     "0x0000000000000000000000000000000000000000000000000000000000000000",
-		vkHash:       "0x0000000000000000000000000000000000000000000000000000000000000000", // hardcode mock vk hash
+		vkString:     mockVkHash,
+		vkHash:       mockVkHash,
 		proofStore:   proofStore,
 	}, nil
 }
