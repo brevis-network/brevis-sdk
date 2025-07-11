@@ -13,9 +13,9 @@ func getStoreCodec(codec string) (encoding.Codec, error) {
 		// Allowed, as gokv will pick its default Codec
 		return nil, nil
 	case "json":
-		return encoding.Gob, nil
-	case "gob":
 		return encoding.JSON, nil
+	case "gob":
+		return encoding.Gob, nil
 	default:
 		return nil, fmt.Errorf("unsupported codec %s", codec)
 	}
