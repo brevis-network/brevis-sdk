@@ -212,23 +212,31 @@ func (s *mockServer) getProof(proveRequest *ProveRequest) ([]byte, error) {
 		log.Errorf("failed to pack mock proof: %s", err)
 		return nil, err
 	}
-	if len(proofBytes) > 0 && s.kafkaUrl != "" {
-		reqStateWriter := brevis_data.NewProveReqWriterClient(s.kafkaUrl)
-		reqStateWriter.WriteEv(context.Background(), brevis_data.ProveReqMsg{
-			QueryPath:        fmt.Sprintf("mockdata-%d", time.Now().Unix()),
-			VkHash:           s.vkHash,
-			LeafCount:        2,
-			ReceiptLeafCount: 2,
-			StorageLeafCount: 0,
-			TxLeafCount:      0,
-			Complete:         true,
-			Ts:               uint64(time.Now().Unix()),
-		})
-		log.Debugf("Sent mock ProveReq to Kafka at %s, vkHash: %s", s.kafkaUrl, s.vkHash)
-	} else {
-		log.Debugf("Skipping sending mock ProveReq to Kafka, kafkaUrl is empty")
-	}
 	return proofBytes, nil
+}
+
+func (s *mockServer) SendProveReqState() error {
+	if s.kafkaUrl == "" {
+		log.Warnln("Skipping sending mock ProveReq to Kafka, kafkaUrl is empty")
+		return nil
+	}
+	reqStateWriter := brevis_data.NewProveReqWriterClient(s.kafkaUrl)
+	err := reqStateWriter.WriteEv(context.Background(), brevis_data.ProveReqMsg{
+		QueryPath:        fmt.Sprintf("mockdata-%d", time.Now().UnixMilli()),
+		VkHash:           s.vkHash,
+		LeafCount:        2,
+		ReceiptLeafCount: 2,
+		StorageLeafCount: 0,
+		TxLeafCount:      0,
+		Complete:         true,
+		Ts:               uint64(time.Now().Unix()),
+	})
+	if err != nil {
+		log.Errorf("failed to send mock ProveReq to Kafka: %s", err.Error())
+		return fmt.Errorf("failed to send mock ProveReq to Kafka: %w", err)
+	}
+	log.Debugf("Sent mock ProveReq to Kafka at %s, vkHash: %s", s.kafkaUrl, s.vkHash)
+	return nil
 }
 
 // Prove synchronously proves an app and returns the proof. This can be a long blocking call so use with caution.
@@ -392,6 +400,13 @@ func (s *mockServer) GetProof(ctx context.Context, req *sdkproto.GetProofRequest
 			return &sdkproto.GetProofResponse{
 				Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to unmarshal app circuit info, proof ID %s: internal err %s", proofId, err.Error()),
 			}, nil
+		}
+		// If proof is empty, it means the proof was not generated successfully,send the state update to Kafka
+		if len(proveRequest.Proof) > 0 {
+			err := s.SendProveReqState()
+			if err != nil {
+				log.Warnf("failed to send ProveReq state to Kafka: %s", err.Error())
+			}
 		}
 		return &sdkproto.GetProofResponse{
 			Proof:       proveRequest.Proof,
