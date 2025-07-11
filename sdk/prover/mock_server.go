@@ -8,7 +8,9 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/brevis-network/brevis-kafka-utils/brevis_data"
 	"github.com/brevis-network/brevis-sdk/sdk"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/commonproto"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto"
@@ -44,6 +46,8 @@ type mockServer struct {
 
 	grpcServer *grpc.Server
 	proofStore gokv.Store
+
+	kafkaUrl string
 }
 
 // NewService creates a new prover server instance that automatically manages
@@ -105,6 +109,7 @@ func newMockServer(appCircuits []sdk.AppCircuit, config ServiceConfig, srcChainC
 		vkString:     config.MockVkHash,
 		vkHash:       config.MockVkHash,
 		proofStore:   proofStore,
+		kafkaUrl:     config.KafkaUrl,
 	}, nil
 }
 
@@ -206,6 +211,22 @@ func (s *mockServer) getProof(proveRequest *ProveRequest) ([]byte, error) {
 	if err != nil {
 		log.Errorf("failed to pack mock proof: %s", err)
 		return nil, err
+	}
+	if len(proofBytes) > 0 && s.kafkaUrl != "" {
+		reqStateWriter := brevis_data.NewProveReqWriterClient(s.kafkaUrl)
+		reqStateWriter.WriteEv(context.Background(), brevis_data.ProveReqMsg{
+			QueryPath:        "mock_data",
+			VkHash:           s.vkHash,
+			LeafCount:        2,
+			ReceiptLeafCount: 2,
+			StorageLeafCount: 0,
+			TxLeafCount:      0,
+			Complete:         true,
+			Ts:               uint64(time.Now().Unix()),
+		})
+		log.Debugf("Sent mock ProveReq to Kafka at %s, vkHash: %s", s.kafkaUrl, s.vkHash)
+	} else {
+		log.Debugf("Skipping sending mock ProveReq to Kafka, kafkaUrl is empty")
 	}
 	return proofBytes, nil
 }

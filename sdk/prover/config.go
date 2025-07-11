@@ -44,6 +44,8 @@ type ServiceConfig struct {
 
 	// MockVkhash is a mock verifying key hash used for testing purposes.
 	MockVkHash string `mapstructure:"mock_vk_hash" json:"mock_vk_hash"`
+	// Send Mock ProveReq to Kafka
+	KafkaUrl string `mapstructure:"kafka_url" json:"kafka_url"`
 }
 
 func (c ServiceConfig) GetSetupDir() string {
