@@ -215,7 +215,7 @@ func (s *mockServer) getProof(proveRequest *ProveRequest) ([]byte, error) {
 	if len(proofBytes) > 0 && s.kafkaUrl != "" {
 		reqStateWriter := brevis_data.NewProveReqWriterClient(s.kafkaUrl)
 		reqStateWriter.WriteEv(context.Background(), brevis_data.ProveReqMsg{
-			QueryPath:        "mock_data",
+			QueryPath:        fmt.Sprintf("mockdata-%d", time.Now().Unix()),
 			VkHash:           s.vkHash,
 			LeafCount:        2,
 			ReceiptLeafCount: 2,
