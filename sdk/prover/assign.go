@@ -11,6 +11,7 @@ import (
 	"github.com/brevis-network/brevis-sdk/sdk"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/sdkproto"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 func assignCustomInput(app sdk.AppCircuit, input *sdkproto.CustomInput) (sdk.AppCircuit, error) {
@@ -55,7 +56,7 @@ func assignCustomInput(app sdk.AppCircuit, input *sdkproto.CustomInput) (sdk.App
 	for k, raw := range customInput {
 		// capitalize the object key because all fields in an AppCircuit are exported
 		k = strings.ToUpper(fmt.Sprintf("%c", k[0])) + k[1:]
-
+		log.Debug("assigning custom input", "field", k, "value", raw)
 		field := appStruct.FieldByName(k)
 		if field == (reflect.Value{}) {
 			return makeErr(fmt.Sprintf("received custom input field that does not exist in %s: %s", structName, k))
@@ -132,6 +133,8 @@ func convertType(expect, actual reflect.Value, name string) (reflect.Value, refl
 		actual = reflect.ValueOf(actual.Interface().(sdk.Uint32))
 	case sdk.Uint64Type:
 		actual = reflect.ValueOf(actual.Interface().(sdk.Uint64))
+	case sdk.OutputType:
+		actual = reflect.ValueOf(actual.Interface().(sdk.Output))
 	default:
 		return reflect.Value{}, reflect.Value{}, fmt.Errorf("mismatch types: json has %s but %s has %s", at, name, et)
 	}
@@ -198,6 +201,34 @@ func parseCircuitValue(value interface{}) (interface{}, error) {
 	case sdk.Bytes32Type:
 		bytes := common.FromHex(data.(string))
 		return sdk.ConstFromBigEndianBytes(bytes), nil
+	case sdk.OutputType:
+		// data is expected to be a string like "{1080343079030255534001097595775312461949911275264 1707864}"
+		dataStr, ok := data.(string)
+		if !ok {
+			return nil, fmt.Errorf("invalid Output data format: %v", data)
+		}
+		// Remove braces and split
+		dataStr = strings.Trim(dataStr, "{}")
+		parts := strings.Fields(dataStr)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid Output data format: %v", data)
+		}
+
+		keyDecimal := new(big.Int)
+		_, ok = keyDecimal.SetString(parts[0], 10)
+		if !ok {
+			return nil, fmt.Errorf("invalid Output value[0]: %s", parts[0])
+		}
+
+		valueDecimal := new(big.Int)
+		_, ok = valueDecimal.SetString(parts[1], 10)
+		if !ok {
+			return nil, fmt.Errorf("invalid Output value[1]: %s", parts[1])
+		}
+		return sdk.Output{
+			Key:   sdk.ConstUint248(keyDecimal),
+			Value: sdk.ConstUint248(valueDecimal),
+		}, nil
 	default:
 		return nil, fmt.Errorf("unsupported circuit value type %s", typ)
 	}

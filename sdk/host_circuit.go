@@ -11,11 +11,17 @@ import (
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/multicommit"
 	"github.com/consensys/gnark/test"
+	"github.com/labstack/gommon/log"
 )
 
 type AppCircuit interface {
 	Define(api *CircuitAPI, in DataInput) error
 	Allocate() (maxReceipts, maxStorage, maxTransactions int)
+}
+
+// CircuitNamer is an optional interface that can be implemented to provide a custom circuit name
+type CircuitNamer interface {
+	CircuitName() string
 }
 
 type HostCircuit struct {
@@ -349,4 +355,15 @@ func CalMerkleRoot(gapi frontend.API, datas []frontend.Variable) (frontend.Varia
 		}
 		elementCount = elementCount / 2
 	}
+}
+
+// GetCircuitName returns the circuit name. If the circuit implements CircuitNamer,
+// it uses the custom name; otherwise, it returns a default name.
+func GetCircuitName(circuit AppCircuit) string {
+	log.Debugf("GetCircuitName called for circuit: %T", circuit)
+	if namer, ok := circuit.(CircuitNamer); ok {
+		return namer.CircuitName()
+	}
+	// Return a default name based on the type
+	return fmt.Sprintf("%T", circuit)
 }

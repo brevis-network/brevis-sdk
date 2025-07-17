@@ -41,6 +41,11 @@ type ServiceConfig struct {
 
 	// ConcurrentProveLimit limits the number of concurrent prove actions, defaults to 1
 	ConcurrentProveLimit int `mapstructure:"concurrent_prove_limit" json:"concurrent_prove_limit"`
+
+	// MockVkhash is a mock verifying key hash used for testing purposes.
+	MockVkHash string `mapstructure:"mock_vk_hash" json:"mock_vk_hash"`
+	// Send Mock ProveReq to Kafka
+	KafkaUrl string `mapstructure:"kafka_url" json:"kafka_url"`
 }
 
 func (c ServiceConfig) GetSetupDir() string {

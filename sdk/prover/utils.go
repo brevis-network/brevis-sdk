@@ -1,11 +1,15 @@
 package prover
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/celer-network/goutils/log"
+	"io"
 	"math/big"
+
+	"github.com/celer-network/goutils/log"
+	"github.com/consensys/gnark/backend/witness"
 
 	"github.com/brevis-network/brevis-sdk/sdk"
 	"github.com/brevis-network/brevis-sdk/sdk/proto/commonproto"
@@ -211,4 +215,93 @@ func newErr(code sdkproto.ErrCode, format string, args ...any) *sdkproto.Err {
 		Code: code,
 		Msg:  fmt.Sprintf(format, args...),
 	}
+}
+
+func buildInputStage1(appCircuit sdk.AppCircuit, brevisApp *sdk.BrevisApp, req *sdkproto.ProveRequest) (input *sdk.CircuitInput, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic, recovered value: %v", r)
+		}
+	}()
+
+	// Add data
+	for _, receipt := range req.Receipts {
+		sdkReceipt, err := convertProtoReceiptToSdkReceipt(receipt.Data)
+		if err != nil {
+			return nil, fmt.Errorf("convertProtoReceiptToSdkReceipt err: %w", err)
+		}
+		brevisApp.AddReceipt(sdkReceipt, int(receipt.Index))
+	}
+	for _, storage := range req.Storages {
+		sdkStorage, err := convertProtoStorageToSdkStorage(storage.Data)
+		if err != nil {
+			return nil, fmt.Errorf("convertProtoReceiptToSdkReceipt err: %w", err)
+		}
+		brevisApp.AddStorage(sdkStorage, int(storage.Index))
+	}
+	for _, transaction := range req.Transactions {
+		sdkTx, err := convertProtoTxToSdkTx(transaction.Data)
+		if err != nil {
+			return nil, fmt.Errorf("convertProtoTxToSdkTx err: %w", err)
+		}
+		brevisApp.AddTransaction(sdkTx, int(transaction.Index))
+	}
+	inputStage1, err := brevisApp.BuildCircuitInputStage1(appCircuit)
+	if err != nil {
+		return nil, fmt.Errorf("BuildCircuitInputStage1 err: %w", err)
+	}
+	return &inputStage1, nil
+}
+
+func buildInputStage2(appCircuit sdk.AppCircuit, brevisApp *sdk.BrevisApp, req *sdkproto.ProveRequest, inputStage1 *sdk.CircuitInput) (*sdk.CircuitInput, sdk.AppCircuit, string, error) {
+	guest, err := assignCustomInput(appCircuit, req.CustomInput)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("assignCustomInput err: %w", err)
+	}
+
+	input, err := brevisApp.BuildCircuitInputStage2(guest, *inputStage1)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("BuildCircuitInputStage2 err: %w", err)
+	}
+
+	_, publicWitness, err := sdk.NewFullWitness(guest, input)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("NewFullWitness err: %w", err)
+	}
+
+	var witnessBuffer bytes.Buffer
+	witnessData := io.Writer(&witnessBuffer)
+	_, err = publicWitness.WriteTo(witnessData)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("publicWitness.WriteTo err: %w", err)
+	}
+	witness := fmt.Sprintf("0x%x", witnessBuffer.Bytes())
+
+	return &input, guest, witness, nil
+}
+
+func buildInput(appCircuit sdk.AppCircuit, brevisApp *sdk.BrevisApp, req *sdkproto.ProveRequest) (*sdk.CircuitInput, sdk.AppCircuit, string, *sdkproto.Err) {
+	makeErr := func(code sdkproto.ErrCode, format string, args ...any) (*sdk.CircuitInput, sdk.AppCircuit, string, *sdkproto.Err) {
+		log.Errorf(format, args...)
+		log.Errorln()
+		return nil, nil, "", newErr(code, format, args...)
+	}
+
+	inputStage1, err := buildInputStage1(appCircuit, brevisApp, req)
+	if err != nil {
+		return makeErr(sdkproto.ErrCode_ERROR_INVALID_INPUT, "buildInputStage1 err: %s", err.Error())
+	}
+	input, appCircuit, witness, err := buildInputStage2(appCircuit, brevisApp, req, inputStage1)
+	if err != nil {
+		return makeErr(sdkproto.ErrCode_ERROR_INVALID_INPUT, "buildInputStage2 err: %s", err.Error())
+	}
+	return input, appCircuit, witness, nil
+}
+
+func genWitness(input *sdk.CircuitInput, guest sdk.AppCircuit) (witness.Witness, witness.Witness, error) {
+	witness, publicWitness, err := sdk.NewFullWitness(guest, *input)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get full witness: %w", err)
+	}
+	return witness, publicWitness, nil
 }

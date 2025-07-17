@@ -1,11 +1,12 @@
 module github.com/brevis-network/brevis-sdk
 
-go 1.22.0
+go 1.23.0
 
 toolchain go1.23.4
 
 require (
 	github.com/aws/aws-sdk-go v1.49.16
+	github.com/brevis-network/brevis-kafka-utils v0.0.0-20250711063559-1bba12271c27
 	github.com/cbergoon/merkletree v0.2.0
 	github.com/celer-network/goutils v0.2.0
 	github.com/consensys/gnark v0.10.0
@@ -14,6 +15,7 @@ require (
 	github.com/gowebpki/jcs v1.0.1
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.25.1
 	github.com/jedib0t/go-pretty/v6 v6.5.4
+	github.com/labstack/gommon v0.4.0
 	github.com/philippgille/gokv v0.7.0
 	github.com/philippgille/gokv/badgerdb v0.7.0
 	github.com/philippgille/gokv/encoding v0.7.0
@@ -56,12 +58,16 @@ require (
 	github.com/kr/text v0.2.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
+	github.com/pierrec/lz4/v4 v4.1.15 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.39.0 // indirect
 	github.com/prometheus/procfs v0.9.0 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
+	github.com/segmentio/kafka-go v0.4.48 // indirect
+	github.com/valyala/bytebufferpool v1.0.0 // indirect
+	github.com/valyala/fasttemplate v1.2.2 // indirect
 )
 
 require (
@@ -83,7 +89,7 @@ require (
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/golang/snappy v0.0.5-0.20220116011046-fa5810519dcb // indirect
 	github.com/google/pprof v0.0.0-20230817174616-7a8ec2ada47b // indirect
-	github.com/google/uuid v1.6.0 // indirect
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/holiman/uint256 v1.3.1 // indirect
 	github.com/iden3/go-iden3-crypto v0.0.15 // indirect
@@ -100,12 +106,12 @@ require (
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	golang.org/x/crypto v0.31.0 // indirect
+	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa // indirect
-	golang.org/x/net v0.33.0 // indirect
-	golang.org/x/sync v0.10.0
-	golang.org/x/sys v0.28.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
+	golang.org/x/net v0.37.0 // indirect
+	golang.org/x/sync v0.12.0
+	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/text v0.23.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
