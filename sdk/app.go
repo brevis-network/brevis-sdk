@@ -261,7 +261,7 @@ func newBrevisApp(
 
 	chainId, err := ec.ChainID(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf("ec.ChainID %d err: %w", chainId, err)
+		return nil, fmt.Errorf("ec.ChainID %d, srcChainID:%d, err: %w", chainId, srcChainId, err)
 	}
 
 	if srcChainId != chainId.Uint64() {
