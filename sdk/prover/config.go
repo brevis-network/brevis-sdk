@@ -43,7 +43,8 @@ type ServiceConfig struct {
 	ConcurrentProveLimit int `mapstructure:"concurrent_prove_limit" json:"concurrent_prove_limit"`
 
 	// MockVkhash is a mock verifying key hash used for testing purposes.
-	MockVkHash string `mapstructure:"mock_vk_hash" json:"mock_vk_hash"`
+	// Note, length should equals to the appCircuits in the mock server.
+	MockVkHashes []string `mapstructure:"mock_vk_hash" json:"mock_vk_hash"`
 	// Send Mock ProveReq to Kafka
 	KafkaUrl string `mapstructure:"kafka_url" json:"kafka_url"`
 }

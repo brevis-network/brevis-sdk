@@ -41,8 +41,8 @@ type mockServer struct {
 	// Placeholder for common dependencies shared by all BrevisApp instances
 	appTemplates map[uint64]*sdk.BrevisApp
 
-	vkString string
-	vkHash   string
+	vkString []string
+	vkHash   []string
 
 	grpcServer *grpc.Server
 	proofStore gokv.Store
@@ -106,8 +106,8 @@ func newMockServer(appCircuits []sdk.AppCircuit, config ServiceConfig, srcChainC
 		proverId:     proverId,
 		appCircuits:  appCircuits,
 		appTemplates: appTemplates,
-		vkString:     config.MockVkHash,
-		vkHash:       config.MockVkHash,
+		vkString:     config.MockVkHashes,
+		vkHash:       config.MockVkHashes,
 		proofStore:   proofStore,
 		kafkaUrl:     config.KafkaUrl,
 	}, nil
@@ -132,7 +132,7 @@ func (s *mockServer) getProveRequest(id string) (bool, *ProveRequest, error) {
 	return found, &req, nil
 }
 
-func (s *mockServer) buildInputStage2AndProve(brevisApp *sdk.BrevisApp, appCircuit sdk.AppCircuit, proveRequest *ProveRequest, requestProto *sdkproto.ProveRequest, inputStage1 *sdk.CircuitInput) (*string, error) {
+func (s *mockServer) buildInputStage2AndProve(brevisApp *sdk.BrevisApp, appCircuit sdk.AppCircuit, vkString, vkHash string, proveRequest *ProveRequest, requestProto *sdkproto.ProveRequest, inputStage1 *sdk.CircuitInput) (*string, error) {
 	defer func() {
 		err := brevisApp.CloseDataStore()
 		if err != nil {
@@ -153,7 +153,7 @@ func (s *mockServer) buildInputStage2AndProve(brevisApp *sdk.BrevisApp, appCircu
 		return nil, err
 	}
 	proveRequest.Witness = witnessBytes
-	appCircuitInfo := buildFullAppCircuitInfo(appCircuit, *input, s.vkString, s.vkHash, witnessStr)
+	appCircuitInfo := buildFullAppCircuitInfo(appCircuit, *input, vkString, vkHash, witnessStr)
 	appCircuitInfoBytes, err := proto.Marshal(appCircuitInfo)
 	if err != nil {
 		return nil, fmt.Errorf("proto.Marshal for circuit info err: %w", err)
@@ -206,8 +206,7 @@ func (s *mockServer) getProof(proveRequest *ProveRequest) ([]byte, error) {
 		{Type: ty},
 	}
 	appCommitHash := common.HexToHash(appCircuitInfo.OutputCommitment)
-	appVkHash := common.HexToHash(s.vkHash)
-	proofBytes, err := args.Pack(appCommitHash, appVkHash)
+	proofBytes, err := args.Pack(appCommitHash, common.HexToHash(appCircuitInfo.VkHash))
 	if err != nil {
 		log.Errorf("failed to pack mock proof: %s", err)
 		return nil, err
@@ -215,7 +214,7 @@ func (s *mockServer) getProof(proveRequest *ProveRequest) ([]byte, error) {
 	return proofBytes, nil
 }
 
-func (s *mockServer) SendProveReqState() error {
+func (s *mockServer) SendProveReqState(vkHash string) error {
 	if s.kafkaUrl == "" {
 		log.Warnln("Skipping sending mock ProveReq to Kafka, kafkaUrl is empty")
 		return nil
@@ -223,7 +222,7 @@ func (s *mockServer) SendProveReqState() error {
 	reqStateWriter := brevis_data.NewProveReqWriterClient(s.kafkaUrl)
 	err := reqStateWriter.WriteEv(context.Background(), brevis_data.ProveReqMsg{
 		QueryPath:        fmt.Sprintf("mockdata-%d", time.Now().UnixMilli()),
-		VkHash:           s.vkHash,
+		VkHash:           vkHash,
 		LeafCount:        2,
 		ReceiptLeafCount: 2,
 		StorageLeafCount: 0,
@@ -260,10 +259,12 @@ func (s *mockServer) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sd
 	}()
 
 	var appCircuit sdk.AppCircuit
-	for _, ac := range s.appCircuits {
+	appCircuitIndex := 0
+	for i, ac := range s.appCircuits {
 		log.Debugf("checking circuit: %s", sdk.GetCircuitName(ac))
 		if sdk.GetCircuitName(ac) == req.CircuitName {
 			appCircuit = ac
+			appCircuitIndex = i
 			break
 		}
 	}
@@ -281,7 +282,7 @@ func (s *mockServer) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sd
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "proto.Marshal err: %s", err.Error()))
 	}
-	appCircuitInfo := buildPartialAppCircuitInfoForGatewayRequest(appCircuit, input, s.vkHash)
+	appCircuitInfo := buildPartialAppCircuitInfoForGatewayRequest(appCircuit, input, s.vkHash[appCircuitIndex])
 	appCircuitInfoBytes, err := proto.Marshal(appCircuitInfo)
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "proto.Marshal for circuit info err: %s", err.Error()))
@@ -302,7 +303,7 @@ func (s *mockServer) Prove(ctx context.Context, req *sdkproto.ProveRequest) (*sd
 	proofHex := hexutil.Encode(proof)
 	return &sdkproto.ProveResponse{
 		Proof:       proofHex,
-		CircuitInfo: buildFullAppCircuitInfo(appCircuit, *input, s.vkString, s.vkHash, witnessStr),
+		CircuitInfo: buildFullAppCircuitInfo(appCircuit, *input, appCircuitInfo.Vk, appCircuitInfo.VkHash, witnessStr),
 	}, nil
 }
 
@@ -319,10 +320,12 @@ func (s *mockServer) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest)
 	}
 	log.Debugf("appCircuits length: %d", len(s.appCircuits))
 	var appCircuit sdk.AppCircuit
-	for _, ac := range s.appCircuits {
+	appCircuitIndex := 0
+	for i, ac := range s.appCircuits {
 		log.Debugf("checking circuit: %s", sdk.GetCircuitName(ac))
 		if sdk.GetCircuitName(ac) == req.CircuitName {
 			appCircuit = ac
+			appCircuitIndex = i
 			break
 		}
 	}
@@ -335,7 +338,7 @@ func (s *mockServer) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest)
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to build circuit input stage 1: %s", err.Error()))
 	}
-	appCircuitInfo := buildPartialAppCircuitInfoForGatewayRequest(appCircuit, inputStage1, s.vkHash)
+	appCircuitInfo := buildPartialAppCircuitInfoForGatewayRequest(appCircuit, inputStage1, s.vkHash[appCircuitIndex])
 	resp.CircuitInfo = appCircuitInfo
 
 	requestBytes, err := proto.Marshal(req)
@@ -359,7 +362,7 @@ func (s *mockServer) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest)
 		AppCircuitInfo: appCircuitInfoBytes,
 	}
 
-	proofId, err := s.buildInputStage2AndProve(brevisApp, appCircuit, proveRequest, req, inputStage1)
+	proofId, err := s.buildInputStage2AndProve(brevisApp, appCircuit, s.vkString[appCircuitIndex], s.vkHash[appCircuitIndex], proveRequest, req, inputStage1)
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to build input stage 2 and prove: %s", err.Error()))
 	}
@@ -403,7 +406,7 @@ func (s *mockServer) GetProof(ctx context.Context, req *sdkproto.GetProofRequest
 		}
 		// If proof is empty, it means the proof was not generated successfully,send the state update to Kafka
 		if len(proveRequest.Proof) > 0 {
-			err := s.SendProveReqState()
+			err := s.SendProveReqState(appCircuitInfo.VkHash)
 			if err != nil {
 				log.Warnf("failed to send ProveReq state to Kafka: %s", err.Error())
 			}
