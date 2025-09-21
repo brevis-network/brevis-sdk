@@ -47,6 +47,8 @@ type ServiceConfig struct {
 	MockVkHashes []string `mapstructure:"mock_vk_hash" json:"mock_vk_hash"`
 	// Send Mock ProveReq to Kafka
 	KafkaUrl string `mapstructure:"kafka_url" json:"kafka_url"`
+	// receipt, storage, tx leaf count for mock proof
+	MockLeafCount []int `mapstructure:"mock_leaf_count" json:"mock_leaf_count"`
 }
 
 func (c ServiceConfig) GetSetupDir() string {

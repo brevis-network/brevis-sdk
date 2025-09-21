@@ -48,6 +48,8 @@ type mockServer struct {
 	proofStore gokv.Store
 
 	kafkaUrl string
+
+	MockLeafCount []int
 }
 
 // NewService creates a new prover server instance that automatically manages
@@ -103,13 +105,14 @@ func newMockServer(appCircuits []sdk.AppCircuit, config ServiceConfig, srcChainC
 	}
 
 	return &mockServer{
-		proverId:     proverId,
-		appCircuits:  appCircuits,
-		appTemplates: appTemplates,
-		vkString:     config.MockVkHashes,
-		vkHash:       config.MockVkHashes,
-		proofStore:   proofStore,
-		kafkaUrl:     config.KafkaUrl,
+		proverId:      proverId,
+		appCircuits:   appCircuits,
+		appTemplates:  appTemplates,
+		vkString:      config.MockVkHashes,
+		vkHash:        config.MockVkHashes,
+		proofStore:    proofStore,
+		kafkaUrl:      config.KafkaUrl,
+		MockLeafCount: config.MockLeafCount,
 	}, nil
 }
 
@@ -219,14 +222,24 @@ func (s *mockServer) SendProveReqState(vkHash string) error {
 		log.Warnln("Skipping sending mock ProveReq to Kafka, kafkaUrl is empty")
 		return nil
 	}
+	leafCount := 2
+	receiptCount := 2
+	storageCount := 0
+	txCount := 0
 	reqStateWriter := brevis_data.NewProveReqWriterClient(s.kafkaUrl)
+	if len(s.MockLeafCount) == 3 {
+		receiptCount = s.MockLeafCount[0]
+		storageCount = s.MockLeafCount[1]
+		txCount = s.MockLeafCount[2]
+		leafCount = receiptCount + storageCount + txCount
+	}
 	err := reqStateWriter.WriteEv(context.Background(), brevis_data.ProveReqMsg{
 		QueryPath:        fmt.Sprintf("mockdata-%d", time.Now().UnixMilli()),
 		VkHash:           vkHash,
-		LeafCount:        2,
-		ReceiptLeafCount: 2,
-		StorageLeafCount: 0,
-		TxLeafCount:      0,
+		LeafCount:        uint64(leafCount),
+		ReceiptLeafCount: uint64(receiptCount),
+		StorageLeafCount: uint64(storageCount),
+		TxLeafCount:      uint64(txCount),
 		Complete:         true,
 		Ts:               uint64(time.Now().Unix()),
 	})
@@ -234,7 +247,7 @@ func (s *mockServer) SendProveReqState(vkHash string) error {
 		log.Errorf("failed to send mock ProveReq to Kafka: %s", err.Error())
 		return fmt.Errorf("failed to send mock ProveReq to Kafka: %w", err)
 	}
-	log.Debugf("Sent mock ProveReq to Kafka at %s, vkHash: %s", s.kafkaUrl, s.vkHash)
+	log.Debugf("Sent mock ProveReq to Kafka at %s, vkHash: %s, leafCount: %d, receiptCount: %d, storageCount: %d, txCount: %d", s.kafkaUrl, s.vkHash, leafCount, receiptCount, storageCount, txCount)
 	return nil
 }
 
