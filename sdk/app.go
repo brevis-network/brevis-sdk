@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"path/filepath"
@@ -499,7 +500,7 @@ func (q *BrevisApp) BuildCircuitInputStage1(app AppCircuit) (CircuitInput, error
 	q.setTransactionsToggles(&in)
 
 	if q.realDataLength() > 0 && q.mockDataLength() > 0 {
-		return CircuitInput{}, fmt.Errorf("you cannot add real data and mock data at the same time")
+		return CircuitInput{}, errors.New("you cannot add real data and mock data at the same time")
 	}
 	err = q.assignMockReceipts(&in)
 	if err != nil {

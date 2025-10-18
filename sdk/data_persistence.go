@@ -3,6 +3,7 @@ package sdk
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -102,7 +103,7 @@ func generateTxKey(tx TransactionData, srcChainId uint64) string {
 
 func buildLogFieldsData(fs []LogFieldData, receipt *types.Receipt) (fields []LogFieldData, err error) {
 	if len(fs) > 4 {
-		return nil, fmt.Errorf("each receipt can use up to 4 fields")
+		return nil, errors.New("each receipt can use up to 4 fields")
 	}
 
 	if len(fs) == 0 {

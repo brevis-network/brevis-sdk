@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/md5"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -115,7 +116,7 @@ func validateFile(filePath string) error {
 
 	md5Original := md5.Sum(buf.Bytes())
 	if hexutil.Encode(md5Original[:]) != "0x2abd249241a7fe883379db93530365f8" {
-		return fmt.Errorf("invalid checksum of local file")
+		return errors.New("invalid checksum of local file")
 	}
 	return nil
 }

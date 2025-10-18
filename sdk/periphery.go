@@ -1,6 +1,7 @@
 package sdk
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math/bits"
@@ -86,7 +87,7 @@ func CompileOnly(app AppCircuit) (constraint.ConstraintSystem, error) {
 
 func Setup(ccs constraint.ConstraintSystem, cacheDir string, maxReceipt, maxStorage, dataPoints int, hashInfo *BrevisHashInfo) (pk plonk.ProvingKey, vk plonk.VerifyingKey, vkHash []byte, err error) {
 	if len(cacheDir) == 0 {
-		return nil, nil, nil, fmt.Errorf("must provide a directory to save SRS")
+		return nil, nil, nil, errors.New("must provide a directory to save SRS")
 	}
 	r1cs := ccs.(*cs_bn254.SparseR1CS)
 	srsDir := os.ExpandEnv(cacheDir)

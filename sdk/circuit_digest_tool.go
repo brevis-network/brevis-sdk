@@ -1,6 +1,7 @@
 package sdk
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -267,17 +268,17 @@ func CalOnePlonky2NodeDigest(left, right Plonky2DigestNode) (*pgoldilocks.HashOu
 
 func GetAndCheckLeafCount(receiptCount, storageCount, transactionCount int) (receiptLeafCount int, storageLeafCount int, transactionLeafCount int, totalLeafCount int, err error) {
 	if receiptCount%32 != 0 {
-		return 0, 0, 0, 0, fmt.Errorf("receipt count is not n * 32")
+		return 0, 0, 0, 0, errors.New("receipt count is not n * 32")
 	}
 	receiptLeafCount = receiptCount / 32
 
 	if storageCount%32 != 0 {
-		return 0, 0, 0, 0, fmt.Errorf("storage count is not n * 32")
+		return 0, 0, 0, 0, errors.New("storage count is not n * 32")
 	}
 	storageLeafCount = storageCount / 32
 
 	if transactionCount%32 != 0 {
-		return 0, 0, 0, 0, fmt.Errorf("transaction count is not n * 32")
+		return 0, 0, 0, 0, errors.New("transaction count is not n * 32")
 	}
 	transactionLeafCount = transactionCount / 32
 
