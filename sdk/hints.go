@@ -1,7 +1,7 @@
 package sdk
 
 import (
-	"fmt"
+	"errors"
 	"math/big"
 	"sort"
 	"sync"
@@ -25,10 +25,10 @@ func GetHints() []solver.Hint {
 
 func QuoRemHint(_ *big.Int, in, out []*big.Int) error {
 	if len(in) != 2 {
-		return fmt.Errorf("QuoRemHint: input len must be 2")
+		return errors.New("QuoRemHint: input len must be 2")
 	}
 	if len(out) != 2 {
-		return fmt.Errorf("QuoRemHint: output len must be 2")
+		return errors.New("QuoRemHint: output len must be 2")
 	}
 	out[0] = new(big.Int)
 	out[1] = new(big.Int)
@@ -38,10 +38,10 @@ func QuoRemHint(_ *big.Int, in, out []*big.Int) error {
 
 func SqrtHint(_ *big.Int, in, out []*big.Int) error {
 	if len(in) != 1 {
-		return fmt.Errorf("SqrtHint: input len must be 1")
+		return errors.New("SqrtHint: input len must be 1")
 	}
 	if len(out) != 1 {
-		return fmt.Errorf("SqrtHint: output len must be 1")
+		return errors.New("SqrtHint: output len must be 1")
 	}
 	out[0] = new(big.Int)
 	out[0].Sqrt(in[0])

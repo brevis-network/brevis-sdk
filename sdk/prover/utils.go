@@ -3,6 +3,7 @@ package prover
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/celer-network/goutils/log"
 	"math/big"
@@ -131,7 +132,7 @@ func convertProtoReceiptToSdkReceipt(in *sdkproto.ReceiptData) (sdk.ReceiptData,
 
 	fields := make([]sdk.LogFieldData, len(in.Fields))
 	if len(in.Fields) == 0 {
-		return sdk.ReceiptData{}, fmt.Errorf("invalid log field")
+		return sdk.ReceiptData{}, errors.New("invalid log field")
 	}
 
 	for i := range fields {

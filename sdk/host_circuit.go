@@ -1,6 +1,7 @@
 package sdk
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
@@ -56,7 +57,7 @@ func (c *HostCircuit) Define(gapi frontend.API) error {
 
 	toggles := c.Input.Toggles()
 	if len(c.Input.InputCommitments) != len(toggles) {
-		return fmt.Errorf("invalid input commitment toggle pair")
+		return errors.New("invalid input commitment toggle pair")
 	}
 
 	inputCommitmentsWithToggle := make([]frontend.Variable, len(c.Input.InputCommitments))

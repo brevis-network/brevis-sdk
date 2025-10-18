@@ -3,6 +3,7 @@ package store
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/brevis-network/brevis-sdk/store/s3"
@@ -21,7 +22,7 @@ type S3StoreOptions struct {
 
 func NewS3Store(optionsJSON string) (gokv.Store, error) {
 	if optionsJSON == "" {
-		return nil, fmt.Errorf("options cannot be empty, need at least BucketName")
+		return nil, errors.New("options cannot be empty, need at least BucketName")
 	}
 	var options S3StoreOptions
 	err := json.Unmarshal([]byte(optionsJSON), &options)
