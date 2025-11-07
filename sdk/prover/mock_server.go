@@ -347,10 +347,14 @@ func (s *mockServer) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest)
 		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "unknown circuit: %s", req.CircuitName))
 	}
 
+	start := time.Now()
 	inputStage1, err := buildInputStage1(appCircuit, brevisApp, req)
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to build circuit input stage 1: %s", err.Error()))
 	}
+	log.Debugf("ProveAsync-buildInputStage1 took %s", time.Since(start).String())
+
+	start = time.Now()
 	appCircuitInfo := buildPartialAppCircuitInfoForGatewayRequest(appCircuit, inputStage1, s.vkHash[appCircuitIndex])
 	resp.CircuitInfo = appCircuitInfo
 
@@ -367,6 +371,7 @@ func (s *mockServer) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest)
 			Err: newErr(sdkproto.ErrCode_ERROR_DEFAULT, "proto.Marshal for circuit info err: %s", err.Error()),
 		}, nil
 	}
+	log.Debugf("ProveAsync-marshal datas took %s", time.Since(start).String())
 
 	proveRequest := &ProveRequest{
 		Status:         ProveStatusInit,
@@ -375,10 +380,12 @@ func (s *mockServer) ProveAsync(ctx context.Context, req *sdkproto.ProveRequest)
 		AppCircuitInfo: appCircuitInfoBytes,
 	}
 
+	start = time.Now()
 	proofId, err := s.buildInputStage2AndProve(brevisApp, appCircuit, s.vkString[appCircuitIndex], s.vkHash[appCircuitIndex], proveRequest, req, inputStage1)
 	if err != nil {
 		return errRes(newErr(sdkproto.ErrCode_ERROR_DEFAULT, "failed to build input stage 2 and prove: %s", err.Error()))
 	}
+	log.Debugf("ProveAsync-buildInputStage2AndProve took %s", time.Since(start).String())
 
 	log.Debug("ProveAsync completed successfully, proof ID:", *proofId)
 	resp.ProofId = *proofId
