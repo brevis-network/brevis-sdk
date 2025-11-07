@@ -419,10 +419,12 @@ func (s *mockServer) GetProof(ctx context.Context, req *sdkproto.GetProofRequest
 		}
 		// If proof is empty, it means the proof was not generated successfully,send the state update to Kafka
 		if len(proveRequest.Proof) > 0 {
-			err := s.SendProveReqState(appCircuitInfo.VkHash)
-			if err != nil {
-				log.Warnf("failed to send ProveReq state to Kafka: %s", err.Error())
-			}
+			go func() {
+				err := s.SendProveReqState(appCircuitInfo.VkHash)
+				if err != nil {
+					log.Warnf("failed to send ProveReq state to Kafka: %s", err.Error())
+				}
+			}()
 		}
 		return &sdkproto.GetProofResponse{
 			Proof:       proveRequest.Proof,
