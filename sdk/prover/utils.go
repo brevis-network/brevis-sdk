@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"time"
 
 	"github.com/celer-network/goutils/log"
 	"github.com/consensys/gnark/backend/witness"
@@ -254,10 +255,13 @@ func buildInputStage1(appCircuit sdk.AppCircuit, brevisApp *sdk.BrevisApp, req *
 }
 
 func buildInputStage2(appCircuit sdk.AppCircuit, brevisApp *sdk.BrevisApp, req *sdkproto.ProveRequest, inputStage1 *sdk.CircuitInput) (*sdk.CircuitInput, sdk.AppCircuit, string, error) {
+
+	start := time.Now()
 	guest, err := assignCustomInput(appCircuit, req.CustomInput)
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("assignCustomInput err: %w", err)
 	}
+	log.Infof("assignCustomInput done in %s", time.Since(start))
 
 	input, err := brevisApp.BuildCircuitInputStage2(guest, *inputStage1)
 	if err != nil {
@@ -287,14 +291,19 @@ func buildInput(appCircuit sdk.AppCircuit, brevisApp *sdk.BrevisApp, req *sdkpro
 		return nil, nil, "", newErr(code, format, args...)
 	}
 
+	start := time.Now()
 	inputStage1, err := buildInputStage1(appCircuit, brevisApp, req)
 	if err != nil {
 		return makeErr(sdkproto.ErrCode_ERROR_INVALID_INPUT, "buildInputStage1 err: %s", err.Error())
 	}
+	log.Infof("buildInputStage1 done in %s", time.Since(start))
+
+	start = time.Now()
 	input, appCircuit, witness, err := buildInputStage2(appCircuit, brevisApp, req, inputStage1)
 	if err != nil {
 		return makeErr(sdkproto.ErrCode_ERROR_INVALID_INPUT, "buildInputStage2 err: %s", err.Error())
 	}
+	log.Infof("buildInputStage2 done in %s", time.Since(start))
 	return input, appCircuit, witness, nil
 }
 
