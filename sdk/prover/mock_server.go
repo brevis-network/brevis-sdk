@@ -143,19 +143,11 @@ func (s *mockServer) buildInputStage2AndProve(brevisApp *sdk.BrevisApp, appCircu
 		}
 	}()
 
-	input, guest, witnessStr, err := buildInputStage2(appCircuit, brevisApp, requestProto, inputStage1)
+	input, _, witnessStr, err := buildMockInputStage2(appCircuit, brevisApp, requestProto, inputStage1)
 	if err != nil {
 		return nil, err
 	}
-	witness, _, err := genWitness(input, guest)
-	if err != nil {
-		return nil, err
-	}
-	witnessBytes, err := witness.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	proveRequest.Witness = witnessBytes
+
 	appCircuitInfo := buildFullAppCircuitInfo(appCircuit, *input, vkString, vkHash, witnessStr)
 	appCircuitInfoBytes, err := proto.Marshal(appCircuitInfo)
 	if err != nil {
@@ -505,4 +497,21 @@ func (s *MockService) serveGrpc(bind string, port uint) error {
 		return fmt.Errorf("grpc server crashed: %w", err)
 	}
 	return nil
+}
+
+func buildMockInputStage2(appCircuit sdk.AppCircuit, brevisApp *sdk.BrevisApp, req *sdkproto.ProveRequest, inputStage1 *sdk.CircuitInput) (*sdk.CircuitInput, sdk.AppCircuit, string, error) {
+
+	start := time.Now()
+	guest, err := assignCustomInput(appCircuit, req.CustomInput)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("assignCustomInput err: %w", err)
+	}
+	log.Infof("assignCustomInput done in %s", time.Since(start))
+
+	input, err := brevisApp.BuildCircuitInputStage2(guest, *inputStage1)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("BuildCircuitInputStage2 err: %w", err)
+	}
+
+	return &input, guest, "", nil
 }
