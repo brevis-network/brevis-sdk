@@ -50,7 +50,7 @@ func NewHostCircuit(in CircuitInput, guest AppCircuit) *HostCircuit {
 
 func (c *HostCircuit) Define(gapi frontend.API) error {
 	c.api = gapi
-	api := NewCircuitAPI(gapi)
+	api := NewCircuitAPIWithHost(gapi, c)
 	err := c.commitInput()
 	if err != nil {
 		return err
@@ -77,7 +77,13 @@ func (c *HostCircuit) Define(gapi frontend.API) error {
 	}
 	gapi.AssertIsEqual(inputCommitmentRoot, c.Input.InputCommitmentsRoot)
 	outputCommit := c.commitOutput(api.output)
-	dryRunOutputCommit = outputCommit
+
+	// Store output commit in the context for this circuit instance
+	if ctxVal, ok := dryRunContexts.Load(c); ok {
+		ctx := ctxVal.(*dryRunContext)
+		ctx.outputCommit = outputCommit
+	}
+
 	gapi.AssertIsEqual(outputCommit[0], c.Input.OutputCommitment[0])
 	gapi.AssertIsEqual(outputCommit[1], c.Input.OutputCommitment[1])
 
@@ -299,36 +305,47 @@ func bits2Bytes(data []frontend.Variable) []byte {
 	return bytes
 }
 
-// will be set when run solve.
-// be careful to use it with lock.
-var dryRunOutput []byte
-var dryRunOutputCommit OutputCommitment
-var dryRunLock sync.Mutex
+// dryRunContext holds the state for a single dry run execution
+// This allows parallel execution of multiple dryRun calls
+type dryRunContext struct {
+	output       []byte
+	outputCommit OutputCommitment
+	mu           sync.Mutex
+}
+
+// Global context map to track per-circuit execution contexts
+var (
+	dryRunContexts = sync.Map{} // map[*HostCircuit]*dryRunContext
+)
 
 func dryRun(in CircuitInput, guest AppCircuit) (OutputCommitment, []byte, error) {
-	dryRunLock.Lock()
-	defer dryRunLock.Unlock()
-	// resetting state
-	dryRunOutputCommit = OutputCommitment{nil, nil}
-	dryRunOutput = nil
-
 	circuit := &HostCircuit{Input: in, Guest: guest}
 	assignment := &HostCircuit{Input: in, Guest: guest}
+
+	// Create a new context for this execution
+	ctx := &dryRunContext{
+		output:       nil,
+		outputCommit: OutputCommitment{nil, nil},
+	}
+
+	// Store context for this circuit instance
+	dryRunContexts.Store(circuit, ctx)
+	defer dryRunContexts.Delete(circuit)
 
 	err := test.IsSolved(circuit, assignment, ecc.BN254.ScalarField())
 	if err != nil {
 		// if dry out == 0 after dry run, means the run failed
-		if dryRunOutputCommit[0] == nil && dryRunOutputCommit[1] == nil {
-			return dryRunOutputCommit, nil, fmt.Errorf("dry run failed: %s", err.Error())
+		if ctx.outputCommit[0] == nil && ctx.outputCommit[1] == nil {
+			return ctx.outputCommit, nil, fmt.Errorf("dry run failed: %s", err.Error())
 		}
 	}
 
-	// making copies of these global variables to avoid sharing memory
-	out := make([]byte, len(dryRunOutput))
-	copy(out, dryRunOutput)
+	// Return copies to avoid sharing memory
+	out := make([]byte, len(ctx.output))
+	copy(out, ctx.output)
 
 	commit := OutputCommitment{}
-	copy(commit[:], dryRunOutputCommit[:])
+	copy(commit[:], ctx.outputCommit[:])
 
 	return commit, out, nil
 }

@@ -26,6 +26,7 @@ type CircuitAPI struct {
 	g                    frontend.API
 	output               []variable `gnark:"-"`
 	checkInputUniqueness int
+	hostCircuit          *HostCircuit `gnark:"-"` // Reference to host circuit for context lookup
 }
 
 func NewCircuitAPI(gapi frontend.API) *CircuitAPI {
@@ -38,6 +39,12 @@ func NewCircuitAPI(gapi frontend.API) *CircuitAPI {
 		Uint32:  newUint32API(gapi),
 		Uint64:  newUint64API(gapi),
 	}
+}
+
+func NewCircuitAPIWithHost(gapi frontend.API, host *HostCircuit) *CircuitAPI {
+	api := NewCircuitAPI(gapi)
+	api.hostCircuit = host
+	return api
 }
 
 // OutputXXX APIs are for processing circuit outputs. The output data is
@@ -118,7 +125,15 @@ func (api *CircuitAPI) addOutput(bits []variable) {
 	b := flipByGroups(bits, 8)
 	api.output = append(api.output, b...)
 	if len(b) > 0 && !frontend.IsCanonical(b[0]) /*only set dryRunOutput when dryRun*/ {
-		dryRunOutput = append(dryRunOutput, bits2Bytes(b)...)
+		// Store output in the context for this circuit instance
+		if api.hostCircuit != nil {
+			if ctxVal, ok := dryRunContexts.Load(api.hostCircuit); ok {
+				ctx := ctxVal.(*dryRunContext)
+				ctx.mu.Lock()
+				ctx.output = append(ctx.output, bits2Bytes(b)...)
+				ctx.mu.Unlock()
+			}
+		}
 	}
 }
 
