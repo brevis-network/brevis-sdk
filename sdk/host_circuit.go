@@ -78,6 +78,15 @@ func (c *HostCircuit) Define(gapi frontend.API) error {
 	gapi.AssertIsEqual(inputCommitmentRoot, c.Input.InputCommitmentsRoot)
 	outputCommit := c.commitOutput(api.output)
 
+	// Debug: Check if InputOutputCommitment is set before processing
+	isDryRun := false
+	if _, ok := dryRunContexts.Load(c); ok {
+		isDryRun = true
+	}
+	fmt.Printf("Define: isDryRun=%v, Input.OutputCommitment[0]=%v, Input.OutputCommitment[1]=%v\n", 
+		isDryRun, c.Input.OutputCommitment[0], c.Input.OutputCommitment[1])
+
+	// Handle dry run mode: synchronize outputCommit across circuit and assignment instances
 	if ctxVal, ok := dryRunContexts.Load(c); ok {
 		ctx := ctxVal.(*dryRunContext)
 		ctx.mu.Lock()
@@ -88,10 +97,13 @@ func (c *HostCircuit) Define(gapi frontend.API) error {
 			ctx.outputCommit = outputCommit
 		}
 		ctx.mu.Unlock()
-		// Update this instance's Input.OutputCommitment so assertions below work
+		// In dry run mode, update Input.OutputCommitment dynamically
 		c.Input.OutputCommitment = outputCommit
 	}
 
+	// Assert that the computed output matches the expected output
+	// In dry run mode, Input.OutputCommitment is set above
+	// In proof generation mode, Input.OutputCommitment should already be set from BuildCircuitInputStage2
 	gapi.AssertIsEqual(outputCommit[0], c.Input.OutputCommitment[0])
 	gapi.AssertIsEqual(outputCommit[1], c.Input.OutputCommitment[1])
 
