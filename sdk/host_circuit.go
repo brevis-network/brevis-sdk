@@ -328,9 +328,13 @@ func dryRun(in CircuitInput, guest AppCircuit) (OutputCommitment, []byte, error)
 		outputCommit: OutputCommitment{nil, nil},
 	}
 
-	// Store context for this circuit instance
+	// Store context for both circuit and assignment instance (they share the same context)
 	dryRunContexts.Store(circuit, ctx)
-	defer dryRunContexts.Delete(circuit)
+	dryRunContexts.Store(assignment, ctx)
+	defer func() {
+		dryRunContexts.Delete(circuit)
+		dryRunContexts.Delete(assignment)
+	}()
 
 	err := test.IsSolved(circuit, assignment, ecc.BN254.ScalarField())
 	if err != nil {
