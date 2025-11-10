@@ -78,10 +78,18 @@ func (c *HostCircuit) Define(gapi frontend.API) error {
 	gapi.AssertIsEqual(inputCommitmentRoot, c.Input.InputCommitmentsRoot)
 	outputCommit := c.commitOutput(api.output)
 
-	// Store output commit in the context for this circuit instance
 	if ctxVal, ok := dryRunContexts.Load(c); ok {
 		ctx := ctxVal.(*dryRunContext)
-		ctx.outputCommit = outputCommit
+		ctx.mu.Lock()
+		// If outputCommit is already set (by the other instance), use it
+		if ctx.outputCommit[0] != nil && ctx.outputCommit[1] != nil {
+			outputCommit = ctx.outputCommit
+		} else {
+			ctx.outputCommit = outputCommit
+		}
+		ctx.mu.Unlock()
+		// Update this instance's Input.OutputCommitment so assertions below work
+		c.Input.OutputCommitment = outputCommit
 	}
 
 	gapi.AssertIsEqual(outputCommit[0], c.Input.OutputCommitment[0])
