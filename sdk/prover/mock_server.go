@@ -520,10 +520,12 @@ func buildMockInputStage2(appCircuit sdk.AppCircuit, brevisApp *sdk.BrevisApp, r
 	}
 	log.Infof("assignCustomInput done in %s", time.Since(start))
 
+	start = time.Now()
 	input, err := brevisApp.BuildCircuitInputStage2(guest, *inputStage1)
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("BuildCircuitInputStage2 err: %w", err)
 	}
+	log.Infof("buildInputStage2AndProve> BuildCircuitInputStage2 done in %s", time.Since(start))
 
 	return &input, guest, "", nil
 }
