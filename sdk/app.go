@@ -578,10 +578,15 @@ func (q *BrevisApp) BuildCircuitInputStage2(app AppCircuit, in CircuitInput) (Ci
 	q.assignToggleCommitment(&in)
 
 	// dry run without assigning the output commitment first to compute the output commitment using the user circuit
+	log.Infof("BuildCircuitInputStage2: About to call dryRun")
 	outputCommit, output, err := dryRun(in, app)
 	if err != nil {
+		log.Errorf("BuildCircuitInputStage2: dryRun failed: %v", err)
 		return buildCircuitInputErr("failed to generate output commitment", err)
 	}
+	log.Infof("BuildCircuitInputStage2: dryRun returned outputCommit[0]=%v, outputCommit[1]=%v", 
+		outputCommit[0], outputCommit[1])
+	
 	in.OutputCommitment = outputCommit
 	// cache dry-run output to be used in building gateway request later
 	in.dryRunOutput = output
@@ -589,7 +594,7 @@ func (q *BrevisApp) BuildCircuitInputStage2(app AppCircuit, in CircuitInput) (Ci
 	q.circuitInput = in // cache the generated circuit input for later use in building gateway request
 	q.buildInputCalled = true
 	fmt.Printf("output %x\n", output)
-	fmt.Printf("BuildCircuitInputStage2: setting OutputCommitment[0]=%v, OutputCommitment[1]=%v\n",
+	log.Infof("BuildCircuitInputStage2: FINAL setting OutputCommitment[0]=%v, OutputCommitment[1]=%v",
 		in.OutputCommitment[0], in.OutputCommitment[1])
 
 	return in, nil

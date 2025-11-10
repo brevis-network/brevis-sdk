@@ -10,6 +10,7 @@ import (
 
 	"github.com/brevis-network/brevis-sdk/common/utils"
 	"github.com/brevis-network/brevis-sdk/sdk/srs"
+	"github.com/celer-network/goutils/log"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend"
 	"github.com/consensys/gnark/backend/plonk"
@@ -58,7 +59,14 @@ func CompileWithHashInfo(app AppCircuit, compileOutDir, srsDir string, hashInfo 
 
 func NewFullWitness(assign AppCircuit, in CircuitInput) (w, wpub witness.Witness, err error) {
 	fmt.Println(">> generate full witness")
-	host := NewHostCircuit(in.Clone(), assign)
+	log.Infof("NewFullWitness: received in.OutputCommitment[0]=%v, in.OutputCommitment[1]=%v", 
+		in.OutputCommitment[0], in.OutputCommitment[1])
+	
+	cloned := in.Clone()
+	log.Infof("NewFullWitness: after Clone, cloned.OutputCommitment[0]=%v, cloned.OutputCommitment[1]=%v", 
+		cloned.OutputCommitment[0], cloned.OutputCommitment[1])
+	
+	host := NewHostCircuit(cloned, assign)
 
 	w, err = frontend.NewWitness(host, ecc.BN254.ScalarField())
 	if err != nil {
