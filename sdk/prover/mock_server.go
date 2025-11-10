@@ -148,30 +148,42 @@ func (s *mockServer) buildInputStage2AndProve(brevisApp *sdk.BrevisApp, appCircu
 		return nil, err
 	}
 
+	start := time.Now()
 	appCircuitInfo := buildFullAppCircuitInfo(appCircuit, *input, vkString, vkHash, witnessStr)
+	log.Infof("buildInputStage2AndProve> buildFullAppCircuitInfo done in %s", time.Since(start))
+
+	start = time.Now()
 	appCircuitInfoBytes, err := proto.Marshal(appCircuitInfo)
 	if err != nil {
 		return nil, fmt.Errorf("proto.Marshal for circuit info err: %w", err)
 	}
+	log.Infof("buildInputStage2AndProve> proto.Marshal done in %s", time.Since(start))
 	// Transition to ProveStatusInProgress once we have complete AppCircuitInfo
 	proveRequest.Status = ProveStatusInProgress
 	proveRequest.AppCircuitInfo = appCircuitInfoBytes
 	proveRequest.Status = ProveStatusSuccess
 
+	start = time.Now()
 	proofBytes, err := s.getProof(proveRequest)
 	if err != nil {
 		log.Errorf("failed to get proof: %s", err.Error())
 		return nil, fmt.Errorf("failed to get proof: %w", err)
 	}
+	log.Infof("buildInputStage2AndProve> getProof done in %s", time.Since(start))
+
+	start = time.Now()
 	proof := common.Bytes2Hex(proofBytes)
 	proveRequest.Proof = proof
 	proofId := crypto.Keccak256Hash(proofBytes).Hex()
+	log.Infof("buildInputStage2AndProve> proof ID generated in %s", time.Since(start))
 
+	start = time.Now()
 	setProofErr := s.setProveRequest(proofId, proveRequest)
 	if setProofErr != nil {
 		log.Errorln("failed to set proof:", setProofErr.Error())
 		return nil, fmt.Errorf("failed to set proof: %w", setProofErr)
 	}
+	log.Infof("buildInputStage2AndProve> setProveRequest done in %s", time.Since(start))
 	return &proofId, nil
 }
 
