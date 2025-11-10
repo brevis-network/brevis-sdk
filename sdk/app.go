@@ -589,7 +589,7 @@ func (q *BrevisApp) BuildCircuitInputStage2(app AppCircuit, in CircuitInput) (Ci
 	q.circuitInput = in // cache the generated circuit input for later use in building gateway request
 	q.buildInputCalled = true
 	fmt.Printf("output %x\n", output)
-	fmt.Printf("BuildCircuitInputStage2: setting OutputCommitment[0]=%v, OutputCommitment[1]=%v\n", 
+	fmt.Printf("BuildCircuitInputStage2: setting OutputCommitment[0]=%v, OutputCommitment[1]=%v\n",
 		in.OutputCommitment[0], in.OutputCommitment[1])
 
 	return in, nil
