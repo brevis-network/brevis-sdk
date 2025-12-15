@@ -1,1 +1,0 @@
-# Brevis SDK Contract Examples
