@@ -175,7 +175,10 @@ func convertReceiptDataToReceipt(r *ReceiptData) Receipt {
 	for i := len(r.Fields); i < NumMaxLogFields; i++ {
 		fields[i] = fields[len(r.Fields)-1]
 	}
-
+	baseFee := big.NewInt(0)
+	if r.BlockBaseFee != nil {
+		baseFee = r.BlockBaseFee
+	}
 	return Receipt{
 		BlockNum:       newU32(r.BlockNum),
 		BlockBaseFee:   newU248(r.BlockBaseFee),
@@ -221,6 +224,10 @@ func ConvertStorageDataToStorage(data *StorageData) StorageSlot {
 }
 
 func convertStorageDataToStorage(data *StorageData) StorageSlot {
+	baseFee := big.NewInt(0)
+	if data.BlockBaseFee != nil {
+		baseFee = data.BlockBaseFee
+	}
 	return StorageSlot{
 		BlockNum:       newU32(data.BlockNum),
 		BlockBaseFee:   newU248(data.BlockBaseFee),
@@ -266,6 +273,10 @@ func ConvertTxDataToTransaction(data *TransactionData) Transaction {
 }
 
 func convertTxDataToTransaction(data *TransactionData) Transaction {
+	baseFee := big.NewInt(0)
+	if data.BlockBaseFee != nil {
+		baseFee = data.BlockBaseFee
+	}
 	return Transaction{
 		BlockNum:       ConstUint32(data.BlockNum),
 		BlockBaseFee:   newU248(data.BlockBaseFee),
