@@ -282,17 +282,6 @@ func newBrevisApp(
 		return nil, fmt.Errorf("GetAbi err: %w", err)
 	}
 
-	resp, err := gc.c.GetCircuitDigest(context.Background(), &gwproto.CircuitDigestRequest{})
-	if err != nil {
-		return nil, fmt.Errorf("GetCircuitDigest err: %w", err)
-	}
-	if resp.Err != nil {
-		return nil, fmt.Errorf("GetCircuitDigest responded with err: %s", resp.Err)
-	}
-	if len(resp.HashesLimbs) != 12 {
-		return nil, fmt.Errorf("invalid circuit digest hashes number of limbs: %d", len(resp.HashesLimbs))
-	}
-
 	if concurrentFetchLimit <= 0 {
 		concurrentFetchLimit = defaultConcurrentFetchLimit
 	}
@@ -323,20 +312,7 @@ func newBrevisApp(
 		txs:                  rawData[TransactionData]{},
 		concurrentFetchLimit: concurrentFetchLimit,
 		dataStore:            dataStore,
-		BrevisHashInfo: &BrevisHashInfo{
-			P2AggRecursionLeafCircuitDigestHash:                 &pgoldilocks.HashOut256{resp.HashesLimbs[0], resp.HashesLimbs[1], resp.HashesLimbs[2], resp.HashesLimbs[3]},
-			P2AggRecursionMiddleFormMiddleLeafCircuitDigestHash: &pgoldilocks.HashOut256{resp.HashesLimbs[4], resp.HashesLimbs[5], resp.HashesLimbs[6], resp.HashesLimbs[7]},
-			P2AggRecursionNoLeafCircuitDigestHash:               &pgoldilocks.HashOut256{resp.HashesLimbs[8], resp.HashesLimbs[9], resp.HashesLimbs[10], resp.HashesLimbs[11]},
-
-			GnarkReceiptVkHash:    commonutils.Hex2BigInt(resp.GnarkVks[0]),
-			GnarkStorageVkHash:    commonutils.Hex2BigInt(resp.GnarkVks[1]),
-			GnarkTxVkHash:         commonutils.Hex2BigInt(resp.GnarkVks[2]),
-			GnarkMiddleNodeVkHash: commonutils.Hex2BigInt(resp.GnarkVks[3]),
-
-			P2Bn128WrapCircuitDigestHashForOnly2Leaf:             commonutils.Hex2BigInt(resp.GnarkVks[4]),
-			P2Bn128WrapCircuitDigestHashForOnlyFromLeafRecursion: commonutils.Hex2BigInt(resp.GnarkVks[5]),
-			P2Bn128WrapCircuitDigestHash:                         commonutils.Hex2BigInt(resp.GnarkVks[6]),
-		},
+		BrevisHashInfo:       &BrevisHashInfo{},
 	}, nil
 }
 
@@ -559,22 +535,15 @@ func (q *BrevisApp) BuildCircuitInputStage2(app AppCircuit, in CircuitInput) (Ci
 		return buildCircuitInputErr("failed to build input", err)
 	}
 
-	dummyResponse, err := q.gc.GetCircuitDummyInput(&gwproto.CircuitDummyInputRequest{
-		ChainId: q.srcChainId,
-	})
-	if err != nil || dummyResponse == nil {
-		return buildCircuitInputErr("failed to get dummy information from brevis gateway", err)
-	}
-	if dummyResponse.Err != nil || len(dummyResponse.Receipt) == 0 ||
-		len(dummyResponse.Storage) == 0 || len(dummyResponse.Tx) == 0 {
-		return CircuitInput{}, fmt.Errorf("failed to get dummy information from brevis gateway: %s", dummyResponse.Err.Msg)
-	}
-
 	// 1. mimc hash data at each position to generate and assign input commitments and toggles commitment
 	// 2. dry-run user circuit to generate output and output commitment
 
 	// commitment
-	q.assignInputCommitment(&in, dummyResponse)
+	q.assignInputCommitment(&in, &gwproto.CircuitDummyInputResponse{
+		Receipt: "0x0000000000000000000000000000000000000000000000000000000000000000",
+		Tx:      "0x0000000000000000000000000000000000000000000000000000000000000000",
+		Storage: "0x0000000000000000000000000000000000000000000000000000000000000000",
+	})
 	q.assignToggleCommitment(&in)
 
 	// dry run without assigning the output commitment first to compute the output commitment using the user circuit

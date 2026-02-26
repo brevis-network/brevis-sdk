@@ -181,7 +181,7 @@ func convertReceiptDataToReceipt(r *ReceiptData) Receipt {
 	}
 	return Receipt{
 		BlockNum:       newU32(r.BlockNum),
-		BlockBaseFee:   newU248(r.BlockBaseFee),
+		BlockBaseFee:   newU248(baseFee),
 		MptKeyPath:     newU32(r.MptKeyPath),
 		Fields:         fields,
 		BlockTimestamp: newU248(r.BlockTimestamp),
@@ -230,7 +230,7 @@ func convertStorageDataToStorage(data *StorageData) StorageSlot {
 	}
 	return StorageSlot{
 		BlockNum:       newU32(data.BlockNum),
-		BlockBaseFee:   newU248(data.BlockBaseFee),
+		BlockBaseFee:   newU248(baseFee),
 		Contract:       ConstUint248(data.Address),
 		Slot:           ConstFromBigEndianBytes(data.Slot[:]),
 		Value:          ConstFromBigEndianBytes(data.Value[:]),
@@ -279,7 +279,7 @@ func convertTxDataToTransaction(data *TransactionData) Transaction {
 	}
 	return Transaction{
 		BlockNum:       ConstUint32(data.BlockNum),
-		BlockBaseFee:   newU248(data.BlockBaseFee),
+		BlockBaseFee:   newU248(baseFee),
 		MptKeyPath:     newU32(data.MptKeyPath),
 		LeafHash:       ConstFromBigEndianBytes(data.LeafHash.Bytes()),
 		BlockTimestamp: newU248(data.BlockTimestamp),
