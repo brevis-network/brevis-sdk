@@ -61,15 +61,16 @@ func (q *BrevisApp) buildMockReceipt(r ReceiptData) (Receipt, error) {
 		}
 	}
 	return Receipt{
-		BlockNum:     newU32(r.BlockNum),
-		BlockBaseFee: newU248(r.BlockBaseFee),
-		MptKeyPath:   newU32(r.MptKeyPath),
-		Fields:       fields,
+		BlockNum:       newU32(r.BlockNum),
+		BlockBaseFee:   newU248(r.BlockBaseFee),
+		MptKeyPath:     newU32(r.MptKeyPath),
+		Fields:         fields,
+		BlockTimestamp: newU248(r.BlockTimestamp),
 	}, nil
 }
 
 func (q *BrevisApp) assignMockStorageSlots(in *CircuitInput) (err error) {
-	// assigning user appointed data at specific indices
+	// assigning user appointed slots at specific indices
 	for i, val := range q.mockStorage.special {
 		s, err := q.buildMockStorageSlot(val)
 		if err != nil {
@@ -79,7 +80,7 @@ func (q *BrevisApp) assignMockStorageSlots(in *CircuitInput) (err error) {
 		in.StorageSlots.Toggles[i] = 1
 	}
 
-	// distribute other data in order to the rest of the unassigned spaces
+	// distribute other slots in order to the rest of the unassigned spaces
 	j := 0
 	for _, val := range q.mockStorage.ordered {
 		for in.StorageSlots.Toggles[j] == 1 {
@@ -99,16 +100,17 @@ func (q *BrevisApp) assignMockStorageSlots(in *CircuitInput) (err error) {
 
 func (q *BrevisApp) buildMockStorageSlot(s StorageData) (StorageSlot, error) {
 	return StorageSlot{
-		BlockNum:     newU32(s.BlockNum),
-		BlockBaseFee: newU248(s.BlockBaseFee),
-		Contract:     ConstUint248(s.Address),
-		Slot:         ConstFromBigEndianBytes(s.Slot[:]),
-		Value:        ConstFromBigEndianBytes(s.Value[:]),
+		BlockNum:       newU32(s.BlockNum),
+		BlockBaseFee:   newU248(s.BlockBaseFee),
+		Contract:       ConstUint248(s.Address),
+		Slot:           ConstFromBigEndianBytes(s.Slot[:]),
+		Value:          ConstFromBigEndianBytes(s.Value[:]),
+		BlockTimestamp: newU248(s.BlockTimestamp),
 	}, nil
 }
 
 func (q *BrevisApp) assignMockTransactions(in *CircuitInput) (err error) {
-	// assigning user appointed data at specific indices
+	// assigning user appointed txs at specific indices
 	for i, t := range q.txs.special {
 		tx, err := q.buildTx(t)
 		if err != nil {
@@ -118,6 +120,7 @@ func (q *BrevisApp) assignMockTransactions(in *CircuitInput) (err error) {
 		in.Transactions.Toggles[i] = 1
 	}
 
+	// distribute other txs in order to the rest of the unassigned spaces
 	j := 0
 	for i, t := range q.txs.ordered {
 		for in.Transactions.Toggles[j] == 1 {

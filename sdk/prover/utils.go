@@ -2,7 +2,9 @@ package prover
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"github.com/celer-network/goutils/log"
 	"math/big"
 
 	"github.com/brevis-network/brevis-sdk/sdk"
@@ -33,7 +35,7 @@ func hex2Hash(s string) common.Hash {
 	return common.BytesToHash(hex2Bytes(s))
 }
 
-func buildAppCircuitInfo(app sdk.AppCircuit, in sdk.CircuitInput, vk, vkHash, witness string) *commonproto.AppCircuitInfo {
+func buildFullAppCircuitInfo(app sdk.AppCircuit, in sdk.CircuitInput, vk, vkHash, witness string) *commonproto.AppCircuitInfo {
 	inputCommitments := make([]string, len(in.InputCommitments))
 	for i, value := range in.InputCommitments {
 		inputCommitments[i] = fmt.Sprintf("0x%x", value)
@@ -64,6 +66,25 @@ func buildAppCircuitInfo(app sdk.AppCircuit, in sdk.CircuitInput, vk, vkHash, wi
 	}
 }
 
+func buildPartialAppCircuitInfoForGatewayRequest(app sdk.AppCircuit, in *sdk.CircuitInput, vkHash string) *commonproto.AppCircuitInfo {
+	toggles := make([]bool, len(in.Toggles()))
+	for i, value := range in.Toggles() {
+		toggles[i] = fmt.Sprintf("%x", value) == "1"
+	}
+
+	maxReceipts, maxStorage, maxTxs := app.Allocate()
+	dataPoints := sdk.DataPointsNextPowerOf2(maxReceipts + maxStorage + maxTxs)
+
+	return &commonproto.AppCircuitInfo{
+		Toggles:          toggles,
+		VkHash:           vkHash,
+		MaxReceipts:      uint32(maxReceipts),
+		MaxStorage:       uint32(maxStorage),
+		MaxTx:            uint32(maxTxs),
+		MaxNumDataPoints: uint32(dataPoints),
+	}
+}
+
 func parseHash(encoded string) (common.Hash, error) {
 	value, ok := new(big.Int).SetString(encoded, 0)
 	if !ok {
@@ -89,6 +110,25 @@ func parseBig(encoded string) (*big.Int, error) {
 }
 
 func convertProtoReceiptToSdkReceipt(in *sdkproto.ReceiptData) (sdk.ReceiptData, error) {
+	if in.ReceiptDataJsonHex != "" {
+		bytes, decodeErr := hexutil.Decode(in.ReceiptDataJsonHex)
+		if decodeErr != nil {
+			fmt.Printf("Error decoding receipt %s data: %s\n", in.ReceiptDataJsonHex, decodeErr.Error())
+			// try to use origin logic
+		} else {
+			var data sdk.ReceiptData
+			err := json.Unmarshal(bytes, &data)
+			if err != nil {
+				fmt.Printf("Error decoding receipt %s data: %s\n", in.ReceiptDataJsonHex, err.Error())
+				// try to use origin logic
+			} else {
+				log.Infof("receipt data is ready, no need to call rpc")
+				return data, nil
+			}
+		}
+	}
+	log.Infof("receipt data not ready, call rpc now")
+
 	fields := make([]sdk.LogFieldData, len(in.Fields))
 	if len(in.Fields) == 0 {
 		return sdk.ReceiptData{}, fmt.Errorf("invalid log field")
@@ -117,6 +157,24 @@ func convertProtoFieldToSdkLogField(in *sdkproto.Field) (sdk.LogFieldData, error
 }
 
 func convertProtoStorageToSdkStorage(in *sdkproto.StorageData) (sdk.StorageData, error) {
+	if in.StorageDataJsonHex != "" {
+		bytes, decodeErr := hexutil.Decode(in.StorageDataJsonHex)
+		if decodeErr != nil {
+			fmt.Printf("Error decoding storage %s data: %s\n", in.StorageDataJsonHex, decodeErr.Error())
+			// try to use origin logic
+		} else {
+			var data sdk.StorageData
+			err := json.Unmarshal(bytes, &data)
+			if err != nil {
+				fmt.Printf("Error decoding storage %s data: %s\n", in.StorageDataJsonHex, err.Error())
+				// try to use origin logic
+			} else {
+				log.Infof("storage data is ready, no need to call rpc")
+				return data, nil
+			}
+		}
+	}
+	log.Infof("storage data not ready, call rpc now")
 	return sdk.StorageData{
 		BlockNum: new(big.Int).SetUint64(in.BlockNum),
 		Address:  hex2Addr(in.Address),
@@ -125,7 +183,32 @@ func convertProtoStorageToSdkStorage(in *sdkproto.StorageData) (sdk.StorageData,
 }
 
 func convertProtoTxToSdkTx(in *sdkproto.TransactionData) (sdk.TransactionData, error) {
+	if in.TransactionDataJsonHex != "" {
+		bytes, decodeErr := hexutil.Decode(in.TransactionDataJsonHex)
+		if decodeErr != nil {
+			fmt.Printf("Error decoding transaction %s data: %s\n", in.TransactionDataJsonHex, decodeErr.Error())
+			// try to use origin logic
+		} else {
+			var data sdk.TransactionData
+			err := json.Unmarshal(bytes, &data)
+			if err != nil {
+				fmt.Printf("Error decoding transaction %s data: %s\n", in.TransactionDataJsonHex, err.Error())
+				// try to use origin logic
+			} else {
+				log.Infof("receipt data is ready, no need to call rpc")
+				return data, nil
+			}
+		}
+	}
+	log.Infof("transaction data not ready, call rpc now")
 	return sdk.TransactionData{
 		Hash: hex2Hash(in.Hash),
 	}, nil
+}
+
+func newErr(code sdkproto.ErrCode, format string, args ...any) *sdkproto.Err {
+	return &sdkproto.Err{
+		Code: code,
+		Msg:  fmt.Sprintf(format, args...),
+	}
 }

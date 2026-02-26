@@ -19,12 +19,17 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	Gateway_PrepareQuery_FullMethodName          = "/brevis.Gateway/PrepareQuery"
-	Gateway_SubmitAppCircuitProof_FullMethodName = "/brevis.Gateway/SubmitAppCircuitProof"
-	Gateway_GetQueryStatus_FullMethodName        = "/brevis.Gateway/GetQueryStatus"
-	Gateway_GetQueryInfoForOP_FullMethodName     = "/brevis.Gateway/GetQueryInfoForOP"
-	Gateway_GetSingleRunParams_FullMethodName    = "/brevis.Gateway/GetSingleRunParams"
-	Gateway_SendBatchQueries_FullMethodName      = "/brevis.Gateway/SendBatchQueries"
+	Gateway_PrepareQuery_FullMethodName                = "/brevis.Gateway/PrepareQuery"
+	Gateway_SubmitAppCircuitProof_FullMethodName       = "/brevis.Gateway/SubmitAppCircuitProof"
+	Gateway_GetQueryStatus_FullMethodName              = "/brevis.Gateway/GetQueryStatus"
+	Gateway_GetQueryInfoForOP_FullMethodName           = "/brevis.Gateway/GetQueryInfoForOP"
+	Gateway_GetSingleRunParams_FullMethodName          = "/brevis.Gateway/GetSingleRunParams"
+	Gateway_SendBatchQueries_FullMethodName            = "/brevis.Gateway/SendBatchQueries"
+	Gateway_SendBatchQueriesAsync_FullMethodName       = "/brevis.Gateway/SendBatchQueriesAsync"
+	Gateway_GetQueryKeysByBatchId_FullMethodName       = "/brevis.Gateway/GetQueryKeysByBatchId"
+	Gateway_GetCircuitDigest_FullMethodName            = "/brevis.Gateway/GetCircuitDigest"
+	Gateway_GetCircuitDummyInputRequest_FullMethodName = "/brevis.Gateway/GetCircuitDummyInputRequest"
+	Gateway_SubmitVK_FullMethodName                    = "/brevis.Gateway/SubmitVK"
 )
 
 // GatewayClient is the client API for Gateway service.
@@ -37,6 +42,11 @@ type GatewayClient interface {
 	GetQueryInfoForOP(ctx context.Context, in *GetQueryInfoForOPRequest, opts ...grpc.CallOption) (*GetQueryInfoForOPResponse, error)
 	GetSingleRunParams(ctx context.Context, in *GetSingleRunParamsRequest, opts ...grpc.CallOption) (*GetSingleRunParamsResponse, error)
 	SendBatchQueries(ctx context.Context, in *SendBatchQueriesRequest, opts ...grpc.CallOption) (*SendBatchQueriesResponse, error)
+	SendBatchQueriesAsync(ctx context.Context, in *SendBatchQueriesRequest, opts ...grpc.CallOption) (*SendBatchQueriesAsyncResponse, error)
+	GetQueryKeysByBatchId(ctx context.Context, in *GetQueryKeysByBatchIdRequest, opts ...grpc.CallOption) (*GetQueryKeysByBatchIdResponse, error)
+	GetCircuitDigest(ctx context.Context, in *CircuitDigestRequest, opts ...grpc.CallOption) (*CircuitDigestResponse, error)
+	GetCircuitDummyInputRequest(ctx context.Context, in *CircuitDummyInputRequest, opts ...grpc.CallOption) (*CircuitDummyInputResponse, error)
+	SubmitVK(ctx context.Context, in *SubmitVKRequest, opts ...grpc.CallOption) (*SubmitVKResponse, error)
 }
 
 type gatewayClient struct {
@@ -101,6 +111,51 @@ func (c *gatewayClient) SendBatchQueries(ctx context.Context, in *SendBatchQueri
 	return out, nil
 }
 
+func (c *gatewayClient) SendBatchQueriesAsync(ctx context.Context, in *SendBatchQueriesRequest, opts ...grpc.CallOption) (*SendBatchQueriesAsyncResponse, error) {
+	out := new(SendBatchQueriesAsyncResponse)
+	err := c.cc.Invoke(ctx, Gateway_SendBatchQueriesAsync_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *gatewayClient) GetQueryKeysByBatchId(ctx context.Context, in *GetQueryKeysByBatchIdRequest, opts ...grpc.CallOption) (*GetQueryKeysByBatchIdResponse, error) {
+	out := new(GetQueryKeysByBatchIdResponse)
+	err := c.cc.Invoke(ctx, Gateway_GetQueryKeysByBatchId_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *gatewayClient) GetCircuitDigest(ctx context.Context, in *CircuitDigestRequest, opts ...grpc.CallOption) (*CircuitDigestResponse, error) {
+	out := new(CircuitDigestResponse)
+	err := c.cc.Invoke(ctx, Gateway_GetCircuitDigest_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *gatewayClient) GetCircuitDummyInputRequest(ctx context.Context, in *CircuitDummyInputRequest, opts ...grpc.CallOption) (*CircuitDummyInputResponse, error) {
+	out := new(CircuitDummyInputResponse)
+	err := c.cc.Invoke(ctx, Gateway_GetCircuitDummyInputRequest_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *gatewayClient) SubmitVK(ctx context.Context, in *SubmitVKRequest, opts ...grpc.CallOption) (*SubmitVKResponse, error) {
+	out := new(SubmitVKResponse)
+	err := c.cc.Invoke(ctx, Gateway_SubmitVK_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GatewayServer is the server API for Gateway service.
 // All implementations should embed UnimplementedGatewayServer
 // for forward compatibility
@@ -111,6 +166,11 @@ type GatewayServer interface {
 	GetQueryInfoForOP(context.Context, *GetQueryInfoForOPRequest) (*GetQueryInfoForOPResponse, error)
 	GetSingleRunParams(context.Context, *GetSingleRunParamsRequest) (*GetSingleRunParamsResponse, error)
 	SendBatchQueries(context.Context, *SendBatchQueriesRequest) (*SendBatchQueriesResponse, error)
+	SendBatchQueriesAsync(context.Context, *SendBatchQueriesRequest) (*SendBatchQueriesAsyncResponse, error)
+	GetQueryKeysByBatchId(context.Context, *GetQueryKeysByBatchIdRequest) (*GetQueryKeysByBatchIdResponse, error)
+	GetCircuitDigest(context.Context, *CircuitDigestRequest) (*CircuitDigestResponse, error)
+	GetCircuitDummyInputRequest(context.Context, *CircuitDummyInputRequest) (*CircuitDummyInputResponse, error)
+	SubmitVK(context.Context, *SubmitVKRequest) (*SubmitVKResponse, error)
 }
 
 // UnimplementedGatewayServer should be embedded to have forward compatible implementations.
@@ -134,6 +194,21 @@ func (UnimplementedGatewayServer) GetSingleRunParams(context.Context, *GetSingle
 }
 func (UnimplementedGatewayServer) SendBatchQueries(context.Context, *SendBatchQueriesRequest) (*SendBatchQueriesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendBatchQueries not implemented")
+}
+func (UnimplementedGatewayServer) SendBatchQueriesAsync(context.Context, *SendBatchQueriesRequest) (*SendBatchQueriesAsyncResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SendBatchQueriesAsync not implemented")
+}
+func (UnimplementedGatewayServer) GetQueryKeysByBatchId(context.Context, *GetQueryKeysByBatchIdRequest) (*GetQueryKeysByBatchIdResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetQueryKeysByBatchId not implemented")
+}
+func (UnimplementedGatewayServer) GetCircuitDigest(context.Context, *CircuitDigestRequest) (*CircuitDigestResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCircuitDigest not implemented")
+}
+func (UnimplementedGatewayServer) GetCircuitDummyInputRequest(context.Context, *CircuitDummyInputRequest) (*CircuitDummyInputResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCircuitDummyInputRequest not implemented")
+}
+func (UnimplementedGatewayServer) SubmitVK(context.Context, *SubmitVKRequest) (*SubmitVKResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SubmitVK not implemented")
 }
 
 // UnsafeGatewayServer may be embedded to opt out of forward compatibility for this service.
@@ -255,6 +330,96 @@ func _Gateway_SendBatchQueries_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Gateway_SendBatchQueriesAsync_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SendBatchQueriesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GatewayServer).SendBatchQueriesAsync(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Gateway_SendBatchQueriesAsync_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GatewayServer).SendBatchQueriesAsync(ctx, req.(*SendBatchQueriesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Gateway_GetQueryKeysByBatchId_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetQueryKeysByBatchIdRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GatewayServer).GetQueryKeysByBatchId(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Gateway_GetQueryKeysByBatchId_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GatewayServer).GetQueryKeysByBatchId(ctx, req.(*GetQueryKeysByBatchIdRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Gateway_GetCircuitDigest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CircuitDigestRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GatewayServer).GetCircuitDigest(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Gateway_GetCircuitDigest_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GatewayServer).GetCircuitDigest(ctx, req.(*CircuitDigestRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Gateway_GetCircuitDummyInputRequest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CircuitDummyInputRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GatewayServer).GetCircuitDummyInputRequest(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Gateway_GetCircuitDummyInputRequest_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GatewayServer).GetCircuitDummyInputRequest(ctx, req.(*CircuitDummyInputRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Gateway_SubmitVK_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SubmitVKRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GatewayServer).SubmitVK(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Gateway_SubmitVK_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GatewayServer).SubmitVK(ctx, req.(*SubmitVKRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Gateway_ServiceDesc is the grpc.ServiceDesc for Gateway service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -285,6 +450,26 @@ var Gateway_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SendBatchQueries",
 			Handler:    _Gateway_SendBatchQueries_Handler,
+		},
+		{
+			MethodName: "SendBatchQueriesAsync",
+			Handler:    _Gateway_SendBatchQueriesAsync_Handler,
+		},
+		{
+			MethodName: "GetQueryKeysByBatchId",
+			Handler:    _Gateway_GetQueryKeysByBatchId_Handler,
+		},
+		{
+			MethodName: "GetCircuitDigest",
+			Handler:    _Gateway_GetCircuitDigest_Handler,
+		},
+		{
+			MethodName: "GetCircuitDummyInputRequest",
+			Handler:    _Gateway_GetCircuitDummyInputRequest_Handler,
+		},
+		{
+			MethodName: "SubmitVK",
+			Handler:    _Gateway_SubmitVK_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -48,7 +48,7 @@ func TestCircuit(t *testing.T) {
 
 func TestE2E(t *testing.T) {
 	// The compiled circuit, proving key, and verifying key are saved to outDir,,
-	// query data will be stored in outDir/input/data.json and
+	// query data will be stored under outDir/input and
 	// the downloaded SRS in the process is saved to srsDir
 	outDir := "$HOME/circuitOut/myBrevisApp"
 	srsDir := "$HOME/kzgsrs"
@@ -89,7 +89,7 @@ func TestE2E(t *testing.T) {
 	// Compiling and Setup
 	///////////////////////////////////////////////////////////////////////////////
 
-	compiledCircuit, pk, vk, _, err := sdk.Compile(appCircuit, outDir, srsDir)
+	compiledCircuit, pk, vk, _, err := sdk.Compile(appCircuit, outDir, srsDir, app)
 	check(err)
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -98,7 +98,7 @@ func TestE2E(t *testing.T) {
 
 	// Once you saved your ccs, pk, and vk files, you can read them back into memory
 	// for use with the provided utils
-	compiledCircuit, pk, vk, _, err = sdk.ReadSetupFrom(appCircuit, outDir)
+	compiledCircuit, pk, vk, _, err = sdk.ReadSetupFrom(appCircuit, outDir, app)
 	check(err)
 
 	fmt.Println(">> prove")
